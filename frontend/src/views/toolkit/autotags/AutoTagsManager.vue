@@ -25,9 +25,22 @@
               <n-button type="primary" ghost @click="copyUrl">复制</n-button>
             </n-input-group>
           </n-form-item>
-          <n-grid :cols="2" :x-gap="12">
+
+          <n-alert title="Emby Webhook 配置指南" type="info" :bordered="false" style="margin-bottom: 16px">
+            请在 Emby 后台添加此 URL，并确保：
+            <br />1. <b>请求内容类型</b>：选择 <b>application/json</b>
+            <br />2. <b>勾选事件</b>：必须勾选 <b>“已添加新媒体”</b> (library.new)
+          </n-alert>
+
+          <n-grid :cols="3" :x-gap="12">
             <n-form-item-gi label="安全密钥:">
               <n-input v-model:value="whConfig.secret_token" @blur="saveWH" placeholder="自定义 Token" />
+            </n-form-item-gi>
+            <n-form-item-gi label="写入模式:">
+              <n-select v-model:value="whConfig.write_mode" :options="[
+                { label: '合并现有标签', value: 'merge' },
+                { label: '覆盖所有标签', value: 'overwrite' }
+              ]" @update:value="saveWH" />
             </n-form-item-gi>
             <n-form-item-gi label="处理延迟(秒):">
               <n-input-number v-model:value="whConfig.delay_seconds" @blur="saveWH" :min="0" :max="3600" />
@@ -73,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed } from 'vue'
-import { NCard, NSpace, NButton, NPageHeader, NEmpty, NH3, NText, NIcon, useMessage, NForm, NFormItem, NInput, NInputGroup, NGrid, NFormItemGi, NSwitch, NInputNumber, NCheckbox } from 'naive-ui'
+import { NCard, NSpace, NButton, NPageHeader, NEmpty, NH3, NText, NIcon, useMessage, NForm, NFormItem, NInput, NInputGroup, NGrid, NFormItemGi, NSwitch, NInputNumber, NCheckbox, NSelect, NAlert } from 'naive-ui'
 import { SyncOutlined as SyncIcon, AddOutlined as AddIcon } from '@vicons/material'
 import axios from 'axios'
 

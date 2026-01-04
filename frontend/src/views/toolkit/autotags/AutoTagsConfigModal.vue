@@ -78,6 +78,7 @@ import {
   NModal, NForm, NFormItem, NInput, NSelect, NButton, NSpace, 
   NRadioGroup, NRadio, NCheckbox 
 } from 'naive-ui'
+import { COUNTRY_OPTIONS, GENRE_OPTIONS } from './constants'
 
 const props = defineProps<{ 
   show: boolean, 
@@ -92,17 +93,8 @@ const editingRule = ref<any>({
   conditions: { countries: [], genres: [], years_text: '' }
 })
 
-const countryOptions = [
-  "爱尔兰", "澳大利亚", "巴西", "比利时", "波兰", "丹麦", "德国", "俄罗斯", "法国", 
-  "韩国", "荷兰", "加拿大", "美国", "墨西哥", "挪威", "日本", "瑞典", "沙特阿拉伯", 
-  "泰国", "西班牙", "意大利", "印度", "英国", "中国澳门", "中国大陆", "中国台湾", "中国香港"
-].map(c => ({ label: c, value: c }))
-
-const genreOptions = [
-  "爱情", "电视电影", "动画", "动作", "动作冒险", "儿童", "犯罪", "肥皂剧", "纪录片", 
-  "家庭", "惊悚", "剧情", "科幻", "科幻奇幻", "恐怖", "历史", "冒险", "奇幻", 
-  "脱口秀", "西部", "喜剧", "新闻", "悬疑", "音乐", "战争", "战争政治", "真人秀"
-].map(g => ({ label: g, value: g }))
+const countryOptions = COUNTRY_OPTIONS
+const genreOptions = GENRE_OPTIONS
 
 watch(() => props.show, (val) => {
   if (val) {

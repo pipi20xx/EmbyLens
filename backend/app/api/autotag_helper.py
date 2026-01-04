@@ -36,7 +36,14 @@ class AutotagEmbyHelper:
         return []
 
     async def get_all_items(self):
-        resp = await self._request("GET", "/Items", params={"IncludeItemTypes": "Movie,Series", "Recursive": "true", "Fields": "ProviderIds,Tags,TagItems"})
+        # 必须带上 UserID 才能获取到 UserData（包含收藏状态）
+        path = f"/Users/{self.user_id}/Items" if self.user_id else "/Items"
+        params = {
+            "IncludeItemTypes": "Movie,Series", 
+            "Recursive": "true", 
+            "Fields": "ProviderIds,Tags,TagItems,UserData"
+        }
+        resp = await self._request("GET", path, params=params)
         return resp.json().get("Items", []) if resp and resp.status_code == 200 else []
 
     async def get_item_full_detail(self, item_id: str):

@@ -9,6 +9,7 @@ import httpx
 import time
 import uuid
 import asyncio
+import json
 
 router = APIRouter()
 
@@ -72,23 +73,45 @@ async def process_webhook_item(payload: Dict):
     """处理来自 Webhook 的单个项目"""
     config = get_config()
     wh_cfg = config.get("webhook", {})
-    if not wh_cfg.get("automation_enabled"): return
+    if not wh_cfg.get("automation_enabled"): 
+        logger.info("┃  [Webhook] 自动处理已关闭，跳过执行")
+        return
     
     # 1. 获取项目信息
     item = payload.get("Item", {})
     item_id = item.get("Id")
     item_name = item.get("Name")
     item_type = item.get("Type")
+    
+    # 特殊处理：如果是剧集(Episode)或季度(Season)，转而处理其所属的剧集系列(Series)
+    if item_type in ["Episode", "Season"]:
+        series_id = item.get("SeriesId")
+        if series_id:
+            logger.info(f"┃  📺 检测到{item_type}入库，将自动处理其所属剧集系列 (ID: {series_id})")
+            # 重新获取系列的信息
+            helper, _ = await get_helper()
+            series_item = await helper.get_item_full_detail(series_id)
+            if series_item:
+                item = series_item
+                item_id = series_id
+                item_name = item.get("Name")
+                item_type = item.get("Type")
+            else:
+                logger.error(f"┃  ❌ 无法获取所属剧集系列详情: {series_id}")
+                return
+
     tmdb_id = item.get("ProviderIds", {}).get("Tmdb")
     
-    if not all([item_id, item_type, tmdb_id]): 
-        logger.warning(f"┃  ⚠️ [Webhook] 项目信息缺失，跳过: {item_name} (ID: {item_id}, Type: {item_type}, TMDB: {tmdb_id})")
+    if not tmdb_id:
+        logger.warning(f"┃  ⚠️ [Webhook] 项目缺少 TMDB ID，无法自动化: {item_name} (Type: {item_type})")
         return
-    if item_type not in ["Movie", "Series"]: return
+        
+    if item_type not in ["Movie", "Series"]: 
+        return
     
     # 延迟执行，等待 Emby 元数据同步完成
     delay = wh_cfg.get("delay_seconds", 10)
-    logger.info(f"⏳ [Webhook] 任务已入队，等待 {delay}s 后执行: {item_name}")
+    logger.info(f"⏳ [Webhook] 任务启动，等待 {delay}s 以确保 Emby 元数据就绪: {item_name}")
     await asyncio.sleep(delay)
     
     # 2. 执行打标签逻辑
@@ -97,10 +120,10 @@ async def process_webhook_item(payload: Dict):
     tmdb_key = config.get("tmdb_api_key")
     
     m_type = "movie" if item_type == "Movie" else "tv"
-    logger.info(f"┃  ┣ 🌐 [TMDB] 正在获取详情: {item_name} (TMDB ID: {tmdb_id})")
+    logger.info(f"┃  ┣ 🌐 [Webhook TMDB] 正在获取详情: {item_name} (TMDB ID: {tmdb_id})")
     details = await fetch_tmdb_details(tmdb_key, tmdb_id, m_type)
     if not details: 
-        logger.error(f"┃  ┃  ❌ [TMDB] 获取详情失败，停止处理: {item_name}")
+        logger.error(f"┃  ┃  ❌ [Webhook TMDB] 获取详情失败: {item_name}")
         return
     
     # 元数据解析
@@ -118,10 +141,10 @@ async def process_webhook_item(payload: Dict):
     
     target_tags = tagger.generate_tags(props)
     if target_tags:
-        logger.info(f"┃  ┃  🎯 [匹配] 符合规则，目标标签: {target_tags}")
+        logger.info(f"┃  ┃  🎯 [Webhook 匹配] 目标标签: {target_tags}")
         await helper.update_item_metadata(item_id, target_tags, wh_cfg.get("write_mode", "merge"))
     else:
-        logger.info(f"┃  ┃  🟡 [跳过] 无规则匹配: {item_name}")
+        logger.info(f"┃  ┃  🟡 [Webhook 跳过] 无规则匹配: {item_name}")
 
 async def webhook_worker():
     """无限循环的后台 Webhook 消费者"""
@@ -145,7 +168,7 @@ async def run_autotag_task_isolated(request: TagActionRequest):
     
     all_items = await helper.get_all_items()
     if request.library_type == 'favorite': 
-        all_items = [i for i in all_items if i.get("IsFavorite")]
+        all_items = [i for i in all_items if i.get("UserData", {}).get("IsFavorite")]
         logger.info(f"┃  ⭐ 已过滤仅限收藏项目，待处理数量: {len(all_items)}")
     else:
         logger.info(f"┃  📦 待处理总数: {len(all_items)}")
@@ -241,14 +264,32 @@ async def run_clear_task_isolated(tags_to_remove: Optional[List[str]] = None):
 async def receive_webhook(token: str, payload: Dict = Body(...)):
     """接收并分发 Webhook"""
     wh_cfg = get_config().get("webhook", {})
-    if not wh_cfg.get("enabled"): raise HTTPException(status_code=403, detail="Webhook disabled")
-    if token != wh_cfg.get("secret_token"): raise HTTPException(status_code=401, detail="Invalid token")
-    
-    # 只处理媒体库新增事件 (Emby 典型事件: item.added)
     event = payload.get("Event")
-    if event == "item.added":
+    item = payload.get("Item", {})
+    item_name = item.get("Name", "Unknown")
+    
+    # 第一时间打出收到的所有 Webhook 概要，不带任何过滤
+    logger.info(f"📡 [Webhook] 收到请求 | 事件: {event} | 项目: {item_name} | Token校验: {'通过' if token == wh_cfg.get('secret_token') else '失败'}")
+    
+    # 打印完整 Payload 供用户排查
+    logger.info(f"📦 [Webhook Payload] 原始数据明细:\n{json.dumps(payload, indent=2, ensure_ascii=False)}")
+
+    if not wh_cfg.get("enabled"): 
+        logger.warning(f"┃  ⚠️ Webhook 功能在设置中已被禁用")
+        raise HTTPException(status_code=403, detail="Webhook disabled")
+        
+    if token != wh_cfg.get("secret_token"): 
+        logger.error(f"┃  ❌ 提供的 Token ({token}) 与配置不匹配")
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # 扩大匹配范围，记录下具体被忽略的原因
+    target_events = ["item.added", "ItemAdded", "LibraryChanged", "library.new"]
+    if event in target_events:
+        logger.info(f"┃  ✅ 命中目标事件，已入队等待处理...")
         await webhook_queue.put(payload)
         return {"status": "queued"}
+    
+    logger.info(f"┃  🟡 忽略非自动化目标事件: {event}")
     return {"status": "ignored", "event": event}
 
 @router.get("/rules")
