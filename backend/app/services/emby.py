@@ -62,9 +62,16 @@ class EmbyService:
         return resp.json().get("Items", []) if resp and resp.status_code == 200 else []
 
     async def get_item(self, item_id: str) -> Optional[Dict[str, Any]]:
-        endpoint = f"/Users/{self.user_id}/Items/{item_id}" if self.user_id else f"/Items/{item_id}"
-        resp = await self._request("GET", endpoint)
-        return resp.json() if resp and resp.status_code == 200 else None
+        """获取单个项目的完整元数据 (强制全字段模式)"""
+        full_fields = "ProviderIds,Name,Type,Id,Path,Overview,Genres,GenreItems,People,LockedFields,LockData,ChannelMappingInfo,MediaSources,MediaStreams"
+        params = {"Fields": full_fields}
+        try:
+            async with self._get_client() as client:
+                url = f"{self.url}/emby/Users/{self.user_id}/Items/{item_id}" if self.user_id else f"{self.url}/emby/Items/{item_id}"
+                response = await client.get(url, params={**params, "api_key": self.api_key})
+                return response.json() if response.status_code == 200 else None
+        except:
+            return None
 
     async def update_item(self, item_id: str, data: Dict[str, Any]) -> bool:
         """严格按照原版发送 POST 更新"""

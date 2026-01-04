@@ -39,7 +39,7 @@ async def save_config(config: ServerConfig, db: AsyncSession = Depends(get_db)):
     else:
         # 创建新配置
         server = EmbyServer(
-            id=1, # 强制固定 ID
+            id=1, 
             name=config.name,
             url=config.url,
             api_key=config.api_key,

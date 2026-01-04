@@ -32,7 +32,8 @@ import {
   CameraOutlined as LensIcon,
   SearchOutlined as SearchIcon,
   MyLocationOutlined as TargetIcon,
-  YoutubeSearchedForOutlined as DeepSearchIcon
+  YoutubeSearchedForOutlined as DeepSearchIcon,
+  PeopleAltOutlined as ActorIcon
 } from '@vicons/material'
 
 // Views
@@ -44,6 +45,7 @@ import LockManagerView from './views/toolkit/LockManager.vue'
 import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
+import ActorManagerView from './views/toolkit/ActorManager.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -54,35 +56,15 @@ function renderIcon(icon: Component) {
 
 const collapsed = ref(localStorage.getItem('embylens_sidebar_collapsed') === 'true')
 
-// --- Theme System (1:1 align with Anime-Manager) ---
+// --- Theme System ---
 type ThemeType = 'modern' | 'purple'
 const currentThemeType = ref<ThemeType>((localStorage.getItem('embylens_theme_type') as ThemeType) || 'purple')
 const showLogConsole = isLogConsoleOpen
 
 watch(currentThemeType, (val) => localStorage.setItem('embylens_theme_type', val))
-watch(collapsed, (val) => localStorage.getItem('embylens_sidebar_collapsed', String(val)))
+watch(collapsed, (val) => localStorage.setItem('embylens_sidebar_collapsed', String(val)))
 
-const themeOptions = [
-  { label: '暗夜紫韵 (Purple)', key: 'purple' },
-  { label: '现代极客 (Modern)', key: 'modern' }
-]
-
-// 1. 现代极客
-const modernOverrides: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#705df2',
-    primaryColorHover: '#8a7af5',
-    primaryColorPressed: '#5946d1',
-    borderRadius: '6px',
-    cardColor: '#1e1e24',
-    bodyColor: '#101014',
-    textColorBase: '#ffffff'
-  },
-  Card: { borderRadius: '10px' },
-  Button: { borderRadiusMedium: '6px' }
-}
-
-// 2. 暗夜紫韵
+// --- 配色方案 ---
 const purpleOverrides: GlobalThemeOverrides = {
   common: {
     primaryColor: '#bb86fc',
@@ -98,15 +80,25 @@ const purpleOverrides: GlobalThemeOverrides = {
   Button: { borderRadiusMedium: '10px' }
 }
 
+const modernOverrides: GlobalThemeOverrides = {
+  common: {
+    primaryColor: '#705df2',
+    primaryColorHover: '#8a7af5',
+    primaryColorPressed: '#5946d1',
+    borderRadius: '6px',
+    cardColor: '#1e1e24',
+    bodyColor: '#101014',
+    modalColor: '#25252b',
+    textColorBase: '#ffffff'
+  },
+  Card: { borderRadius: '10px' },
+  Button: { borderRadiusMedium: '6px' }
+}
+
 const themeOverrides = computed(() => {
-  const current = currentThemeType.value
-  const theme = current === 'purple' ? purpleOverrides : modernOverrides
-  
-  if (typeof document !== 'undefined') {
-    syncThemeVariables(theme)
-  }
-  
-  return theme
+  const overrides = currentThemeType.value === 'purple' ? purpleOverrides : modernOverrides
+  if (typeof document !== 'undefined') { syncThemeVariables(overrides) }
+  return overrides
 })
 
 const syncThemeVariables = (theme: GlobalThemeOverrides) => {
@@ -118,7 +110,6 @@ const syncThemeVariables = (theme: GlobalThemeOverrides) => {
 }
 
 onMounted(() => {
-  // 初始同步一次 CSS 变量
   const initialTheme = currentThemeType.value === 'purple' ? purpleOverrides : modernOverrides
   syncThemeVariables(initialTheme)
 })
@@ -132,14 +123,20 @@ const menuOptions: MenuOption[] = [
   { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
+  { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, SettingsView
+    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
+
+const themeOptions = [
+  { label: '暗夜紫韵 (Purple)', key: 'purple' },
+  { label: '现代极客 (Modern)', key: 'modern' }
+]
 </script>
 
 <template>
@@ -177,36 +174,15 @@ const currentView = computed(() => {
 
             <div class="sidebar-footer">
               <n-space :vertical="collapsed" justify="space-around" align="center" :size="[4, 8]">
-                <!-- 主题选择 -->
-                <n-dropdown 
-                  trigger="click" 
-                  :options="themeOptions" 
-                  @select="val => currentThemeType = val"
-                >
+                <n-dropdown trigger="click" :options="themeOptions" @select="val => currentThemeType = val">
                   <n-button circle secondary size="small" :type="currentThemeType === 'purple' ? 'primary' : 'info'">
                     <template #icon><n-icon><ThemeIcon /></n-icon></template>
                   </n-button>
                 </n-dropdown>
-
-                <!-- 设置入口 -->
-                <n-button 
-                  circle 
-                  secondary 
-                  size="small"
-                  :type="currentViewKey === 'SettingsView' ? 'primary' : 'default'"
-                  @click="currentViewKey = 'SettingsView'"
-                >
+                <n-button circle secondary size="small" :type="currentViewKey === 'SettingsView' ? 'primary' : 'default'" @click="currentViewKey = 'SettingsView'">
                   <template #icon><n-icon><SettingIcon /></n-icon></template>
                 </n-button>
-
-                <!-- 实时日志 -->
-                <n-button 
-                  circle 
-                  secondary 
-                  size="small"
-                  type="info" 
-                  @click="showLogConsole = true"
-                >
+                <n-button circle secondary size="small" type="info" @click="isLogConsoleOpen = true">
                   <template #icon><n-icon><ConsoleIcon /></n-icon></template>
                 </n-button>
               </n-space>
@@ -222,7 +198,7 @@ const currentView = computed(() => {
           </n-layout-content>
         </n-layout>
 
-        <n-modal v-model:show="showLogConsole" transform-origin="center">
+        <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
           <n-card
             style="width: 96vw; height: 96vh; display: flex; flex-direction: column;"
             content-style="padding: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden;"
@@ -239,38 +215,11 @@ const currentView = computed(() => {
 </template>
 
 <style scoped>
-.main-sider {
-  background-color: var(--sidebar-bg-color);
-  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
-}
-
-.logo-container {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  height: 50px;
-}
-
-.logo-text {
-  font-weight: 800;
-  font-size: 14px;
-  color: #eee;
-}
-
-.sidebar-footer {
-  padding: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.view-wrapper {
-  flex: 1;
-  width: 100%;
-}
-
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
+.main-sider { background-color: var(--sidebar-bg-color); border-right: 1px solid rgba(255, 255, 255, 0.06) !important; }
+.logo-container { display: flex; align-items: center; padding: 12px 16px; height: 50px; }
+.logo-text { font-weight: 800; font-size: 14px; color: #eee; }
+.sidebar-footer { padding: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.view-wrapper { flex: 1; width: 100%; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

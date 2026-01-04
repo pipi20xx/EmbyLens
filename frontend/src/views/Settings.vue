@@ -5,13 +5,13 @@
         <n-space vertical size="large">
           <div class="page-header">
             <n-h2 prefix="bar" align-text><n-text type="primary">系统集成配置</n-text></n-h2>
-            <n-text depth="3">统一管理您的 Emby 核心凭据与第三方集成密钥。</n-text>
+            <n-text depth="3">统一管理您的 Emby 核心凭据与第三方扩展 API 密钥。</n-text>
           </div>
 
           <!-- 1. Emby 核心连接 -->
-          <n-card title="Emby 服务端连接" size="small">
+          <n-card title="Emby 服务端连接" size="small" segmented>
             <template #header-extra>
-              <n-tag type="primary" round quaternary size="small">Emby Core</n-tag>
+              <n-icon size="20" color="#bb86fc"><ServerIcon /></n-icon>
             </template>
             <n-form label-placement="top" :model="serverForm" size="medium">
               <n-grid :cols="2" :x-gap="24">
@@ -31,17 +31,18 @@
             </n-form>
           </n-card>
 
-          <!-- 2. 第三方 API 集成 -->
-          <n-card title="第三方数据源集成" size="small">
+          <!-- 2. 扩展 API 服务集成 (通用化) -->
+          <n-card title="第三方 API 服务集成" size="small" status="info" segmented>
             <template #header-extra>
-              <n-tag type="info" round quaternary size="small">External API</n-tag>
+              <n-icon size="20" color="#01b4e4"><ApiIcon /></n-icon>
             </template>
-            <n-form label-placement="top" size="medium">
-              <n-grid :cols="1">
-                <n-form-item label="TMDB API Key (v3 auth)">
-                  <n-input v-model:value="serverForm.tmdb_api_key" type="password" show-password-on="mousedown" placeholder="用于获取高清剧照、演员信息及精准元数据匹配" />
-                </n-form-item>
-              </n-grid>
+            <n-form label-placement="left" label-width="140" size="medium">
+              <n-form-item label="TMDB API Key">
+                <n-input v-model:value="serverForm.tmdb_api_key" type="password" show-password-on="mousedown" placeholder="The Movie Database V3 Key" />
+              </n-form-item>
+              <n-form-item label="未来扩展接口">
+                <n-input disabled placeholder="更多第三方服务集成正在开发中..." />
+              </n-form-item>
             </n-form>
           </n-card>
 
@@ -64,7 +65,7 @@
           </n-card>
 
           <n-alert title="配置说明" type="info" bordered>
-            保存配置后，系统会自动尝试使用您的 API Key 进行一次全库元数据快照同步。TMDB Key 选填，但若缺失则部分高级匹配功能将无法使用。
+            所有的 API Key 均加密存储于本地 SQLite 数据库中。部分原子工具可能依赖特定第三方接口，请按需填入。
           </n-alert>
         </n-space>
       </div>
@@ -76,10 +77,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { 
   useMessage, NScrollbar, NSpace, NH2, NText, NCard, NTag, NIcon, 
-  NForm, NGrid, NFormItemGi, NInput, NCollapseTransition, NInputNumber, 
+  NForm, NGrid, NFormItemGi, NInput, NInputNumber, 
   NSelect, NThing, NSwitch, NDivider, NRadioGroup, NRadio, NCode, NAlert,
-  NButton
+  NButton, NFormItem
 } from 'naive-ui'
+import { 
+  DnsOutlined as ServerIcon,
+  ApiOutlined as ApiIcon 
+} from '@vicons/material'
 import axios from 'axios'
 
 const message = useMessage()
@@ -126,17 +131,16 @@ const handleTest = async () => {
 
 const handleSave = async () => {
   if (!serverForm.url || !serverForm.api_key) {
-    message.warning('服务器地址和 API Key 是必填项')
+    message.warning('服务器配置不能为空')
     return
   }
   saving.value = true
   try {
     const res = await axios.post('/api/server/save', serverForm)
     if (res.data) {
-      // 关键：将后端返回的最新对象（包含数据库 ID）同步回表单
       Object.assign(serverForm, res.data)
     }
-    message.success('全量配置已保存并应用')
+    message.success('配置已成功保存')
   } catch (e: any) {
     message.error(e.response?.data?.detail || '保存失败')
   } finally {

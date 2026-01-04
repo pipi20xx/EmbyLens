@@ -6,6 +6,7 @@ from .toolkit import router as toolkit_router
 from .emby_items import router as emby_items_router
 from .tmdb_lookup import router as tmdb_lookup_router
 from .tmdb_search import router as tmdb_search_router
+from .actors import router as actors_router
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ router.include_router(toolkit_router, prefix="/toolkit", tags=["Toolkit"])
 router.include_router(emby_items_router, prefix="/items", tags=["EmbyItems"])
 router.include_router(tmdb_lookup_router, prefix="/tmdb", tags=["TMDBLookup"])
 router.include_router(tmdb_search_router, prefix="/tmdb-search", tags=["TMDBSearch"])
+router.include_router(actors_router, prefix="/actors", tags=["Actors"])
 
 @router.get("/status")
 async def get_status():
