@@ -12,6 +12,10 @@ class MediaItem(Base):
     year = Column(Integer, nullable=True)
     parent_id = Column(String, index=True, nullable=True)
     
+    # 新增：编号信息，用于单集精准查重
+    season_num = Column(Integer, nullable=True)
+    episode_num = Column(Integer, nullable=True)
+    
     # 媒体规格信息 (从 MediaStreams 提取)
     display_title = Column(String, nullable=True)
     video_codec = Column(String, nullable=True)
