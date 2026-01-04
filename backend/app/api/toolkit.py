@@ -111,24 +111,42 @@ async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(g
 
 @router.post("/remover", response_model=MetadataManagerResponse)
 async def genre_remover(request: GenreRemoverRequest, db: AsyncSession = Depends(get_db)):
+    """1:1 源码复刻：类型移除逻辑"""
     service, user_id = await get_emby_context(db)
     processed = 0
+    start_time = time.time()
+    
+    to_remove = request.genres_to_remove
+    logger.info(f"🚀 开始 [类型移除] 任务 (目标: {to_remove if to_remove else 'ALL_CLEAN'}, 模式: {'预览' if request.dry_run else '实调'})")
+    
     for lib_name in request.lib_names:
         parent_id = await _get_library_id(service, lib_name)
         if not parent_id: continue
+        
         items = await _get_lib_items(service, parent_id, ["Movie", "Series"])
         for it_list in items:
             full_item = await _get_full_item(service, user_id, it_list["Id"])
             if not full_item: continue
-            genres = full_item.get("Genres", [])
-            if any(g in request.genres_to_remove for g in genres):
+            
+            original_genres = full_item.get("Genres", [])
+            # 核心判断：如果移除列表为空，且项目有标签，则标记修改；或者项目包含目标标签
+            should_modify = (not to_remove and original_genres) or (to_remove and any(g in to_remove for g in original_genres))
+            
+            if should_modify:
                 processed += 1
+                it_name = full_item.get("Name", full_item["Id"])
+                msg_prefix = "[预览]" if request.dry_run else "[执行]"
+                logger.info(f"┃  ┣ 🎯 {msg_prefix} 移除项目类型: {it_name}")
+                
                 if not request.dry_run:
-                    full_item["Genres"] = [g for g in genres if g not in request.genres_to_remove]
-                    full_item["GenreItems"] = [gi for gi in full_item.get("GenreItems", []) if gi.get("Name") not in request.genres_to_remove]
+                    # 1. 物理清空或过滤字符串列表
+                    full_item["Genres"] = [g for g in original_genres if g not in to_remove] if to_remove else []
+                    # 2. 物理清空或过滤对象列表
+                    full_item["GenreItems"] = [gi for gi in full_item.get("GenreItems", []) if gi.get("Name") not in to_remove] if to_remove else []
                     await service.update_item(full_item["Id"], full_item)
-                logger.info(f"┃  ┣ 🎯 移除项目类型: {full_item.get('Name')}")
-    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+                    
+    audit_log("类型移除结束", (time.time()-start_time)*1000, [f"影响条目: {processed}", f"模式: {request.dry_run}"])
+    return MetadataManagerResponse(message="移除操作完成", processed_count=processed, dry_run_active=request.dry_run)
 
 @router.post("/metadata_field_unlocker", response_model=MetadataManagerResponse)
 async def metadata_field_unlocker(request: MetadataUnlockerRequest, db: AsyncSession = Depends(get_db)):
