@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
@@ -39,17 +39,19 @@ async def get_emby_context(db: AsyncSession):
 class BulkDeleteRequest(BaseModel):
     item_ids: List[str]
 
+import asyncio
+
 # --- 接口实现 ---
 
 @router.post("/sync")
 async def sync_media(db: AsyncSession = Depends(get_db)):
-    """同步 Emby 媒体，包含 TMDB ID 继承逻辑"""
+    """同步 Emby 媒体数据，支持 10 并发并行拉取"""
     start_time = time.time()
     service = await get_emby_context(db)
-    logger.info("🚀 [同步] 开始全量拉取数据...")
+    logger.info("🚀 [同步] 启动高并发同步引擎 (Concurrency: 10)...")
     
-    unique_items = {} # id -> item_data
-    item_to_series_tmdb = {} # item_id -> series_tmdb_id (用于继承)
+    unique_items = {} 
+    item_to_series_tmdb = {}
 
     async def fetch_paged(types, p_id=None):
         fetched = []
@@ -71,47 +73,68 @@ async def sync_media(db: AsyncSession = Depends(get_db)):
             start += limit
         return fetched
 
-    # 1. 获取顶级项目
+    # 1. 抓取 Movie 和 Series
     top_items = await fetch_paged(["Movie", "Series"])
     for i in top_items:
         unique_items[i["Id"]] = i
         if i.get("Type") == "Series":
-            s_tmdb = i.get("ProviderIds", {}).get("Tmdb")
-            if s_tmdb: item_to_series_tmdb[i["Id"]] = s_tmdb
+            tmdb = i.get("ProviderIds", {}).get("Tmdb")
+            if tmdb: item_to_series_tmdb[i["Id"]] = tmdb
     
-    # 2. 获取剧集子项并继承 TMDB ID
+    # 2. 并行处理剧集子项
     series_items = [i for i in top_items if i.get("Type") == "Series"]
-    logger.info(f"┣ 📂 正在解析 {len(series_items)} 个剧集的单集信息...")
-    for s_item in series_items:
-        s_tmdb = item_to_series_tmdb.get(s_item["Id"])
-        children = await fetch_paged(["Season", "Episode"], p_id=s_item["Id"])
-        for child in children:
-            # 关键：如果单集没有 TMDB，强制继承剧集的 TMDB
-            if s_tmdb and not child.get("ProviderIds", {}).get("Tmdb"):
-                if "ProviderIds" not in child: child["ProviderIds"] = {}
-                child["ProviderIds"]["Tmdb"] = s_tmdb
-            unique_items[child["Id"]] = child
+    total_series = len(series_items)
+    logger.info(f"┣ 📂 准备并发处理 {total_series} 个剧集的子项...")
+
+    # 信号量控制并发数
+    sem = asyncio.Semaphore(10)
+    processed_count = 0
+
+    async def process_single_series(s_item):
+        nonlocal processed_count
+        async with sem:
+            s_tmdb = item_to_series_tmdb.get(s_item["Id"])
+            children = await fetch_paged(["Season", "Episode"], p_id=s_item["Id"])
+            for child in children:
+                # 继承逻辑
+                if s_tmdb and not child.get("ProviderIds", {}).get("Tmdb"):
+                    if "ProviderIds" not in child: child["ProviderIds"] = {}
+                    child["ProviderIds"]["Tmdb"] = s_tmdb
+                unique_items[child["Id"]] = child
+            
+            processed_count += 1
+            if processed_count % 20 == 0 or processed_count == total_series:
+                logger.info(f"┃  🕒 同步进度: {processed_count}/{total_series}...")
+
+    # 启动并行任务
+    tasks = [process_single_series(s) for s in series_items]
+    await asyncio.gather(*tasks)
     
-    # 3. 持久化
+    # 3. 入库操作
+    logger.info(f"┣ 💾 正在将 {len(unique_items)} 条数据存入本地库...")
     await db.execute(delete(MediaItem))
+    
     for item_id, item in unique_items.items():
         v = next((s for s in item.get("MediaStreams", []) if s.get("Type") == "Video"), {})
         a = next((s for s in item.get("MediaStreams", []) if s.get("Type") == "Audio"), {})
         
+        s_num = item.get("ParentIndexNumber") if item.get("Type") == "Episode" else item.get("IndexNumber") if item.get("Type") == "Season" else None
+        e_num = item.get("IndexNumber") if item.get("Type") == "Episode" else None
+        p_id = item.get("SeasonId") or item.get("SeriesId") or item.get("ParentId")
+        
         db.add(MediaItem(
             id=item["Id"], name=item.get("Name"), item_type=item.get("Type"),
             tmdb_id=item.get("ProviderIds", {}).get("Tmdb"), path=item.get("Path"),
-            year=item.get("ProductionYear"), 
-            parent_id=item.get("SeasonId") or item.get("SeriesId") or item.get("ParentId"),
-            season_num=item.get("ParentIndexNumber") if item.get("Type") == "Episode" else item.get("IndexNumber") if item.get("Type") == "Season" else None,
-            episode_num=item.get("IndexNumber") if item.get("Type") == "Episode" else None,
+            year=item.get("ProductionYear"), parent_id=p_id,
+            season_num=s_num, episode_num=e_num,
             display_title=v.get("DisplayTitle", "N/A"), video_codec=v.get("Codec", "N/A"),
             video_range=v.get("VideoRange", "N/A"), audio_codec=a.get("Codec", "N/A"),
             raw_data=item
         ))
     
     await db.commit()
-    logger.info(f"✅ [同步] 成功存入 {len(unique_items)} 条数据")
+    audit_log("高并发同步完成", (time.time()-start_time)*1000, [f"同步条数: {len(unique_items)}"])
+    logger.info(f"✅ [同步] 成功，总计耗时: {int(time.time()-start_time)}s")
     return {"message": "ok"}
 
 @router.get("/items")
@@ -134,12 +157,11 @@ async def get_all_items(query_text: Optional[str] = None, item_type: Optional[st
 
 @router.get("/duplicates")
 async def list_duplicates(db: AsyncSession = Depends(get_db)):
-    """查重模式：列出所有处于重复状态的节点"""
-    # 同步逻辑中的 ID 继承已经保证了单集有 tmdb_id
+    """获取所有重复的电影、剧集本体、单集"""
     body_sub = select(MediaItem.tmdb_id).where(MediaItem.item_type.in_(["Movie", "Series"])).where(MediaItem.tmdb_id.isnot(None)).group_by(MediaItem.tmdb_id).having(func.count(MediaItem.id) > 1).subquery()
-    ep_sub = select(MediaItem.tmdb_id, MediaItem.season_num, MediaItem.episode_num).where(MediaItem.item_type == "Episode").where(MediaItem.tmdb_id.isnot(None)).group_by(MediaItem.tmdb_id, MediaItem.season_num, MediaItem.episode_num).having(func.count(MediaItem.id) > 1).subquery()
+    bodies = await db.execute(select(MediaItem).where(MediaItem.tmdb_id.in_(select(body_sub))).where(MediaItem.item_type.in_(["Movie", "Series"])))
     
-    bodies = await db.execute(select(MediaItem).where(MediaItem.tmdb_id.in_(select(body_sub))))
+    ep_sub = select(MediaItem.tmdb_id, MediaItem.season_num, MediaItem.episode_num).where(MediaItem.item_type == "Episode").where(MediaItem.tmdb_id.isnot(None)).group_by(MediaItem.tmdb_id, MediaItem.season_num, MediaItem.episode_num).having(func.count(MediaItem.id) > 1).subquery()
     eps = await db.execute(select(MediaItem).join(ep_sub, (MediaItem.tmdb_id == ep_sub.c.tmdb_id) & (MediaItem.season_num == ep_sub.c.season_num) & (MediaItem.episode_num == ep_sub.c.episode_num)))
     
     res = []
@@ -148,14 +170,12 @@ async def list_duplicates(db: AsyncSession = Depends(get_db)):
     return res
 
 @router.post("/smart-select")
-async def smart_select_v3(db: AsyncSession = Depends(get_db)):
-    """核心：智能评分并输出详尽比对日志"""
+async def smart_select_v4(db: AsyncSession = Depends(get_db)):
+    """智能分析，支持区分命名空间"""
     config = get_config()
     rule_data = config.get("dedupe_rules")
     exclude_paths = config.get("exclude_paths", [])
     scorer = Scorer(rule_data)
-    
-    logger.info("🧪 [智能分析] 评分引擎启动...")
     
     all_items_res = await db.execute(select(MediaItem).where(MediaItem.item_type.in_(["Movie", "Series", "Episode"])))
     all_items = all_items_res.scalars().all()
@@ -163,10 +183,10 @@ async def smart_select_v3(db: AsyncSession = Depends(get_db)):
     groups = defaultdict(list)
     for i in all_items:
         if not i.tmdb_id: continue
-        key = i.tmdb_id
-        if i.item_type == "Episode":
-            # 组合键确保不同剧集下的同一集能被比对
-            key = f"{i.tmdb_id}-S{str(i.season_num or 0).zfill(2)}E{str(i.episode_num or 0).zfill(2)}"
+        if i.item_type == "Movie": key = f"Movie-{i.tmdb_id}"
+        elif i.item_type == "Series": key = f"Series-{i.tmdb_id}"
+        elif i.item_type == "Episode": key = f"TV-{i.tmdb_id}-S{str(i.season_num or 0).zfill(2)}E{str(i.episode_num or 0).zfill(2)}"
+        else: continue
         groups[key].append(i)
         
     to_delete_ids = []
@@ -174,39 +194,73 @@ async def smart_select_v3(db: AsyncSession = Depends(get_db)):
         if len(g_items) > 1:
             scored_data = [{"id": i.id, "emby_id": i.id, "path": i.path, "display_title": i.display_title, "video_codec": i.video_codec, "video_range": i.video_range} for i in g_items]
             suggested = scorer.select_best(scored_data)
-            
-            logger.info(f"┃  ┣ 📦 发现重复组 [{key}]，包含 {len(g_items)} 个节点")
-            for i in g_items:
-                is_to_del = i.id in suggested
-                status = "🗑️ 建议删除" if is_to_del else "✅ 建议保留"
-                
-                # 白名单二次校验
-                if is_to_del and any(i.path.startswith(ex) for ex in exclude_paths if ex.strip()):
-                    status = "🛡️ 路径保护"
-                    suggested.remove(i.id)
-                
-                logger.info(f"┃  ┃  ┗ {status}: [{i.display_title} | {i.video_codec}] {i.path}")
-            
-            to_delete_ids.extend(suggested)
+            for eid in suggested:
+                item_obj = next(it for it in g_items if it.id == eid)
+                if not any(item_obj.path.startswith(ex) for ex in exclude_paths if ex.strip()):
+                    to_delete_ids.append(eid)
     
     if not to_delete_ids: return []
     final_res = await db.execute(select(MediaItem).where(MediaItem.id.in_(to_delete_ids)))
     return final_res.scalars().all()
 
 @router.delete("/items")
-async def delete_items(request: BulkDeleteRequest, db: AsyncSession = Depends(get_db)):
+async def delete_items_optimized(request: BulkDeleteRequest, db: AsyncSession = Depends(get_db)):
+    """优化版删除：如果父节点也要被删除，则跳过子节点的 API 调用"""
+    start_time = time.time()
     service = await get_emby_context(db)
-    success = 0
+    
+    # 1. 预先获取所有待删除项目的层级信息
+    res = await db.execute(select(MediaItem).where(MediaItem.id.in_(request.item_ids)))
+    delete_map = {item.id: item for item in res.scalars().all()}
+    
+    # 2. 识别并折叠冗余操作
+    final_ids_to_call = []
+    skipped_count = 0
+    
     for eid in request.item_ids:
-        item_res = await db.execute(select(MediaItem).where(MediaItem.id == eid))
-        item = item_res.scalars().first()
-        if item:
-            logger.warning(f"🔥 [清理] 正在物理删除: {item.path}")
-            if await service.delete_item(eid):
-                success += 1
-                await db.execute(delete(MediaItem).where(MediaItem.id == eid))
+        item = delete_map.get(eid)
+        if not item: continue
+        
+        # 向上溯源：检查父级或更高级祖先是否也在删除列表中
+        is_redundant = False
+        current_p_id = item.parent_id
+        while current_p_id:
+            if current_p_id in request.item_ids:
+                is_redundant = True
+                break
+            # 这里的简单实现假设 parent_id 已经在 MediaItem 里了，
+            # 如果是跨层级（如 Series 直接删 Episode），需要数据库二次辅助
+            # 但在我们的查重逻辑中，parent_id 已经覆盖了核心层级。
+            # 这里我们通过查询确保准确
+            p_res = await db.execute(select(MediaItem.parent_id).where(MediaItem.id == current_p_id))
+            current_p_id = p_res.scalar()
+            
+        if is_redundant:
+            logger.info(f"⚡ [优化] 跳过单集 API 调用 (父级已在清理列表): {item.path}")
+            skipped_count += 1
+        else:
+            final_ids_to_call.append(eid)
+
+    # 3. 执行物理删除
+    success = 0
+    for eid in final_ids_to_call:
+        item = delete_map.get(eid)
+        logger.warning(f"🔥 [清理] 执行 Emby 删除: {item.path if item else eid}")
+        if await service.delete_item(eid):
+            success += 1
+            # 注意：即便 API 没调（被折叠了），数据库里的记录也要删掉
+            # 这里统一处理
+    
+    # 4. 从本地库清理所有传入的 ID (包含被折叠的子项)
+    await db.execute(delete(MediaItem).where(MediaItem.id.in_(request.item_ids)))
     await db.commit()
-    return {"success": success}
+    
+    audit_log("媒体清理任务执行完毕", (time.time()-start_time)*1000, [
+        f"API 调用数: {len(final_ids_to_call)}",
+        f"自动折叠子项数: {skipped_count}",
+        f"成功数: {success}"
+    ])
+    return {"success": success, "skipped": skipped_count}
 
 @router.get("/config")
 async def get_dedupe_config():
