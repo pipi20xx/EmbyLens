@@ -77,3 +77,8 @@ class EmbyService:
         """严格按照原版发送 POST 更新"""
         resp = await self._request("POST", f"/Items/{item_id}", json_data=data)
         return resp is not None and resp.status_code in [200, 204]
+
+    async def delete_item(self, item_id: str) -> bool:
+        """调用 Emby API 删除条目"""
+        resp = await self._request("DELETE", f"/Items/{item_id}")
+        return resp is not None and resp.status_code in [200, 204]

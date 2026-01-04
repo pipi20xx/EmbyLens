@@ -66,30 +66,53 @@ async def get_emby_context(db: AsyncSession):
 # --- 接口实现 ---
 
 @router.post("/sync")
-async def sync_media(request: SyncRequest, db: AsyncSession = Depends(get_db)):
-    """同步 Emby 媒体到本地数据库以供查重"""
+async def sync_media(request: SyncRequest = SyncRequest(), db: AsyncSession = Depends(get_db)):
+    """同步 Emby 媒体到本地数据库以供查重 (独立的分页获取实现)"""
     service = await get_emby_context(db)
-    logger.info(f"开始增量同步 Emby 媒体库: {request.item_types}")
+    logger.info(f"开始同步 Emby 媒体库 (全量模式): {request.item_types}")
     
+    all_fetched = []
+    
+    # 内部实现分页获取，不修改 emby.py
+    async def fetch_paged(types, p_id=None):
+        items = []
+        limit = 300
+        start = 0
+        while True:
+            params = {
+                "IncludeItemTypes": ",".join(types),
+                "Recursive": "true",
+                "Fields": "Path,ProductionYear,ProviderIds,MediaStreams,DisplayTitle,SortName,ParentId,SeriesId,SeasonId",
+                "StartIndex": start,
+                "Limit": limit
+            }
+            if p_id: params["ParentId"] = p_id
+            resp = await service._request("GET", "/Items", params=params)
+            if not resp or resp.status_code != 200: break
+            batch = resp.json().get("Items", [])
+            if not batch: break
+            items.extend(batch)
+            if len(batch) < limit: break
+            start += limit
+        return items
+
     # 1. 获取顶级项目
-    top_items = await service.fetch_items(request.item_types)
-    all_fetched = list(top_items)
+    top_items = await fetch_paged(request.item_types)
+    all_fetched.extend(top_items)
     
-    # 2. 递归获取 Series 的子项 (Season/Episode)
+    # 2. 如果包含 Series，递归获取子项
     if "Series" in request.item_types:
-        for series in [i for i in top_items if i.get("Type") == "Series"]:
-            seasons = await service.fetch_items(["Season"], parent_id=series["Id"])
-            all_fetched.extend(seasons)
-            for season in seasons:
-                episodes = await service.fetch_items(["Episode"], parent_id=season["Id"])
-                all_fetched.extend(episodes)
+        series_ids = [i["Id"] for i in top_items if i.get("Type") == "Series"]
+        for sid in series_ids:
+            # 获取该剧集下的所有 Season 和 Episode
+            children = await fetch_paged(["Season", "Episode"], p_id=sid)
+            all_fetched.extend(children)
     
-    # 3. 清空并重新填充 (简单处理)
+    # 3. 持久化到本地数据库
     await db.execute(delete(MediaItem))
     
     count = 0
     for item in all_fetched:
-        # 提取流信息
         streams = item.get("MediaStreams", [])
         v_stream = next((s for s in streams if s.get("Type") == "Video"), {})
         a_stream = next((s for s in streams if s.get("Type") == "Audio"), {})
@@ -177,7 +200,7 @@ async def list_duplicates(db: AsyncSession = Depends(get_db)):
         if item.tmdb_id not in groups:
             groups[item.tmdb_id] = []
         groups[item.tmdb_id].append({
-            "emby_id": item.id,
+            "id": item.id,
             "name": item.name,
             "type": item.item_type,
             "path": item.path,

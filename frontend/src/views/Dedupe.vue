@@ -42,7 +42,7 @@
           :columns="columns"
           :data="displayData"
           :loading="loading"
-          :row-key="row => row.emby_id"
+          :row-key="row => row.id"
           @update:checked-row-keys="handleCheck"
           :pagination="false"
           size="small"
@@ -146,7 +146,7 @@ const columns: DataTableColumns<any> = [
 const loadItems = async () => {
   loading.value = true
   try {
-    const res = await axios.get('/api/dedupe/items', { params: { name: searchName.value } })
+    const res = await axios.get('/api/dedupe/items', { params: { query_text: searchName.value } })
     rawItems.value = res.data.map((i: any) => ({
       ...i,
       type: i.item_type,
