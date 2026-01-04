@@ -31,7 +31,8 @@ import {
   LockOpenOutlined as LockIcon,
   CameraOutlined as LensIcon,
   SearchOutlined as SearchIcon,
-  MyLocationOutlined as TargetIcon
+  MyLocationOutlined as TargetIcon,
+  YoutubeSearchedForOutlined as DeepSearchIcon
 } from '@vicons/material'
 
 // Views
@@ -42,6 +43,7 @@ import CleanupToolsView from './views/toolkit/CleanupTools.vue'
 import LockManagerView from './views/toolkit/LockManager.vue'
 import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
+import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -58,7 +60,7 @@ const currentThemeType = ref<ThemeType>((localStorage.getItem('embylens_theme_ty
 const showLogConsole = isLogConsoleOpen
 
 watch(currentThemeType, (val) => localStorage.setItem('embylens_theme_type', val))
-watch(collapsed, (val) => localStorage.setItem('embylens_sidebar_collapsed', String(val)))
+watch(collapsed, (val) => localStorage.getItem('embylens_sidebar_collapsed', String(val)))
 
 const themeOptions = [
   { label: '暗夜紫韵 (Purple)', key: 'purple' },
@@ -129,11 +131,12 @@ const menuOptions: MenuOption[] = [
   { label: '元数据锁定器', key: 'LockManagerView', icon: renderIcon(LockIcon) },
   { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
+  { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, SettingsView
+    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
