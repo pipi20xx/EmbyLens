@@ -9,6 +9,14 @@ import time
 
 router = APIRouter()
 
+async def get_active_emby(db: AsyncSession):
+    result = await db.execute(select(EmbyServer).limit(1))
+    server = result.scalars().first()
+    if not server:
+        logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
+        raise HTTPException(status_code=400, detail="请先在设置中配置服务器")
+    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key)
+
 @router.get("/info", summary="根据 Emby Item ID 获取完整元数据")
 async def get_item_info(
     item_id: str = Query(..., description="Emby 项目 ID"),
@@ -20,14 +28,8 @@ async def get_item_info(
     start_time = time.time()
     logger.info(f"🚀 启动 [项目 ID 查询] 任务: {item_id}")
     
-    # 获取配置
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    if not server:
-        logger.error("┗ ❌ 任务失败: 未配置服务器")
-        raise HTTPException(status_code=400, detail="请先在设置中配置服务器")
-
-    service = EmbyService(server.url, server.api_key, server.user_id)
+    # 使用统一辅助函数
+    service = await get_active_emby(db)
     
     logger.info(f"┣ 🔍 正在检索 Emby 原始元数据...")
     item_data = await service.get_item(item_id)
