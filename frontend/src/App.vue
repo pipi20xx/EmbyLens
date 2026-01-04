@@ -29,7 +29,8 @@ import {
   CategoryOutlined as CategoryIcon,
   LayersOutlined as CleanupIcon,
   LockOpenOutlined as LockIcon,
-  CameraOutlined as LensIcon
+  CameraOutlined as LensIcon,
+  SearchOutlined as SearchIcon
 } from '@vicons/material'
 
 // Views
@@ -38,6 +39,7 @@ import SettingsView from './views/Settings.vue'
 import TypeManagerView from './views/toolkit/TypeManager.vue'
 import CleanupToolsView from './views/toolkit/CleanupTools.vue'
 import LockManagerView from './views/toolkit/LockManager.vue'
+import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -123,11 +125,12 @@ const menuOptions: MenuOption[] = [
   { label: '类型映射管理', key: 'TypeManagerView', icon: renderIcon(CategoryIcon) },
   { label: '媒体净化清理', key: 'CleanupToolsView', icon: renderIcon(CleanupIcon) },
   { label: '元数据锁定器', key: 'LockManagerView', icon: renderIcon(LockIcon) },
+  { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, SettingsView
+    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
