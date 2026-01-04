@@ -1,0 +1,126 @@
+<template>
+  <div class="toolkit-container">
+    <n-space vertical size="large">
+      <div class="page-header">
+        <n-h2 prefix="bar" align-text><n-text type="error">媒体净化清理 (1:1 源码级复刻)</n-text></n-h2>
+        <n-text depth="3">遵循 emby-box 逻辑：支持指定媒体库与媒体类型，执行演职员移除或剧集类型重置。</n-text>
+      </div>
+
+      <!-- 1. 全局配置 (lib_names & dry_run) -->
+      <n-card title="通用执行参数" size="small" segmented>
+        <n-form label-placement="left" label-width="120">
+          <n-form-item label="目标媒体库">
+            <n-select 
+              v-model:value="libNames" 
+              multiple 
+              filterable 
+              tag 
+              placeholder="手动输入媒体库名称，按回车添加" 
+            />
+          </n-form-item>
+          <n-form-item label="执行模式">
+            <n-switch v-model:value="dryRun">
+              <template #checked>预览模式 (Dry Run)</template>
+              <template #unchecked>实调模式 (Execute)</template>
+            </n-switch>
+          </n-form-item>
+        </n-form>
+      </n-card>
+
+      <!-- 2. 原子工具卡片 -->
+      <n-grid :cols="2" :x-gap="12">
+        <n-gi>
+          <n-card title="演职员信息清空 (People Remover)" size="small">
+            <n-space vertical>
+              <n-text depth="3" style="font-size: 12px">操作媒体类型：</n-text>
+              <n-checkbox-group v-model:value="peopleItemTypes">
+                <n-space>
+                  <n-checkbox value="Movie">电影</n-checkbox>
+                  <n-checkbox value="Series">剧集</n-checkbox>
+                </n-space>
+              </n-checkbox-group>
+              <n-divider style="margin: 8px 0" />
+              <n-button block type="error" secondary @click="handleAction('people_remover')" :loading="loading">
+                执行清空演职员
+              </n-button>
+            </n-space>
+          </n-card>
+        </n-gi>
+
+        <n-gi>
+          <n-card title="集类型(Episode)重置" size="small">
+            <n-p depth="3" style="font-size: 12px">
+              扫描指定媒体库中的所有剧集，清除“集”层级的 Genres 标签。
+            </n-p>
+            <n-divider style="margin: 8px 0" />
+            <n-button block type="primary" quaternary @click="handleAction('episode_deleter')" :loading="loading">
+              修复集类型标记
+            </n-button>
+          </n-card>
+        </n-gi>
+      </n-grid>
+
+      <!-- 调试：接口快照 -->
+      <n-card title="调试：原版接口请求快照" embedded :bordered="false">
+        <n-code :code="debugPayload" language="json" word-wrap />
+      </n-card>
+    </n-space>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { 
+  useMessage, NSpace, NH2, NText, NCard, NP, NButton, NGrid, NGi, 
+  NCode, NCheckboxGroup, NCheckbox, NSwitch, NForm, NFormItem, NSelect, NDivider 
+} from 'naive-ui'
+import axios from 'axios'
+
+const message = useMessage()
+const loading = ref(false)
+const libNames = ref(['电影', '动漫'])
+const dryRun = ref(true)
+const peopleItemTypes = ref(['Movie', 'Series'])
+const lastAction = ref('people_remover')
+
+const debugPayload = computed(() => {
+  const body: any = {
+    lib_names: libNames.value,
+    dry_run: dryRun.value
+  }
+  if (lastAction.value === 'people_remover') {
+    body.item_types = peopleItemTypes.value
+  }
+  return JSON.stringify({
+    endpoint: `/api/toolkit/${lastAction.value}`,
+    body
+  }, null, 2)
+})
+
+const handleAction = async (endpoint: string) => {
+  lastAction.value = endpoint
+  if (libNames.value.length === 0) {
+    message.warning('请至少指定一个媒体库名称')
+    return
+  }
+  loading.value = true
+  try {
+    const payload: any = {
+      lib_names: libNames.value,
+      dry_run: dryRun.value
+    }
+    if (endpoint === 'people_remover') payload.item_types = peopleItemTypes.value
+
+    const res = await axios.post(`/api/toolkit/${endpoint}`, payload)
+    message.success(`任务完成，处理条目: ${res.data.processed_count}`)
+  } catch (e) {
+    message.error('请求失败')
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+.toolkit-container { max-width: 1000px; margin: 0 auto; }
+</style>

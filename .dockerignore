@@ -1,0 +1,36 @@
+# Node.js
+**/node_modules
+**/dist
+**/dist-ssr
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Local Data
+data/
+*.db
+*.sqlite
+logs/
+
+# Version Control
+.git
+.gitignore
+.dockerignore
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo

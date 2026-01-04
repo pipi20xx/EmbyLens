@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  embylens:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: embylens
+    ports:
+      - "6565:6565"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
+    restart: always

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+*.egg-info/
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Data & DB (Persistent)
+/data/
+*.db
+*.sqlite
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker logs
+logs/
+emby-box
+ai_studio_code (79).py
+Anime-Manager
