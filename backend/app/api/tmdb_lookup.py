@@ -15,44 +15,45 @@ async def reverse_lookup_tmdb(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    1:1 源码复刻：单集 ID -> SeriesId -> TMDB ID
+    1:1 源码复刻 + 深度日志集成
     """
+    start_time = time.time()
+    logger.info(f"🚀 启动 [剧集 TMDB 反查] 任务 (单集 ID: {episode_id})")
+
     result = await db.execute(select(EmbyServer).limit(1))
     server = result.scalars().first()
-    if not server:
-        raise HTTPException(status_code=400, detail="未配置服务器")
+    if not server: raise HTTPException(status_code=400, detail="未配置服务器")
 
-    start_time = time.time()
     service = EmbyService(server.url, server.api_key, server.user_id)
     
-    logger.info(f"🔍 启动单集反向溯源: {episode_id}")
-    
-    # 步骤 1: 获取单集，拿到 SeriesId
+    # 步骤 1
+    logger.info(f"┣ 🔍 步骤 1: 正在追溯上级剧集 (SeriesId)...")
     episode_data = await service.get_item(episode_id)
     if not episode_data:
+        logger.error(f"┗ ❌ 溯源中断: 单集 {episode_id} 不存在")
         raise HTTPException(status_code=404, detail="单集未找到")
     
     series_id = episode_data.get('SeriesId')
     if not series_id:
-        logger.error(f"┗ ❌ 识别失败: 该项目 ({episode_id}) 没有绑定的剧集 ID")
-        raise HTTPException(status_code=400, detail="该 ID 不是剧集单集或没有上级剧集")
+        logger.warning(f"┗ ⚠️ 溯源中断: 该项目不是剧集单集")
+        raise HTTPException(status_code=400, detail="该 ID 没有上级剧集")
 
-    # 步骤 2: 获取剧集，拿到 TMDB ID
-    logger.info(f"┣ 🔗 已定位上级剧集 ID: {series_id}")
+    # 步骤 2
+    logger.info(f"┣ 🔗 步骤 2: 正在获取剧集详情 (Series ID: {series_id})...")
     series_data = await service.get_item(series_id)
     if not series_data:
-        raise HTTPException(status_code=404, detail="无法获取上级剧集详情")
+        logger.error(f"┗ ❌ 溯源中断: 无法访问上级剧集")
+        raise HTTPException(status_code=404, detail="无法获取剧集详情")
 
     provider_ids = series_data.get('ProviderIds', {})
     tmdb_id = provider_ids.get('Tmdb')
     series_name = series_data.get('Name', '未知')
 
     if not tmdb_id:
-        logger.warning(f"┗ ⚠️ 剧集 '{series_name}' 未绑定 TMDB ID")
-        raise HTTPException(status_code=404, detail=f"剧集 '{series_name}' 暂无 TMDB ID 绑定")
+        logger.warning(f"┗ ⚠️ 溯源失败: 剧集 '{series_name}' 未绑定 TMDB ID")
+        raise HTTPException(status_code=404, detail=f"未找到 TMDB 绑定")
 
-    process_time = (time.time() - start_time) * 1000
-    audit_log("TMDB 反向溯源成功", process_time, [
+    audit_log("TMDB 反向溯源成功", (time.time() - start_time) * 1000, [
         f"单集 ID: {episode_id}",
         f"归属剧集: {series_name}",
         f"定位 TMDB: {tmdb_id}"

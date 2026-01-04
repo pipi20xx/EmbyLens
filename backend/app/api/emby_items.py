@@ -15,31 +15,33 @@ async def get_item_info(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    1:1 源码级复刻：根据 ID 获取 Emby 原始 JSON 信息
+    1:1 源码复刻 + 深度日志集成
     """
+    start_time = time.time()
+    logger.info(f"🚀 启动 [项目 ID 查询] 任务: {item_id}")
+    
     # 获取配置
     result = await db.execute(select(EmbyServer).limit(1))
     server = result.scalars().first()
     if not server:
+        logger.error("┗ ❌ 任务失败: 未配置服务器")
         raise HTTPException(status_code=400, detail="请先在设置中配置服务器")
 
-    start_time = time.time()
     service = EmbyService(server.url, server.api_key, server.user_id)
     
-    logger.info(f"🔍 正在请求 Emby 项目元数据 (ID: {item_id})")
-    
-    # 调用服务层
+    logger.info(f"┣ 🔍 正在检索 Emby 原始元数据...")
     item_data = await service.get_item(item_id)
     
     if not item_data:
         logger.error(f"┗ ❌ 未找到项目: {item_id}")
-        raise HTTPException(status_code=404, detail=f"项目 {item_id} 未找到或 API 无权限访问")
+        raise HTTPException(status_code=404, detail=f"项目 {item_id} 未找到")
 
     process_time = (time.time() - start_time) * 1000
-    audit_log("项目元数据查询", process_time, [
+    audit_log("项目元数据查询成功", process_time, [
         f"项目 ID: {item_id}",
         f"项目名称: {item_data.get('Name', '未知')}",
-        f"类型: {item_data.get('Type', '未知')}"
+        f"类型: {item_data.get('Type', '未知')}",
+        f"字段总数: {len(item_data.keys())}"
     ])
     
     return item_data
