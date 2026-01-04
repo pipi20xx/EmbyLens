@@ -5,6 +5,7 @@ from app.core.config_manager import get_config, save_config
 from app.core.tagger import Tagger
 from app.utils.logger import logger, audit_log
 from .autotag_helper import AutotagEmbyHelper
+from app.utils.http_client import get_async_client
 import httpx
 import time
 import uuid
@@ -54,7 +55,7 @@ async def get_helper():
 async def fetch_tmdb_details(tmdb_key: str, tmdb_id: str, media_type: str):
     url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}"
     params = {"api_key": tmdb_key, "language": "zh-CN"}
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with get_async_client(timeout=15.0) as client:
         try:
             logger.info(f"┃  ┃  🌐 [TMDB] 发起请求: {url}")
             resp = await client.get(url, params=params)

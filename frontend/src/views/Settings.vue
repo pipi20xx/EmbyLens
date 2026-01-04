@@ -59,7 +59,36 @@
             </n-form>
           </n-card>
 
-          <!-- 3. 操作按钮区 -->
+          <!-- 3. HTTP 代理配置 -->
+          <n-card title="网络代理设置" size="small" segmented>
+            <template #header-extra>
+              <n-icon size="20" color="#4caf50"><ProxyIcon /></n-icon>
+            </template>
+            <n-form label-placement="top" size="medium">
+              <n-grid :cols="2" :x-gap="24">
+                <n-form-item-gi label="启用代理">
+                  <n-switch v-model:value="serverForm.proxy.enabled">
+                    <template #checked>已开启代理</template>
+                    <template #unchecked>已关闭代理</template>
+                  </n-switch>
+                </n-form-item-gi>
+                <n-form-item-gi label="排除 Emby 服务器">
+                  <n-switch v-model:value="serverForm.proxy.exclude_emby">
+                    <template #checked>Emby 直连 (不走代理)</template>
+                    <template #unchecked>Emby 强制走代理</template>
+                  </n-switch>
+                </n-form-item-gi>
+                <n-form-item-gi label="代理服务器地址" span="2">
+                  <n-input v-model:value="serverForm.proxy.url" placeholder="例如: http://127.0.0.1:7890" :disabled="!serverForm.proxy.enabled" />
+                </n-form-item-gi>
+              </n-grid>
+            </n-form>
+            <n-alert type="warning" size="small" style="margin-top: 12px">
+              开启代理后，所有第三方服务 (如 TMDB) 的请求都将通过指定的代理服务器转发。
+            </n-alert>
+          </n-card>
+
+          <!-- 4. 操作按钮区 -->
           <n-card :bordered="false" content-style="padding: 0">
             <n-space justify="end">
               <n-button secondary @click="handleTest" :loading="testing">测试 Emby 连通性</n-button>
@@ -97,7 +126,8 @@ import {
 } from 'naive-ui'
 import { 
   DnsOutlined as ServerIcon,
-  ApiOutlined as ApiIcon 
+  ApiOutlined as ApiIcon,
+  LanguageOutlined as ProxyIcon
 } from '@vicons/material'
 import axios from 'axios'
 
@@ -114,7 +144,12 @@ const serverForm = reactive({
   tmdb_api_key: '',
   username: '',
   password: '',
-  session_token: ''
+  session_token: '',
+  proxy: {
+    enabled: false,
+    url: '',
+    exclude_emby: true
+  }
 })
 
 const fetchCurrent = async () => {

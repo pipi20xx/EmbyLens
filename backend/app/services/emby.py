@@ -2,6 +2,8 @@ import httpx
 import json
 from typing import List, Dict, Any, Optional
 from app.utils.logger import logger
+from app.utils.http_client import get_async_client
+from app.core.config_manager import get_config
 
 class EmbyService:
     def __init__(self, url: str, api_key: str, user_id: str = None, tmdb_key: str = None):
@@ -17,7 +19,10 @@ class EmbyService:
         }
 
     def _get_client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(timeout=30.0, headers=self.headers)
+        config = get_config()
+        proxy_cfg = config.get("proxy", {})
+        use_proxy = not proxy_cfg.get("exclude_emby", True)
+        return get_async_client(timeout=30.0, headers=self.headers, use_proxy=use_proxy)
 
     async def _request(self, method: str, endpoint: str, params: Dict = None, json_data: Dict = None):
         """1:1 复刻 emby-box 的底层请求逻辑"""

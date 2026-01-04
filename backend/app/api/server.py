@@ -6,6 +6,7 @@ import time
 from app.core.config_manager import get_config, save_config
 from app.services.emby import EmbyService
 from app.utils.logger import logger
+from app.utils.http_client import get_async_client
 
 router = APIRouter()
 
@@ -49,7 +50,10 @@ async def emby_login():
         device_id = str(uuid.uuid4())
         auth_header = f'MediaBrowser Client="EmbyLens", Device="Server", DeviceId="{device_id}", Version="1.0.0"'
         
-        async with httpx.AsyncClient(timeout=15) as client:
+        proxy_cfg = config.get("proxy", {})
+        use_proxy = not proxy_cfg.get("exclude_emby", True)
+
+        async with get_async_client(timeout=15, use_proxy=use_proxy) as client:
             resp = await client.post(
                 auth_url,
                 json={"Username": username, "Pw": password or ""},

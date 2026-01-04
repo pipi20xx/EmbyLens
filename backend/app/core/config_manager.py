@@ -42,6 +42,11 @@ DEFAULT_CONFIG = {
         "automation_enabled": True,
         "delay_seconds": 10,
         "write_mode": "merge"
+    },
+    "proxy": {
+        "enabled": False,
+        "url": "",
+        "exclude_emby": True
     }
 }
 
@@ -58,7 +63,7 @@ def get_config() -> Dict[str, Any]:
             full_config.update(data)
             
             # 深度合并二级对象，防止缺失字段
-            for key in ["dedupe_rules", "webhook"]:
+            for key in ["dedupe_rules", "webhook", "proxy"]:
                 if key in data:
                     sub_config = DEFAULT_CONFIG[key].copy()
                     sub_config.update(data[key])

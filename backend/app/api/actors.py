@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.core.config_manager import get_config
 from app.services.emby import EmbyService
 from app.utils.logger import logger, audit_log
+from app.utils.http_client import get_async_client
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ async def fetch_tmdb_data(tmdb_key: str, path: str, params: Dict = None):
     base_params = {"api_key": tmdb_key, "language": "zh-CN"}
     if params:
         base_params.update(params)
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    async with get_async_client(timeout=20.0) as client:
         resp = await client.get(url, params=base_params)
         return resp.json() if resp.status_code == 200 else None
 

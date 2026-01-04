@@ -2,6 +2,8 @@ import httpx
 import json
 from typing import List, Dict, Any, Optional, Literal
 from app.utils.logger import logger
+from app.utils.http_client import get_async_client
+from app.core.config_manager import get_config
 
 class AutotagEmbyHelper:
     def __init__(self, url: str, api_key: str, user_id: str = None):
@@ -19,7 +21,12 @@ class AutotagEmbyHelper:
         query_params = {"api_key": self.api_key}
         if params: query_params.update(params)
         logger.info(f"┃  ┣ 🚀 [AutoTag API] {method} {path}")
-        async with httpx.AsyncClient(timeout=30.0, headers=self.headers) as client:
+        
+        config = get_config()
+        proxy_cfg = config.get("proxy", {})
+        use_proxy = not proxy_cfg.get("exclude_emby", True)
+        
+        async with get_async_client(timeout=30.0, headers=self.headers, use_proxy=use_proxy) as client:
             try:
                 resp = await client.request(method, url, params=query_params, json=json_data)
                 return resp
