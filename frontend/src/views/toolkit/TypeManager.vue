@@ -137,14 +137,13 @@ const runMapper = async () => {
       genre_mappings: [{
         old: forms.map.old,
         new_name: forms.map.new_name,
-        new_id: forms.map.new_id || "0"
+        new_id: forms.map.new_id || null
       }]
     }
-    console.log('Sending Mapper Request:', payload)
     const res = await axios.post('/api/toolkit/mapper', payload)
-    message.success(`映射完成: 处理项目数 ${res.data.processed_count}`)
+    message.success(`映射任务完成：共处理 ${res.data.processed_count} 个项目 [${common.dry_run ? '预览' : '实调'}]`)
   } catch (e) {
-    message.error('映射请求发送失败')
+    message.error('映射请求失败')
   } finally {
     loading.value = false
   }
@@ -159,8 +158,8 @@ const runRemover = async () => {
       ...common,
       genres_to_remove: forms.remove.tag ? [forms.remove.tag] : []
     }
-    await axios.post('/api/toolkit/remover', payload)
-    message.success('移除请求已发出，请查看日志')
+    const res = await axios.post('/api/toolkit/remover', payload)
+    message.success(`移除任务完成：共清理 ${res.data.processed_count} 个项目 [${common.dry_run ? '预览' : '实调'}]`)
   } catch (e) { message.error('请求失败') }
   finally { loading.value = false }
 }
@@ -175,8 +174,8 @@ const runAdder = async () => {
       genre_to_add_name: forms.add.name,
       genre_to_add_id: forms.add.id || null
     }
-    await axios.post('/api/toolkit/genre_adder', payload)
-    message.success('新增请求已发出，请查看日志')
+    const res = await axios.post('/api/toolkit/genre_adder', payload)
+    message.success(`新增任务完成：共影响 ${res.data.processed_count} 个项目 [${common.dry_run ? '预览' : '实调'}]`)
   } catch (e) { message.error('请求失败') }
   finally { loading.value = false }
 }

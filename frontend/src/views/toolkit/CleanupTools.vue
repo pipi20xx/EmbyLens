@@ -133,7 +133,7 @@ const handleAction = async (endpoint: string) => {
     if (endpoint === 'people_remover') payload.item_types = peopleItemTypes.value
 
     const res = await axios.post(`/api/toolkit/${endpoint}`, payload)
-    message.success(`任务完成，处理条目: ${res.data.processed_count}`)
+    message.success(`任务完成：处理项目数 ${res.data.processed_count} [${common.dry_run ? '预览' : '实调'}]`)
   } catch (e) {
     message.error('请求失败')
   } finally {
