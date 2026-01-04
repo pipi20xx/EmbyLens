@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -8,114 +8,201 @@ from app.models.server import EmbyServer
 from app.services.emby import EmbyService
 from app.utils.logger import logger, audit_log
 import time
-import json
 
 router = APIRouter()
 
-# --- 1:1 移植 Pydantic 模型 ---
+# --- 1:1 移植原版模型 ---
+class BaseMetadataRequest(BaseModel):
+    lib_names: List[str]
+    dry_run: bool = True
+
 class GenreMapping(BaseModel):
     old: str
     new_name: str
     new_id: str
 
-class BaseMetadataRequest(BaseModel):
+class GenreMapperRequest(BaseMetadataRequest):
+    genre_mappings: List[GenreMapping]
+
+class GenreRemoverRequest(BaseMetadataRequest):
+    genres_to_remove: List[str]
+
+class GenreAdderRequest(BaseMetadataRequest):
+    genre_to_add_name: str
+    genre_to_add_id: Optional[str] = None
+
+class PeopleRemoverRequest(BaseMetadataRequest):
+    item_types: List[str] = ["Movie", "Series"]
     lib_names: List[str]
     dry_run: bool = True
 
-class GenreMapperRequest(BaseMetadataRequest):
-    genre_mappings: List[GenreMapping]
+class MetadataUnlockerRequest(BaseMetadataRequest):
+    item_types: List[str]
+    lib_names: List[str]
+    dry_run: bool = True
 
 class MetadataManagerResponse(BaseModel):
     message: str
     processed_count: int
     dry_run_active: bool
 
-async def get_active_emby(db: AsyncSession):
+async def get_emby_context(db: AsyncSession):
     result = await db.execute(select(EmbyServer).limit(1))
     server = result.scalars().first()
-    if not server:
-        raise HTTPException(status_code=400, detail="请先在设置中配置 Emby 服务器")
-    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key)
+    if not server: raise HTTPException(status_code=400, detail="未配置服务器")
+    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key), server.user_id
 
-# --- 1:1 移植 emby-box 核心算法 ---
+# --- 1:1 源码级私有处理函数 ---
+
+async def _get_library_id(service: EmbyService, lib_name: str) -> Optional[str]:
+    resp = await service._request("GET", "/Library/VirtualFolders")
+    if resp and resp.status_code == 200:
+        for f in resp.json():
+            if f.get("Name") == lib_name: return f.get("ItemId")
+    return None
+
+async def _get_lib_items(service: EmbyService, parent_id: str, item_types: List[str]) -> List[Dict]:
+    params = {'ParentId': parent_id, 'Fields': 'Genres,GenreItems,LockedFields,LockData,People', 'IncludeItemTypes': ",".join(item_types), 'Recursive': 'true'}
+    resp = await service._request("GET", "/Items", params=params)
+    return resp.json().get('Items', []) if resp and resp.status_code == 200 else []
+
+async def _get_full_item(service: EmbyService, user_id: str, item_id: str) -> Optional[Dict]:
+    """1:1 复刻：获取带 ChannelMappingInfo 的完整对象"""
+    params = {"Fields": "Genres,GenreItems,People,LockedFields,LockData,ChannelMappingInfo"}
+    endpoint = f"/Users/{user_id}/Items/{item_id}" if user_id else f"/Items/{item_id}"
+    resp = await service._request("GET", endpoint, params=params)
+    return resp.json() if resp and resp.status_code == 200 else None
+
+# --- API 端点实装 (严格对齐源码流程) ---
 
 @router.post("/mapper", response_model=MetadataManagerResponse)
 async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(get_db)):
-    service = await get_active_emby(db)
-    start_time = time.time()
+    service, user_id = await get_emby_context(db)
     processed = 0
+    start_time = time.time()
+    mapping_dict = {m.old: {'Name': m.new_name, 'Id': int(m.new_id) if m.new_id.isdigit() else 0} for m in request.genre_mappings}
     
-    mapping_dict = {m.old: {"Name": m.new_name, "Id": int(m.new_id)} for m in request.genre_mappings}
-    logger.info(f"🚀 开始类型映射任务 (模式: {'预览' if request.dry_run else '实调'})")
-    
-    # 1. 获取目标库 ID
-    async with service._get_client() as client:
-        folders_resp = await client.get(f"{service.url}/emby/Library/VirtualFolders")
-        folders = folders_resp.json()
-        target_lib_ids = [f["ItemId"] for f in folders if f["Name"] in request.lib_names]
-        
-        if not target_lib_ids:
-            logger.warning(f"⚠️ 未找到匹配的媒体库: {request.lib_names}")
-            return MetadataManagerResponse(message="未找到媒体库", processed_count=0, dry_run_active=request.dry_run)
-
-        # 2. 遍历媒体库
-        for lib_id in target_lib_ids:
-            logger.info(f"┣ 📂 正在处理库: {lib_id}")
-            items = await service.fetch_items(["Movie", "Series"], parent_id=lib_id)
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, ["Movie", "Series"])
+        for it_list in items:
+            # 核心：必须重新获取 Full Item 详情
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if not full_item: continue
             
-            for it in items:
-                genres = it.get("Genres", [])
-                genre_items = it.get("GenreItems", [])
-                changed = False
-                
-                # 类型映射逻辑 (1:1 源码复刻)
-                new_genres = []
-                for g in genres:
-                    if g in mapping_dict:
-                        new_genres.append(mapping_dict[g]["Name"])
-                        changed = True
-                    else: new_genres.append(g)
-                
-                if changed:
-                    processed += 1
-                    it_name = it.get("Name", it["Id"])
-                    
-                    # 关键：无论是否 Dry Run，都必须在实时日志里打印底层 API 指令
-                    msg_prefix = "[预览] 将执行" if request.dry_run else "[执行] 发送"
-                    logger.info(f"┃  ┣ 🎯 {msg_prefix} API 控制项目: {it_name} ({it['Id']})")
-                    logger.info(f"┃  ┃  ┗ 指令: POST /emby/Items/{it['Id']} | Payload: {{'Genres': {new_genres}}}")
-                    
-                    if not request.dry_run:
-                        # 实调模式：同步更新字符串和对象项
-                        it["Genres"] = list(set(new_genres))
-                        # 深度更新 GenreItems (样板逻辑)
-                        new_gi_list = []
-                        for gi in genre_items:
-                            if gi.get("Name") in mapping_dict:
-                                m = mapping_dict[gi["Name"]]
-                                new_gi_list.append({"Name": m["Name"], "Id": m["Id"]})
-                            else: new_gi_list.append(gi)
-                        it["GenreItems"] = new_gi_list
-                        
-                        await service.update_item(it["Id"], it)
+            genres = full_item.get("Genres", [])
+            if any(g in mapping_dict for g in genres):
+                processed += 1
+                if not request.dry_run:
+                    full_item["Genres"] = list(set([mapping_dict[g]["Name"] if g in mapping_dict else g for g in genres]))
+                    # 物理同步 GenreItems
+                    new_gi = []
+                    for gi in full_item.get("GenreItems", []):
+                        if gi.get("Name") in mapping_dict:
+                            m = mapping_dict[gi["Name"]]
+                            new_gi.append({"Name": m["Name"], "Id": m["Id"] or gi.get("Id")})
+                        else: new_gi.append(gi)
+                    full_item["GenreItems"] = new_gi
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 🎯 {'[预览]' if request.dry_run else '[执行]'} 修改项目: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
 
-    audit_log("类型映射任务结束", (time.time()-start_time)*1000, [
-        f"处理媒体库: {request.lib_names}",
-        f"成功变更数: {processed}",
-        f"DryRun: {request.dry_run}"
-    ])
-    
-    return MetadataManagerResponse(
-        message="映射操作完成" if not request.dry_run else "预览完成 (未实际修改)",
-        processed_count=processed,
-        dry_run_active=request.dry_run
-    )
-
-# ... 锁定与解锁接口同理，增加详细 logger.info ...
-@router.post("/metadata_field_unlocker", response_model=MetadataManagerResponse)
-async def metadata_field_unlocker(request: BaseMetadataRequest, db: AsyncSession = Depends(get_db)):
-    service = await get_active_emby(db)
-    start_time = time.time()
+@router.post("/remover", response_model=MetadataManagerResponse)
+async def genre_remover(request: GenreRemoverRequest, db: AsyncSession = Depends(get_db)):
+    service, user_id = await get_emby_context(db)
     processed = 0
-    # 逻辑同上，增加 logger.info(f"┃  ┣ 🎯 解锁项目: {it['Name']}")
-    return MetadataManagerResponse(message="解锁完成", processed_count=0, dry_run_active=request.dry_run)
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, ["Movie", "Series"])
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if not full_item: continue
+            genres = full_item.get("Genres", [])
+            if any(g in request.genres_to_remove for g in genres):
+                processed += 1
+                if not request.dry_run:
+                    full_item["Genres"] = [g for g in genres if g not in request.genres_to_remove]
+                    full_item["GenreItems"] = [gi for gi in full_item.get("GenreItems", []) if gi.get("Name") not in request.genres_to_remove]
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 🎯 移除项目类型: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+
+@router.post("/metadata_field_unlocker", response_model=MetadataManagerResponse)
+async def metadata_field_unlocker(request: MetadataUnlockerRequest, db: AsyncSession = Depends(get_db)):
+    service, user_id = await get_emby_context(db)
+    processed = 0
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, request.item_types)
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if not full_item: continue
+            if full_item.get("LockedFields") or full_item.get("LockData"):
+                processed += 1
+                if not request.dry_run:
+                    full_item["LockedFields"] = []; full_item["LockData"] = False
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 🔓 解锁项目: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+
+@router.post("/item_locker", response_model=MetadataManagerResponse)
+async def item_locker(request: MetadataUnlockerRequest, db: AsyncSession = Depends(get_db)):
+    service, user_id = await get_emby_context(db)
+    processed = 0
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, request.item_types)
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if not full_item: continue
+            if not full_item.get("LockData"):
+                processed += 1
+                if not request.dry_run:
+                    full_item["LockData"] = True
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 🔒 锁定项目: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+
+@router.post("/item_unlocker", response_model=MetadataManagerResponse)
+async def item_unlocker(request: MetadataUnlockerRequest, db: AsyncSession = Depends(get_db)):
+    return await metadata_field_unlocker(request, db)
+
+@router.post("/people_remover", response_model=MetadataManagerResponse)
+async def people_remover(request: PeopleRemoverRequest, db: AsyncSession = Depends(get_db)):
+    service, user_id = await get_emby_context(db)
+    processed = 0
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, request.item_types)
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if full_item and full_item.get("People"):
+                processed += 1
+                if not request.dry_run:
+                    full_item["People"] = []
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 👤 清理演职员: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+
+@router.post("/episode_deleter", response_model=MetadataManagerResponse)
+async def episode_deleter(request: BaseMetadataRequest, db: AsyncSession = Depends(get_db)):
+    service, user_id = await get_emby_context(db)
+    processed = 0
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, ["Episode"])
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if full_item and (full_item.get("Genres") or full_item.get("GenreItems")):
+                processed += 1
+                if not request.dry_run:
+                    full_item["Genres"] = []; full_item["GenreItems"] = []
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 📺 清理集类型: {full_item.get('Name')}")
+    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)

@@ -2,36 +2,54 @@ import httpx
 import json
 from typing import List, Dict, Any, Optional
 from app.utils.logger import logger
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete
-from app.models.media import MediaItem
 
 class EmbyService:
     def __init__(self, url: str, api_key: str, user_id: str = None, tmdb_key: str = None):
         self.url = url.rstrip('/')
+        self.base_url = f"{self.url}/emby" # 严格对齐原版 BaseURL
         self.api_key = api_key
         self.user_id = user_id
         self.tmdb_key = tmdb_key
         self.headers = {
             "X-Emby-Token": api_key,
+            "Content-Type": "application/json",
             "Accept": "application/json"
         }
 
     def _get_client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=30.0, headers=self.headers)
 
-    async def test_connection(self) -> bool:
-        """测试与 Emby 服务器的连接"""
+    async def _request(self, method: str, endpoint: str, params: Dict = None, json_data: Dict = None):
+        """1:1 复刻 emby-box 的底层请求逻辑"""
+        url = f"{self.base_url}{endpoint}"
+        
+        # 核心：必须在 URL 参数里带上 api_key
+        full_params = {"api_key": self.api_key}
+        if params:
+            full_params.update(params)
+            
+        # 工业级透明调试
+        logger.info(f"┃  ┣ 🚀 [API 执行] {method} {url}")
+        if json_data:
+            # 缩减 payload 显示，防止日志爆炸，但保留核心字段
+            payload_peek = {k: v for k, v in json_data.items() if k in ["Genres", "GenreItems", "LockedFields", "LockData", "People"]}
+            logger.info(f"┃  ┃  📦 Payload: {payload_peek}")
+
         try:
             async with self._get_client() as client:
-                response = await client.get(f"{self.url}/emby/System/Info")
-                return response.status_code == 200
+                response = await client.request(method, url, params=full_params, json=json_data)
+                res_text = response.text if response.text else "(No Content)"
+                logger.info(f"┃  ┃  📥 [Emby 响应] Status: {response.status_code} | Body: {res_text[:200]}")
+                return response
         except Exception as e:
-            logger.error(f"连接 Emby 失败: {str(e)}")
-            return False
+            logger.error(f"┃  ┃  ❌ 指令发送异常: {str(e)}")
+            return None
+
+    async def test_connection(self) -> bool:
+        resp = await self._request("GET", "/System/Info")
+        return resp is not None and resp.status_code == 200
 
     async def fetch_items(self, item_types: List[str], recursive: bool = True, parent_id: str = None) -> List[Dict[str, Any]]:
-        """从 Emby 获取媒体项"""
         params = {
             "IncludeItemTypes": ",".join(item_types),
             "Recursive": str(recursive).lower(),
@@ -40,57 +58,15 @@ class EmbyService:
         if parent_id:
             params["ParentId"] = parent_id
             
-        try:
-            async with self._get_client() as client:
-                response = await client.get(f"{self.url}/emby/Items", params=params)
-                response.raise_for_status()
-                return response.json().get("Items", [])
-        except Exception as e:
-            logger.error(f"获取 Emby 媒体列表失败: {str(e)}")
-            return []
+        resp = await self._request("GET", "/Items", params=params)
+        return resp.json().get("Items", []) if resp and resp.status_code == 200 else []
 
     async def get_item(self, item_id: str) -> Optional[Dict[str, Any]]:
-        """获取单个项目的元数据"""
-        try:
-            async with self._get_client() as client:
-                # 优先使用带 UserID 的路径获取完整信息
-                url = f"{self.url}/emby/Users/{self.user_id}/Items/{item_id}" if self.user_id else f"{self.url}/emby/Items/{item_id}"
-                response = await client.get(url)
-                return response.json() if response.status_code == 200 else None
-        except: return None
+        endpoint = f"/Users/{self.user_id}/Items/{item_id}" if self.user_id else f"/Items/{item_id}"
+        resp = await self._request("GET", endpoint)
+        return resp.json() if resp and resp.status_code == 200 else None
 
-        async def update_item(self, item_id: str, data: Dict[str, Any]) -> bool:
-
-            """更新元数据并打印原始指令"""
-
-            url = f"{self.url}/emby/Items/{item_id}"
-
-            
-
-            # 模拟生成 CURL 命令用于调试
-
-            curl_cmd = f"curl -X POST '{url}' -H 'X-Emby-Token: {self.api_key}' -H 'Content-Type: application/json' -d '{json.dumps(data, ensure_ascii=False)}'"
-
-            logger.info(f"🚀 发送 Emby 原始指令:")
-
-            logger.info(f"┣ URL: {url}")
-
-            logger.info(f"┗ CURL: {curl_cmd[:200]}...") # 日志中截断，防止刷屏
-
-            
-
-            try:
-
-                async with self._get_client() as client:
-
-                    response = await client.post(url, json=data)
-
-                    return response.status_code in [200, 204]
-
-            except Exception as e:
-
-                logger.error(f"指令发送失败: {str(e)}")
-
-                return False
-
-    
+    async def update_item(self, item_id: str, data: Dict[str, Any]) -> bool:
+        """严格按照原版发送 POST 更新"""
+        resp = await self._request("POST", f"/Items/{item_id}", json_data=data)
+        return resp is not None and resp.status_code in [200, 204]

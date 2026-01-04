@@ -11,15 +11,15 @@
         <n-form label-placement="left" label-width="120">
           <n-form-item label="目标媒体库">
             <n-select 
-              v-model:value="libNames" 
+              v-model:value="common.lib_names" 
               multiple 
               filterable 
-              tag 
-              placeholder="手动输入媒体库名称，按回车添加" 
+              :options="libOptions"
+              placeholder="自动拉取媒体库列表中..." 
             />
           </n-form-item>
           <n-form-item label="执行模式">
-            <n-switch v-model:value="dryRun">
+            <n-switch v-model:value="common.dry_run">
               <template #checked>预览模式 (Dry Run)</template>
               <template #unchecked>实调模式 (Execute)</template>
             </n-switch>
@@ -60,7 +60,7 @@
         </n-gi>
       </n-grid>
 
-      <!-- 调试：接口快照 -->
+      <!-- 3. 调试：接口快照 -->
       <n-card title="调试：原版接口请求快照" embedded :bordered="false">
         <n-code :code="debugPayload" language="json" word-wrap />
       </n-card>
@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { 
   useMessage, NSpace, NH2, NText, NCard, NP, NButton, NGrid, NGi, 
   NCode, NCheckboxGroup, NCheckbox, NSwitch, NForm, NFormItem, NSelect, NDivider 
@@ -78,15 +78,36 @@ import axios from 'axios'
 
 const message = useMessage()
 const loading = ref(false)
-const libNames = ref(['电影', '动漫'])
-const dryRun = ref(true)
+const libOptions = ref([])
+
+// 从 localStorage 恢复记忆
+const savedCommon = localStorage.getItem('embylens_cleanup_common')
+const common = reactive(savedCommon ? JSON.parse(savedCommon) : {
+  lib_names: [],
+  dry_run: true
+})
+
+// 监听并记忆选择
+watch(common, (val) => {
+  localStorage.setItem('embylens_cleanup_common', JSON.stringify(val))
+}, { deep: true })
+
+const fetchLibraries = async () => {
+  try {
+    const res = await axios.get('/api/server/libraries')
+    libOptions.value = res.data
+  } catch (e) {}
+}
+
+onMounted(fetchLibraries)
+
 const peopleItemTypes = ref(['Movie', 'Series'])
 const lastAction = ref('people_remover')
 
 const debugPayload = computed(() => {
   const body: any = {
-    lib_names: libNames.value,
-    dry_run: dryRun.value
+    lib_names: common.lib_names,
+    dry_run: common.dry_run
   }
   if (lastAction.value === 'people_remover') {
     body.item_types = peopleItemTypes.value
@@ -99,15 +120,15 @@ const debugPayload = computed(() => {
 
 const handleAction = async (endpoint: string) => {
   lastAction.value = endpoint
-  if (libNames.value.length === 0) {
-    message.warning('请至少指定一个媒体库名称')
+  if (common.lib_names.length === 0) {
+    message.warning('请至少指定一个媒体库')
     return
   }
   loading.value = true
   try {
     const payload: any = {
-      lib_names: libNames.value,
-      dry_run: dryRun.value
+      lib_names: common.lib_names,
+      dry_run: common.dry_run
     }
     if (endpoint === 'people_remover') payload.item_types = peopleItemTypes.value
 

@@ -65,3 +65,22 @@ async def get_current_config(db: AsyncSession = Depends(get_db)):
     """获取当前唯一的服务器配置"""
     result = await db.execute(select(EmbyServer).limit(1))
     return result.scalars().first()
+
+@router.get("/libraries")
+async def get_emby_libraries(db: AsyncSession = Depends(get_db)):
+    """自动获取 Emby 媒体库列表"""
+    result = await db.execute(select(EmbyServer).limit(1))
+    server = result.scalars().first()
+    if not server:
+        return []
+    
+    service = EmbyService(server.url, server.api_key)
+    try:
+        async with service._get_client() as client:
+            resp = await client.get(f"{service.url}/emby/Library/VirtualFolders")
+            folders = resp.json()
+            # 返回名称列表供前端选择
+            return [{"label": f["Name"], "value": f["Name"]} for f in folders]
+    except Exception as e:
+        logger.error(f"获取媒体库失败: {e}")
+        return []
