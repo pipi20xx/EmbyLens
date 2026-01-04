@@ -101,11 +101,24 @@ const handleConfigSave = async (newConfig: any) => {
   if (await saveDedupeConfig()) showConfig.value = false
 }
 
-const handleBulkDelete = async () => {
-  if (await deleteItems(selectedIds.value)) {
-    showConfirm.value = false
-    suggestedItems.value = []
-  }
+const handleBulkDelete = () => {
+  const count = selectedIds.value.length
+  // 1. 立即给用户反馈
+  const msgInstance = message.loading(`正在启动后台清理任务，共 ${count} 个项目...`, { duration: 3000 })
+  
+  // 2. 立即关闭弹窗并重置状态，释放 UI
+  showConfirm.value = false
+  const idsToDelete = [...selectedIds.value] // 备份 ID 列表
+  selectedIds.value = []
+  suggestedItems.value = []
+
+  // 3. 静默执行请求
+  deleteItems(idsToDelete).then(success => {
+    msgInstance.destroy()
+    if (success) {
+      message.success('后台清理指令已全部下发，请检查日志查看最终结果')
+    }
+  })
 }
 </script>
 

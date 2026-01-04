@@ -171,18 +171,26 @@ async def list_duplicates(db: AsyncSession = Depends(get_db)):
 
 @router.post("/smart-select")
 async def smart_select_v4(db: AsyncSession = Depends(get_db)):
-    """智能分析，支持区分命名空间"""
+    """智能分析分析引擎 (V4): 增强日志跟踪"""
+    start_time = time.time()
     config = get_config()
     rule_data = config.get("dedupe_rules")
     exclude_paths = config.get("exclude_paths", [])
     scorer = Scorer(rule_data)
     
+    logger.info("🧪 [智能分析] 评分引擎启动，正在从数据库检索数据...")
+    
+    # 1. 抓取库里所有的电影、剧集本体、单集
     all_items_res = await db.execute(select(MediaItem).where(MediaItem.item_type.in_(["Movie", "Series", "Episode"])))
     all_items = all_items_res.scalars().all()
     
+    logger.info(f"┣ 📊 库内共有 {len(all_items)} 个节点参与分析")
+    
+    # 2. 分组
     groups = defaultdict(list)
     for i in all_items:
         if not i.tmdb_id: continue
+        
         if i.item_type == "Movie": key = f"Movie-{i.tmdb_id}"
         elif i.item_type == "Series": key = f"Series-{i.tmdb_id}"
         elif i.item_type == "Episode": key = f"TV-{i.tmdb_id}-S{str(i.season_num or 0).zfill(2)}E{str(i.episode_num or 0).zfill(2)}"
@@ -190,14 +198,38 @@ async def smart_select_v4(db: AsyncSession = Depends(get_db)):
         groups[key].append(i)
         
     to_delete_ids = []
+    duplicate_group_count = 0
+    
+    # 3. 评分
     for key, g_items in groups.items():
         if len(g_items) > 1:
+            duplicate_group_count += 1
             scored_data = [{"id": i.id, "emby_id": i.id, "path": i.path, "display_title": i.display_title, "video_codec": i.video_codec, "video_range": i.video_range} for i in g_items]
             suggested = scorer.select_best(scored_data)
-            for eid in suggested:
-                item_obj = next(it for it in g_items if it.id == eid)
-                if not any(item_obj.path.startswith(ex) for ex in exclude_paths if ex.strip()):
-                    to_delete_ids.append(eid)
+            
+            logger.info(f"┃  ┣ 📦 重复组 [{key}] 有 {len(g_items)} 个副本")
+            for i in g_items:
+                status = "🗑️ 建议删除" if i.id in suggested else "✅ 建议保留"
+                # 白名单二次校验
+                if i.id in suggested and any(i.path.startswith(ex) for ex in exclude_paths if ex.strip()):
+                    status = "🛡️ 白名单保护"
+                    suggested.remove(i.id)
+                logger.info(f"┃  ┃  ┗ {status}: [{i.display_title} | {i.video_codec}] {i.path}")
+            
+            to_delete_ids.extend(suggested)
+    
+    # 4. 汇总日志
+    process_time = (time.time() - start_time) * 1000
+    if duplicate_group_count == 0:
+        logger.info("✅ [智能分析] 任务结束: 扫描全库未发现任何重复资源。")
+    else:
+        logger.info(f"✅ [智能分析] 任务结束: 发现 {duplicate_group_count} 组重复，建议删除 {len(to_delete_ids)} 个节点。")
+    
+    audit_log("智能清理分析完成", process_time, [
+        f"分析总数: {len(all_items)}",
+        f"重复组数: {duplicate_group_count}",
+        f"建议删除: {len(to_delete_ids)}"
+    ])
     
     if not to_delete_ids: return []
     final_res = await db.execute(select(MediaItem).where(MediaItem.id.in_(to_delete_ids)))

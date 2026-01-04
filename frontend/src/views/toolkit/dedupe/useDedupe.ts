@@ -79,17 +79,26 @@ export function useDedupe() {
     }
   }
 
-  const syncMedia = async () => {
+  const syncMedia = () => {
+    if (syncing.value) return
+    
     syncing.value = true
-    try {
-      await axios.post('/api/dedupe/sync')
-      message.success('同步完成')
-      showOnlyDuplicates.value ? toggleDuplicateMode(true) : loadItems()
-    } catch (e) {
-      message.error('同步失败')
-    } finally {
+    message.info('后台同步任务已启动，请通过“实时日志”查看进度', { duration: 5000 })
+    
+    // 发起请求但不 await 阻塞
+    axios.post('/api/dedupe/sync').then(() => {
+      message.success('Emby 媒体库同步已在后台完成')
+      // 同步完成后自动刷新当前视图的数据
+      if (showOnlyDuplicates.value) {
+        toggleDuplicateMode(true)
+      } else {
+        loadItems()
+      }
+    }).catch((e) => {
+      message.error('后台同步任务执行失败，请检查网络或日志')
+    }).finally(() => {
       syncing.value = false
-    }
+    })
   }
 
   // --- 智能选中重构 ---
