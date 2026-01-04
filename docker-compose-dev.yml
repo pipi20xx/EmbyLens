@@ -1,0 +1,12 @@
+
+services:
+  embylens:
+    image: pipi20xx/embylens:latest
+    container_name: embylens
+    ports:
+      - "6565:6565"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
+    restart: always

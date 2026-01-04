@@ -67,12 +67,37 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 
 ---
 
-## 🚀 快速部署 (Docker)
+## 🚀 快速部署
 
-1.  **启动服务**：`docker-compose up -d`
-2.  **配置集成**：前往“系统设置”，填入 Emby URL、API Key。
-3.  **刷新索引**：进入对应工具（如重复项清理），点击“从 Emby 同步”。
-4.  **开始维护**：根据需要选择对应的原子化工具进行操作。
+### 方式一：镜像直接部署 (推荐)
+如果你不需要修改代码，直接使用 Docker Hub 上的预构建镜像：
+
+1.  **下载配置**：保存以下内容为 `docker-compose.yml`：
+    ```yaml
+    version: '3.8'
+    services:
+      embylens:
+        image: pipi20xx/embylens:latest
+        container_name: embylens
+        ports:
+          - "6565:6565"
+        volumes:
+          - ./data:/app/data
+        restart: always
+    ```
+2.  **启动服务**：`docker-compose up -d`
+3.  **访问系统**：浏览器打开 `http://localhost:6565`
+
+### 方式二：源码编译部署
+如果你需要进行二次开发或自定义：
+
+1.  **克隆代码**：`git clone ...`
+2.  **启动服务**：`docker-compose up -d --build`
+
+### 🛠️ 初始配置步骤
+1.  **环境集成**：前往“系统设置”，填入 Emby URL 和 API Key。
+2.  **刷新索引**：进入对应工具（如重复项清理），点击“从 Emby 同步”。
+3.  **开始维护**：根据需要选择对应的原子化工具进行操作。
 
 ---
 
