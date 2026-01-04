@@ -33,7 +33,8 @@ import {
   SearchOutlined as SearchIcon,
   MyLocationOutlined as TargetIcon,
   YoutubeSearchedForOutlined as DeepSearchIcon,
-  PeopleAltOutlined as ActorIcon
+  PeopleAltOutlined as ActorIcon,
+  SyncAltOutlined as WebhookIcon
 } from '@vicons/material'
 
 // Views
@@ -46,6 +47,7 @@ import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
 import ActorManagerView from './views/toolkit/ActorManager.vue'
+import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -124,11 +126,12 @@ const menuOptions: MenuOption[] = [
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
+  { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, SettingsView
+    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
