@@ -30,7 +30,8 @@ import {
   LayersOutlined as CleanupIcon,
   LockOpenOutlined as LockIcon,
   CameraOutlined as LensIcon,
-  SearchOutlined as SearchIcon
+  SearchOutlined as SearchIcon,
+  MyLocationOutlined as TargetIcon
 } from '@vicons/material'
 
 // Views
@@ -40,6 +41,7 @@ import TypeManagerView from './views/toolkit/TypeManager.vue'
 import CleanupToolsView from './views/toolkit/CleanupTools.vue'
 import LockManagerView from './views/toolkit/LockManager.vue'
 import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
+import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -126,11 +128,12 @@ const menuOptions: MenuOption[] = [
   { label: '媒体净化清理', key: 'CleanupToolsView', icon: renderIcon(CleanupIcon) },
   { label: '元数据锁定器', key: 'LockManagerView', icon: renderIcon(LockIcon) },
   { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
+  { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, SettingsView
+    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
