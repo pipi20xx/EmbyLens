@@ -7,6 +7,9 @@ class ServerConfig(BaseModel):
     api_key: str
     user_id: Optional[str] = None
     tmdb_api_key: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    session_token: Optional[str] = None
 
 class ServerResponse(ServerConfig):
     id: int

@@ -48,6 +48,7 @@ import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
 import ActorManagerView from './views/toolkit/ActorManager.vue'
 import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
+import DedupeView from './views/Dedupe.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -119,6 +120,7 @@ onMounted(() => {
 // --- 菜单配置 ---
 const menuOptions: MenuOption[] = [
   { label: '管理仪表盘', key: 'DashboardView', icon: renderIcon(DashboardIcon) },
+  { label: '重复项清理', key: 'DedupeView', icon: renderIcon(DedupeIcon) },
   { label: '类型映射管理', key: 'TypeManagerView', icon: renderIcon(CategoryIcon) },
   { label: '媒体净化清理', key: 'CleanupToolsView', icon: renderIcon(CleanupIcon) },
   { label: '元数据锁定器', key: 'LockManagerView', icon: renderIcon(LockIcon) },
@@ -131,7 +133,7 @@ const menuOptions: MenuOption[] = [
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
+    DashboardView, DedupeView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })

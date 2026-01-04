@@ -8,6 +8,7 @@ from .tmdb_lookup import router as tmdb_lookup_router
 from .tmdb_search import router as tmdb_search_router
 from .actors import router as actors_router
 from .webhook import router as webhook_router
+from .dedupe import router as dedupe_router
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ router.include_router(tmdb_lookup_router, prefix="/tmdb", tags=["TMDBLookup"])
 router.include_router(tmdb_search_router, prefix="/tmdb-search", tags=["TMDBSearch"])
 router.include_router(actors_router, prefix="/actors", tags=["Actors"])
 router.include_router(webhook_router, prefix="/webhook", tags=["Webhook"])
+router.include_router(dedupe_router, prefix="/dedupe", tags=["Deduplication"])
 
 @router.get("/status")
 async def get_status():

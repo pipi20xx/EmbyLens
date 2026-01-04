@@ -4,7 +4,7 @@ from sqlalchemy import select
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
-from app.models.server import EmbyServer
+from app.models.media import MediaItem, DedupeRule
 from app.services.emby import EmbyService
 from app.utils.logger import logger, audit_log
 import time
@@ -53,11 +53,19 @@ class MetadataManagerResponse(BaseModel):
     processed_count: int
     dry_run_active: bool
 
+from app.core.config_manager import get_config
+import time
+
+router = APIRouter()
+
 async def get_emby_context(db: AsyncSession):
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    if not server: raise HTTPException(status_code=400, detail="未配置服务器")
-    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key), server.user_id
+    config = get_config()
+    url = config.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="未配置服务器")
+    
+    token = config.get("session_token") or config.get("api_key")
+    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key")), config.get("user_id")
 
 async def _get_library_id(service: EmbyService, lib_name: str) -> Optional[str]:
     resp = await service._request("GET", "/Library/VirtualFolders")

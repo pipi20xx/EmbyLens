@@ -1,86 +1,93 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException
 from typing import Optional, Dict, Any
-from app.db.session import get_db
-from app.models.server import EmbyServer
-from app.models.media import DedupeRule
-from app.schemas.server import ServerConfig, ConnectionTest, ServerResponse
-from app.services.emby import EmbyService
-from app.utils.logger import logger, audit_log
+import httpx
+import uuid
 import time
+from app.core.config_manager import get_config, save_config
+from app.services.emby import EmbyService
+from app.utils.logger import logger
 
 router = APIRouter()
 
 @router.post("/test")
-async def test_connection(config: ConnectionTest):
-    service = EmbyService(config.url, config.api_key)
+async def test_connection(config: Dict[str, Any]):
+    service = EmbyService(config.get("url", ""), config.get("api_key", ""))
     success = await service.test_connection()
     if not success:
         raise HTTPException(status_code=400, detail="无法连接到 Emby 服务器")
     return {"message": "连接成功"}
 
-@router.post("/save", response_model=ServerResponse)
-async def save_config(config: ServerConfig, db: AsyncSession = Depends(get_db)):
-    """单服务器模式：始终只维护一条 ID=1 的记录"""
-    start_time = time.time()
+@router.post("/save")
+async def save_server_config(config: Dict[str, Any]):
+    """保存配置到 config.json"""
+    # 保持 session_token 不被覆盖（如果前端没传的话）
+    current = get_config()
+    if "session_token" not in config and "session_token" in current:
+        config["session_token"] = current["session_token"]
     
-    # 查找现有的第一条配置
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    
-    if server:
-        # 更新现有配置
-        server.name = config.name
-        server.url = config.url
-        server.api_key = config.api_key
-        server.user_id = config.user_id
-        server.tmdb_api_key = config.tmdb_api_key
-    else:
-        # 创建新配置
-        server = EmbyServer(
-            id=1, 
-            name=config.name,
-            url=config.url,
-            api_key=config.api_key,
-            user_id=config.user_id,
-            tmdb_api_key=config.tmdb_api_key,
-            is_active=True
-        )
-        db.add(server)
-    
-    await db.commit()
-    await db.refresh(server)
-    
-    audit_log("系统配置已更新", (time.time() - start_time) * 1000, [
-        f"服务器: {server.url}",
-        f"UserID: {server.user_id or '未设置'}",
-        f"TMDB Key: {'已配置' if server.tmdb_api_key else '未配置'}"
-    ])
-    
-    return server
+    save_config(config)
+    return config
 
-@router.get("/current", response_model=Optional[ServerResponse])
-async def get_current_config(db: AsyncSession = Depends(get_db)):
-    """获取当前唯一的服务器配置"""
-    result = await db.execute(select(EmbyServer).limit(1))
-    return result.scalars().first()
+@router.get("/current")
+async def get_current_config():
+    """获取当前 config.json 内容"""
+    return get_config()
+
+@router.post("/login")
+async def emby_login():
+    """使用 config.json 中的凭据登录并获取 Session Token"""
+    config = get_config()
+    url = config.get("url")
+    username = config.get("username")
+    password = config.get("password")
+    
+    if not url or not username:
+        raise HTTPException(status_code=400, detail="未配置服务器地址或用户名")
+
+    try:
+        auth_url = f"{url.rstrip('/')}/emby/Users/AuthenticateByName"
+        device_id = str(uuid.uuid4())
+        auth_header = f'MediaBrowser Client="EmbyLens", Device="Server", DeviceId="{device_id}", Version="1.0.0"'
+        
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                auth_url,
+                json={"Username": username, "Pw": password or ""},
+                headers={"X-Emby-Authorization": auth_header}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            token = data.get("AccessToken")
+            user_id = data.get("User", {}).get("Id")
+            
+            if token:
+                config["session_token"] = token
+                if user_id: config["user_id"] = user_id
+                save_config(config)
+                return {"message": "登录成功", "token": token}
+            
+            raise ValueError("登录成功但未收到令牌")
+    except Exception as e:
+        logger.error(f"Emby 登录失败: {e}")
+        raise HTTPException(status_code=500, detail=f"登录失败: {str(e)}")
 
 @router.get("/libraries")
-async def get_emby_libraries(db: AsyncSession = Depends(get_db)):
-    """自动获取 Emby 媒体库列表"""
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    if not server:
+async def get_emby_libraries():
+    config = get_config()
+    url = config.get("url")
+    api_key = config.get("api_key")
+    
+    if not url or not api_key:
         return []
     
-    service = EmbyService(server.url, server.api_key)
+    service = EmbyService(url, api_key)
     try:
-        async with service._get_client() as client:
-            resp = await client.get(f"{service.url}/emby/Library/VirtualFolders")
+        # 使用 service._request 内部封装的逻辑，它会自动处理 api_key 和超时
+        resp = await service._request("GET", "/Library/VirtualFolders")
+        if resp and resp.status_code == 200:
             folders = resp.json()
-            # 返回名称列表供前端选择
             return [{"label": f["Name"], "value": f["Name"]} for f in folders]
+        return []
     except Exception as e:
         logger.error(f"获取媒体库失败: {e}")
         return []

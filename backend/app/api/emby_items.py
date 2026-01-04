@@ -1,49 +1,40 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.models.server import EmbyServer
+from app.core.config_manager import get_config
 from app.services.emby import EmbyService
 from app.utils.logger import logger, audit_log
-from sqlalchemy import select
 import time
 
 router = APIRouter()
 
-async def get_active_emby(db: AsyncSession):
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    if not server:
-        logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
-        raise HTTPException(status_code=400, detail="请先在设置中配置服务器")
-    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key)
+async def get_emby_service():
+    config = get_config()
+    url = config.get("url")
+    if not url:
+        return None
+    token = config.get("session_token") or config.get("api_key")
+    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
 
-@router.get("/info", summary="根据 Emby Item ID 获取完整元数据")
-async def get_item_info(
-    item_id: str = Query(..., description="Emby 项目 ID"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    1:1 源码复刻 + 深度日志集成
-    """
+@router.get("/info")
+async def get_item_info(item_id: str, db: AsyncSession = Depends(get_db)):
     start_time = time.time()
-    logger.info(f"🚀 启动 [项目 ID 查询] 任务: {item_id}")
+    service = await get_emby_service()
+    if not service:
+        raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
     
-    # 使用统一辅助函数
-    service = await get_active_emby(db)
-    
-    logger.info(f"┣ 🔍 正在检索 Emby 原始元数据...")
-    item_data = await service.get_item(item_id)
-    
-    if not item_data:
-        logger.error(f"┗ ❌ 未找到项目: {item_id}")
-        raise HTTPException(status_code=404, detail=f"项目 {item_id} 未找到")
-
+    item = await service.get_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="条目未找到")
+        
     process_time = (time.time() - start_time) * 1000
     audit_log("项目元数据查询成功", process_time, [
-        f"项目 ID: {item_id}",
-        f"项目名称: {item_data.get('Name', '未知')}",
-        f"类型: {item_data.get('Type', '未知')}",
-        f"字段总数: {len(item_data.keys())}"
+        f"Item ID: {item_id}",
+        f"名称: {item.get('Name')}"
     ])
-    
-    return item_data
+    return item
+
+@router.get("/query")
+async def query_item(item_id: str, db: AsyncSession = Depends(get_db)):
+    # 兼容旧接口名称
+    return await get_item_info(item_id, db)

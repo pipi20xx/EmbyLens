@@ -4,9 +4,12 @@ from sqlalchemy import select
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
-from app.models.server import EmbyServer
+from app.core.config_manager import get_config
 from app.services.emby import EmbyService
 from app.utils.logger import logger, audit_log
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Depends, HTTPException
 import time
 
 router = APIRouter()
@@ -22,14 +25,16 @@ class TmdbSearchResponse(BaseModel):
 
 FULL_FIELDS = "ProviderIds,Name,Type,Id,Path,Overview,ProductionYear,CommunityRating,OfficialRating,Genres,Studios,PremiereDate,EndDate,Status,RunTimeTicks,Taglines,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,ParentId,MediaStreams,MediaSources,People,ExternalUrls"
 
-# --- 还原被误删的核心辅助函数 ---
-async def get_active_emby(db: AsyncSession):
-    result = await db.execute(select(EmbyServer).limit(1))
-    server = result.scalars().first()
-    if not server: 
+# --- 使用 config.json 还原被误删的核心辅助函数 ---
+async def get_active_emby():
+    config = get_config()
+    url = config.get("url")
+    if not url: 
         logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
         raise HTTPException(status_code=400, detail="未配置服务器")
-    return EmbyService(server.url, server.api_key, server.user_id, server.tmdb_api_key)
+    
+    token = config.get("session_token") or config.get("api_key")
+    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
 
 async def _fetch_series_structure(service: EmbyService, series_item: Dict[str, Any]) -> Dict[str, Any]:
     series_details = series_item.copy()
@@ -57,7 +62,7 @@ async def search_by_tmdb_id(request: TmdbSearchRequest, db: AsyncSession = Depen
     logger.info(f"🚀 启动 [TMDB ID 深度搜索] 任务: {request.tmdb_id}")
 
     # 使用还原后的辅助函数
-    service = await get_active_emby(db)
+    service = await get_active_emby()
     
     include_types = []
     if request.search_movies: include_types.append("Movie")

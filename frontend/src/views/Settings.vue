@@ -28,6 +28,19 @@
                   <n-input v-model:value="serverForm.name" placeholder="默认服务器" />
                 </n-form-item-gi>
               </n-grid>
+
+              <n-divider title-placement="left">账号登录 (用于删除操作)</n-divider>
+              <n-grid :cols="3" :x-gap="12">
+                <n-form-item-gi label="Emby 用户名">
+                  <n-input v-model:value="serverForm.username" placeholder="请输入管理员用户名" />
+                </n-form-item-gi>
+                <n-form-item-gi label="Emby 密码">
+                  <n-input v-model:value="serverForm.password" type="password" show-password-on="mousedown" />
+                </n-form-item-gi>
+                <n-form-item-gi label="会话令牌 (Session Token)">
+                  <n-input v-model:value="serverForm.session_token" disabled placeholder="登录后自动填充" />
+                </n-form-item-gi>
+              </n-grid>
             </n-form>
           </n-card>
 
@@ -50,6 +63,7 @@
           <n-card :bordered="false" content-style="padding: 0">
             <n-space justify="end">
               <n-button secondary @click="handleTest" :loading="testing">测试 Emby 连通性</n-button>
+              <n-button type="info" secondary @click="handleLogin" :loading="loggingIn">登录并获取 Token</n-button>
               <n-button type="primary" @click="handleSave" :loading="saving">保存所有配置</n-button>
             </n-space>
           </n-card>
@@ -90,13 +104,17 @@ import axios from 'axios'
 const message = useMessage()
 const testing = ref(false)
 const saving = ref(false)
+const loggingIn = ref(false)
 
 const serverForm = reactive({
   name: '默认服务器',
   url: '',
   api_key: '',
   user_id: '',
-  tmdb_api_key: ''
+  tmdb_api_key: '',
+  username: '',
+  password: '',
+  session_token: ''
 })
 
 const fetchCurrent = async () => {
@@ -145,6 +163,26 @@ const handleSave = async () => {
     message.error(e.response?.data?.detail || '保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+const handleLogin = async () => {
+  if (!serverForm.username) {
+    message.warning('请输入用户名')
+    return
+  }
+  // 登录前先保存现有配置，确保后端拿到最新的账号密码
+  await handleSave()
+  
+  loggingIn.value = true
+  try {
+    const res = await axios.post('/api/server/login')
+    message.success('登录成功，已获取会话令牌')
+    serverForm.session_token = res.data.token
+  } catch (e: any) {
+    message.error(e.response?.data?.detail || '登录失败')
+  } finally {
+    loggingIn.value = false
   }
 }
 
