@@ -99,13 +99,14 @@ async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(g
                     # 物理同步 GenreItems
                     new_gi = []
                     for gi in full_item.get("GenreItems", []):
-                        if gi.get("Name") in mapping_dict:
-                            m = mapping_dict[gi["Name"]]
+                        gn = gi.get("Name")
+                        if gn in mapping_dict:
+                            m = mapping_dict[gn]
                             new_gi.append({"Name": m["Name"], "Id": m["Id"] or gi.get("Id")})
                         else: new_gi.append(gi)
                     full_item["GenreItems"] = new_gi
                     await service.update_item(full_item["Id"], full_item)
-                logger.info(f"┃  ┣ 🎯 {'[预览]' if request.dry_run else '[执行]'} 修改项目: {full_item.get('Name')}")
+                logger.info(f"┃  ┣ 🎯 {'[预览]' if request.dry_run else '[执行]'} 映射项目: {full_item.get('Name')}")
     return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
 
 @router.post("/remover", response_model=MetadataManagerResponse)
@@ -170,6 +171,39 @@ async def item_locker(request: MetadataUnlockerRequest, db: AsyncSession = Depen
 @router.post("/item_unlocker", response_model=MetadataManagerResponse)
 async def item_unlocker(request: MetadataUnlockerRequest, db: AsyncSession = Depends(get_db)):
     return await metadata_field_unlocker(request, db)
+
+@router.post("/genre_adder", response_model=MetadataManagerResponse)
+async def genre_adder(request: GenreAdderRequest, db: AsyncSession = Depends(get_db)):
+    """1:1 源码复刻：批量新增类型"""
+    service, user_id = await get_emby_context(db)
+    processed = 0
+    start_time = time.time()
+    logger.info(f"🚀 开始 [类型新增] 任务: {request.genre_to_add_name}")
+    
+    # 自动匹配 ID
+    new_id = int(request.genre_to_add_id) if (request.genre_to_add_id and request.genre_to_add_id.isdigit()) else GENRE_ID_MAP.get(request.genre_to_add_name)
+
+    for lib_name in request.lib_names:
+        parent_id = await _get_library_id(service, lib_name)
+        if not parent_id: continue
+        items = await _get_lib_items(service, parent_id, ["Movie", "Series"])
+        for it_list in items:
+            full_item = await _get_full_item(service, user_id, it_list["Id"])
+            if not full_item: continue
+            
+            genres = full_item.get("Genres", [])
+            if request.genre_to_add_name not in genres:
+                processed += 1
+                if not request.dry_run:
+                    full_item["Genres"] = genres + [request.genre_to_add_name]
+                    # 物理同步 GenreItems
+                    gi_list = full_item.get("GenreItems", [])
+                    gi_list.append({"Name": request.genre_to_add_name, "Id": new_id})
+                    full_item["GenreItems"] = gi_list
+                    await service.update_item(full_item["Id"], full_item)
+                logger.info(f"┃  ┣ 🎯 新增到项目: {full_item.get('Name')}")
+                
+    return MetadataManagerResponse(message="添加完成", processed_count=processed, dry_run_active=request.dry_run)
 
 @router.post("/people_remover", response_model=MetadataManagerResponse)
 async def people_remover(request: PeopleRemoverRequest, db: AsyncSession = Depends(get_db)):
