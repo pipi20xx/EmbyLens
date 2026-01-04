@@ -73,8 +73,29 @@ const fetchInfo = async () => {
 
 const copyData = () => {
   if (itemData.value) {
-    navigator.clipboard.writeText(JSON.stringify(itemData.value, null, 2))
-    message.info('JSON 已复制到剪贴板')
+    const text = JSON.stringify(itemData.value, null, 2);
+    if (copyToClipboard(text)) {
+      message.success('JSON 已复制到剪贴板');
+    }
+  }
+}
+
+const copyToClipboard = (text: string) => {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch (err) {
+    document.body.removeChild(textArea);
+    return false;
   }
 }
 </script>

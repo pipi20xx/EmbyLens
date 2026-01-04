@@ -169,7 +169,34 @@ const form = reactive({ tmdb_id: '' })
 const jsonModal = reactive({ show: false, data: {} as any })
 
 const showJson = (item: any) => { jsonModal.data = item; jsonModal.show = true; }
-const copyRawJson = () => { navigator.clipboard.writeText(JSON.stringify(jsonModal.data, null, 2)); message.success('已复制'); }
+const copyRawJson = () => { 
+  const text = JSON.stringify(jsonModal.data, null, 2);
+  if (copyToClipboard(text)) {
+    message.success('JSON 数据已成功复制到剪贴板');
+  } else {
+    message.error('复制失败，请手动选择文字复制');
+  }
+}
+
+// 兼容性极强的复制工具函数
+const copyToClipboard = (text: string) => {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed"; // 避免滚动条抖动
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch (err) {
+    document.body.removeChild(textArea);
+    return false;
+  }
+}
 
 const handleSearch = async () => {
   if (!form.tmdb_id) return
