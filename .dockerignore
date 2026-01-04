@@ -28,6 +28,7 @@ logs/
 .git
 .gitignore
 .dockerignore
+emby_manager_config.json
 
 # IDEs
 .vscode

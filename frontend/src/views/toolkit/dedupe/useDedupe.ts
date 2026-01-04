@@ -12,13 +12,10 @@ export function useDedupe() {
   const showOnlyDuplicates = ref(false)
   const items = ref<any[]>([])
   const selectedIds = ref<string[]>([])
+  const suggestedItems = ref<any[]>([]) // 专门存储智能选中的结果对象
   
   const dedupeConfig = ref<any>({ 
-    rules: {
-      priority_order: [],
-      values_weight: { display_title: [], video_codec: [], video_range: [] },
-      tie_breaker: 'small_id'
-    }, 
+    rules: { priority_order: [], values_weight: {}, tie_breaker: 'small_id' }, 
     exclude_paths: [] 
   })
 
@@ -32,12 +29,9 @@ export function useDedupe() {
   const saveDedupeConfig = async () => {
     try {
       await axios.post('/api/dedupe/config', dedupeConfig.value)
-      message.success('规则已保存并应用')
+      message.success('规则已保存')
       return true
-    } catch (e) {
-      message.error('保存配置失败')
-      return false
-    }
+    } catch (e) { return false }
   }
 
   const processItems = (data: any[]) => {
@@ -73,20 +67,8 @@ export function useDedupe() {
       selectedIds.value = []
       try {
         const res = await axios.get('/api/dedupe/duplicates')
-        // 关键改进：按组显示重复项，不再混在一起
-        const flattened: any[] = []
-        res.data.forEach((group: any) => {
-          group.items.forEach((item: any, index: number) => {
-            flattened.push({ 
-              ...item, 
-              is_duplicate: true, 
-              isLeaf: true,
-              group_id: group.tmdb_id,
-              is_first_in_group: index === 0 // 用于前端做视觉分割
-            })
-          })
-        })
-        items.value = flattened
+        // 后端现在直接返回平铺的重复项列表
+        items.value = processItems(res.data)
       } catch (e) {
         message.error('加载重复项失败')
       } finally {
@@ -101,7 +83,7 @@ export function useDedupe() {
     syncing.value = true
     try {
       await axios.post('/api/dedupe/sync')
-      message.success('全量同步完成')
+      message.success('同步完成')
       showOnlyDuplicates.value ? toggleDuplicateMode(true) : loadItems()
     } catch (e) {
       message.error('同步失败')
@@ -110,36 +92,42 @@ export function useDedupe() {
     }
   }
 
+  // --- 智能选中重构 ---
   const autoSelect = async () => {
-    if (!showOnlyDuplicates.value) return message.warning('请先开启“仅显示重复项”模式')
+    loading.value = true
     try {
-      const res = await axios.post('/api/dedupe/smart-select', { items: items.value })
-      selectedIds.value = res.data.to_delete
-      message.success(`已智能选中 ${selectedIds.value.length} 个冗余副本`)
+      // 不传任何参数，让后端全库扫描
+      const res = await axios.post('/api/dedupe/smart-select')
+      suggestedItems.value = res.data
+      selectedIds.value = res.data.map((i: any) => i.id)
+      
+      if (res.data.length === 0) {
+        message.info('未发现符合规则的可清理项目')
+      }
+      return res.data
     } catch (e) {
       message.error('算法执行失败')
+      return []
+    } finally {
+      loading.value = false
     }
   }
 
-  const confirmDelete = () => {
-    dialog.error({
-      title: '永久删除确认',
-      content: `确定要删除选中的 ${selectedIds.value.length} 个项目吗？`,
-      positiveText: '确认删除',
-      negativeText: '取消',
-      onPositiveClick: async () => {
-        try {
-          const res = await axios.delete('/api/dedupe/items', { data: { item_ids: selectedIds.value } })
-          message.success(`已清理 ${res.data.success} 个项目`)
-          selectedIds.value = []
-          showOnlyDuplicates.value ? toggleDuplicateMode(true) : loadItems()
-        } catch (e) {}
-      }
-    })
+  const deleteItems = async (ids: string[]) => {
+    try {
+      const res = await axios.delete('/api/dedupe/items', { data: { item_ids: ids } })
+      message.success(`成功删除 ${res.data.success} 个项目`)
+      selectedIds.value = []
+      showOnlyDuplicates.value ? toggleDuplicateMode(true) : loadItems()
+      return true
+    } catch (e) {
+      message.error('删除失败')
+      return false
+    }
   }
 
   return {
-    loading, syncing, searchName, showOnlyDuplicates, items, selectedIds, dedupeConfig,
-    loadItems, onLoadChildren, toggleDuplicateMode, syncMedia, autoSelect, confirmDelete, loadConfig, saveDedupeConfig
+    loading, syncing, searchName, showOnlyDuplicates, items, selectedIds, suggestedItems, dedupeConfig,
+    loadItems, onLoadChildren, toggleDuplicateMode, syncMedia, autoSelect, deleteItems, loadConfig, saveDedupeConfig
   }
 }

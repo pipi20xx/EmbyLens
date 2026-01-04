@@ -1,18 +1,12 @@
 <template>
   <div class="dedupe-layout">
     <n-space vertical size="large">
-      <!-- 1. 顶部操作栏 -->
       <n-card embedded :bordered="false" size="small">
         <n-space justify="space-between" align="center">
           <n-space align="center" :size="20">
             <n-h2 style="margin: 0"><n-text type="primary">Emby 媒体管理与去重</n-text></n-h2>
             <n-input-group>
-              <n-input 
-                v-model:value="searchName" 
-                placeholder="搜索名称:铃芽 / 路径:Anime / ID..." 
-                style="width: 280px" 
-                @keypress.enter="loadItems"
-              />
+              <n-input v-model:value="searchName" placeholder="高级搜索: 名称:xxx / ID..." style="width: 280px" @keypress.enter="loadItems" />
               <n-button type="primary" @click="loadItems">
                 <template #icon><n-icon><SearchIcon /></n-icon></template>
               </n-button>
@@ -23,6 +17,11 @@
           </n-space>
           
           <n-space>
+            <!-- 智能选中按钮现在总是显示 -->
+            <n-button type="warning" secondary @click="handleAutoSelect">
+              <template #icon><n-icon><AutoIcon /></n-icon></template>
+              ✨ 智能分析清理
+            </n-button>
             <n-button ghost @click="showConfig = true">
               <template #icon><n-icon><SettingsIcon /></n-icon></template>
               规则设置
@@ -30,74 +29,82 @@
             <n-button type="primary" secondary :loading="syncing" @click="syncMedia">
               从 Emby 同步
             </n-button>
-            <n-button v-if="selectedIds.length > 0" type="error" @click="confirmDelete">
-              永久删除 ({{ selectedIds.length }})
-            </n-button>
-            <n-button v-if="showOnlyDuplicates" type="warning" @click="autoSelect">
-              ✨ 智能选中
+            <n-button v-if="selectedIds.length > 0" type="error" @click="showConfirm = true">
+              手动删除选中 ({{ selectedIds.length }})
             </n-button>
           </n-space>
         </n-space>
       </n-card>
 
-      <!-- 2. 媒体数据表格 -->
       <n-card :bordered="false" content-style="padding: 0">
         <n-data-table
-          remote
-          :columns="columns"
-          :data="items"
-          :loading="loading"
-          :row-key="row => row.id"
-          @update:checked-row-keys="val => selectedIds = val"
-          :pagination="false"
-          size="small"
-          max-height="calc(100vh - 220px)"
-          virtual-scroll
-          :cascade="false"
-          @load="onLoadChildren"
+          remote :columns="columns" :data="items" :loading="loading" :row-key="row => row.id"
+          v-model:checked-row-keys="selectedIds" :pagination="false" size="small"
+          max-height="calc(100vh - 220px)" virtual-scroll :cascade="false" @load="onLoadChildren"
         />
       </n-card>
     </n-space>
 
-    <!-- 3. 拆分出的配置弹窗组件 -->
-    <DedupeConfigModal
-      v-model:show="showConfig"
-      :config="dedupeConfig"
-      @save="handleConfigSave"
+    <DedupeConfigModal v-model:show="showConfig" :config="dedupeConfig" @save="handleConfigSave" />
+
+    <!-- 弹窗清单现在显示 suggestedItems -->
+    <DedupeConfirmModal
+      v-model:show="showConfirm"
+      :items="confirmItems"
+      @confirm="handleBulkDelete"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { NCard, NSpace, NButton, NIcon, NInput, NInputGroup, NCheckbox, NDataTable, NH2, NText } from 'naive-ui'
-import { SearchOutlined as SearchIcon, SettingsOutlined as SettingsIcon } from '@vicons/material'
+import { SearchOutlined as SearchIcon, SettingsOutlined as SettingsIcon, AutoFixHighOutlined as AutoIcon } from '@vicons/material'
 
-// 导入拆分出的各个模块
 import { getColumns } from './toolkit/dedupe/columns'
 import { useDedupe } from './toolkit/dedupe/useDedupe'
 import DedupeConfigModal from './toolkit/dedupe/DedupeConfigModal.vue'
+import DedupeConfirmModal from './toolkit/dedupe/DedupeConfirmModal.vue'
 
 const {
-  loading, syncing, searchName, showOnlyDuplicates, items, selectedIds, dedupeConfig,
-  loadItems, onLoadChildren, toggleDuplicateMode, syncMedia, autoSelect, confirmDelete, loadConfig, saveDedupeConfig
+  loading, syncing, searchName, showOnlyDuplicates, items, selectedIds, suggestedItems, dedupeConfig,
+  loadItems, onLoadChildren, toggleDuplicateMode, syncMedia, autoSelect, deleteItems, loadConfig, saveDedupeConfig
 } = useDedupe()
 
 const columns = getColumns()
 const showConfig = ref(false)
+const showConfirm = ref(false)
+
+// 如果是智能分析出来的，显示 suggestedItems，否则显示手动勾选的
+const confirmItems = computed(() => {
+  if (suggestedItems.value.length > 0 && selectedIds.value.length === suggestedItems.value.length) {
+    return suggestedItems.value
+  }
+  // 手动勾选时，从当前页面列表找对象
+  return items.value.filter(i => selectedIds.value.includes(i.id))
+})
 
 onMounted(async () => {
   await loadConfig()
   loadItems()
 })
 
+const handleAutoSelect = async () => {
+  const res = await autoSelect()
+  if (res.length > 0) {
+    showConfirm.value = true
+  }
+}
+
 const handleConfigSave = async (newConfig: any) => {
-  // 更新 Hook 里的状态
   dedupeConfig.value = newConfig
-  // 调用 Hook 里的保存方法
-  const success = await saveDedupeConfig()
-  if (success) {
-    showConfig.value = false
+  if (await saveDedupeConfig()) showConfig.value = false
+}
+
+const handleBulkDelete = async () => {
+  if (await deleteItems(selectedIds.value)) {
+    showConfirm.value = false
+    suggestedItems.value = []
   }
 }
 </script>
@@ -105,5 +112,4 @@ const handleConfigSave = async (newConfig: any) => {
 <style scoped>
 .dedupe-layout { padding: 0; }
 :deep(.n-data-table-tr--with-children) { background-color: rgba(255, 255, 255, 0.02); }
-:deep(.n-data-table-tr:hover) { background-color: rgba(112, 93, 242, 0.08) !important; }
 </style>
