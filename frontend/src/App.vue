@@ -49,6 +49,7 @@ import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
 import ActorManagerView from './views/toolkit/ActorManager.vue'
 import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
 import DedupeView from './views/Dedupe.vue'
+import AutoTagsView from './views/toolkit/autotags/AutoTagsManager.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -129,11 +130,12 @@ const menuOptions: MenuOption[] = [
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
+  { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })

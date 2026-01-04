@@ -52,6 +52,10 @@ async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
+    # 启动自动标签 Webhook 消费 Worker
+    from app.api.autotags import webhook_worker
+    asyncio.create_task(webhook_worker())
+    
     audit_log("系统启动", 120, [
         "数据库表结构已初始化",
         "持久化目录: /app/data",

@@ -22,7 +22,27 @@ DEFAULT_CONFIG = {
         },
         "tie_breaker": "small_id"
     },
-    "exclude_paths": []
+    "exclude_paths": [],
+    "autotag_rules": [
+        {
+            "name": "国漫标记",
+            "tag": "国漫",
+            "item_type": "series",
+            "match_all_conditions": True,
+            "conditions": {
+                "countries": ["中国大陆"],
+                "genres": ["动画"],
+                "years_text": ""
+            }
+        }
+    ],
+    "webhook": {
+        "enabled": True,
+        "secret_token": "embylens_default_token",
+        "automation_enabled": True,
+        "delay_seconds": 10,
+        "write_mode": "merge"
+    }
 }
 
 def get_config() -> Dict[str, Any]:
@@ -33,14 +53,17 @@ def get_config() -> Dict[str, Any]:
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # 核心：将读取到的数据合并到默认配置中，补全缺失的 key (如 dedupe_rules)
+            # 基础合并
             full_config = DEFAULT_CONFIG.copy()
             full_config.update(data)
-            # 深度合并第二层 (rules)
-            if "dedupe_rules" in data:
-                rules = DEFAULT_CONFIG["dedupe_rules"].copy()
-                rules.update(data["dedupe_rules"])
-                full_config["dedupe_rules"] = rules
+            
+            # 深度合并二级对象，防止缺失字段
+            for key in ["dedupe_rules", "webhook"]:
+                if key in data:
+                    sub_config = DEFAULT_CONFIG[key].copy()
+                    sub_config.update(data[key])
+                    full_config[key] = sub_config
+                
             return full_config
     except Exception:
         return DEFAULT_CONFIG.copy()
