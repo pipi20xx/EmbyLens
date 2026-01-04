@@ -20,8 +20,8 @@ class TmdbSearchRequest(BaseModel):
 class TmdbSearchResponse(BaseModel):
     results: List[Dict[str, Any]]
 
-# 全量字段集，包含原版要求的所有元数据
-FULL_FIELDS = "ProviderIds,Name,Type,Id,Path,Overview,ProductionYear,CommunityRating,OfficialRating,Genres,Studios,PremiereDate,EndDate,Status,RunTimeTicks,Taglines,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,ParentId"
+# 终极全量字段集，尽可能缩小列表接口与详情接口的差异
+FULL_FIELDS = "ProviderIds,Name,Type,Id,Path,Overview,ProductionYear,CommunityRating,OfficialRating,Genres,Studios,PremiereDate,EndDate,Status,RunTimeTicks,Taglines,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,ParentId,MediaStreams,MediaSources,People,ExternalUrls"
 
 async def _fetch_series_structure(service: EmbyService, series_item: Dict[str, Any]) -> Dict[str, Any]:
     """1:1 源码级递归：抓取季、集以及每一集的详尽元数据"""
