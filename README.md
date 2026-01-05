@@ -85,6 +85,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
         volumes:
           - ./data:/app/data
         environment:
+          - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
           - TZ=Asia/Shanghai
         restart: always
     ```
