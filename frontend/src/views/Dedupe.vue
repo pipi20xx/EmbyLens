@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { NCard, NSpace, NButton, NIcon, NInput, NInputGroup, NCheckbox, NDataTable, NH2, NText } from 'naive-ui'
+import { NCard, NSpace, NButton, NIcon, NInput, NInputGroup, NCheckbox, NDataTable, NH2, NText, useMessage } from 'naive-ui'
 import { SearchOutlined as SearchIcon, SettingsOutlined as SettingsIcon, AutoFixHighOutlined as AutoIcon } from '@vicons/material'
 
 import { getColumns } from './toolkit/dedupe/columns'
@@ -66,6 +66,7 @@ import { useDedupe } from './toolkit/dedupe/useDedupe'
 import DedupeConfigModal from './toolkit/dedupe/DedupeConfigModal.vue'
 import DedupeConfirmModal from './toolkit/dedupe/DedupeConfirmModal.vue'
 
+const message = useMessage()
 const {
   loading, syncing, searchName, showOnlyDuplicates, items, selectedIds, suggestedItems, dedupeConfig,
   loadItems, onLoadChildren, toggleDuplicateMode, syncMedia, autoSelect, deleteItems, loadConfig, saveDedupeConfig
