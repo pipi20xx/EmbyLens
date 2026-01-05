@@ -20,4 +20,10 @@ def get_async_client(timeout: float = 30.0, headers: Optional[Dict[str, str]] = 
     if proxy_url:
         logger.info(f"🌐 [网络代理] 当前请求将通过代理转发: {proxy_url}")
             
-    return httpx.AsyncClient(timeout=timeout, headers=headers, proxies=proxy_url)
+    return httpx.AsyncClient(
+        timeout=timeout, 
+        headers=headers, 
+        proxies=proxy_url,
+        trust_env=False,
+        follow_redirects=True
+    )

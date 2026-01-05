@@ -7,11 +7,14 @@ from app.core.config_manager import get_config
 
 class AutotagEmbyHelper:
     def __init__(self, url: str, api_key: str, user_id: str = None):
-        self.url = url.rstrip('/')
-        self.api_key = api_key
-        self.user_id = user_id
+        self.url = url.strip().rstrip('/')
+        if self.url.endswith('/emby'):
+            self.url = self.url[:-5]
+            
+        self.api_key = api_key.strip() if api_key else ""
+        self.user_id = user_id.strip() if user_id else None
         self.headers = {
-            "X-Emby-Token": api_key,
+            "X-Emby-Token": self.api_key,
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
@@ -31,7 +34,7 @@ class AutotagEmbyHelper:
                 resp = await client.request(method, url, params=query_params, json=json_data)
                 return resp
             except Exception as e:
-                logger.error(f"┃  ┃  ❌ 通讯异常: {str(e)}")
+                logger.error(f"┃  ┃  ❌ 通讯异常 ({type(e).__name__}): {str(e)}")
                 return None
 
     def _extract_tags(self, item_data: Dict) -> List[str]:

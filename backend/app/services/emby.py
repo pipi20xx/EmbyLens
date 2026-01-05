@@ -7,13 +7,19 @@ from app.core.config_manager import get_config
 
 class EmbyService:
     def __init__(self, url: str, api_key: str, user_id: str = None, tmdb_key: str = None):
-        self.url = url.rstrip('/')
-        self.base_url = f"{self.url}/emby" # 严格对齐原版 BaseURL
-        self.api_key = api_key
-        self.user_id = user_id
-        self.tmdb_key = tmdb_key
+        self.url = url.strip().rstrip('/')
+        # 兼容性处理：如果用户填写的 URL 已经包含了 /emby，则不再重复添加
+        if self.url.endswith('/emby'):
+            self.base_url = self.url
+            self.url = self.url[:-5] # 去掉 /emby 得到 root url
+        else:
+            self.base_url = f"{self.url}/emby"
+            
+        self.api_key = api_key.strip() if api_key else ""
+        self.user_id = user_id.strip() if user_id else None
+        self.tmdb_key = tmdb_key.strip() if tmdb_key else None
         self.headers = {
-            "X-Emby-Token": api_key,
+            "X-Emby-Token": self.api_key,
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
@@ -47,7 +53,7 @@ class EmbyService:
                 logger.info(f"┃  ┃  📥 [Emby 响应] Status: {response.status_code} | Body: {res_text[:200]}")
                 return response
         except Exception as e:
-            logger.error(f"┃  ┃  ❌ 指令发送异常: {str(e)}")
+            logger.error(f"┃  ┃  ❌ 指令发送异常 ({type(e).__name__}): {str(e)}")
             return None
 
     async def test_connection(self) -> bool:
@@ -75,7 +81,8 @@ class EmbyService:
                 url = f"{self.url}/emby/Users/{self.user_id}/Items/{item_id}" if self.user_id else f"{self.url}/emby/Items/{item_id}"
                 response = await client.get(url, params={**params, "api_key": self.api_key})
                 return response.json() if response.status_code == 200 else None
-        except:
+        except Exception as e:
+            logger.error(f"┃  ┃  ❌ 获取项目详情异常 ({type(e).__name__}): {str(e)}")
             return None
 
     async def update_item(self, item_id: str, data: Dict[str, Any]) -> bool:

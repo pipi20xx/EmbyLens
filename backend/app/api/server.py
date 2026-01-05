@@ -38,15 +38,18 @@ async def get_current_config():
 async def emby_login():
     """使用 config.json 中的凭据登录并获取 Session Token"""
     config = get_config()
-    url = config.get("url")
-    username = config.get("username")
-    password = config.get("password")
+    url = config.get("url", "").strip().rstrip('/')
+    username = config.get("username", "").strip()
+    password = config.get("password", "").strip()
     
     if not url or not username:
         raise HTTPException(status_code=400, detail="未配置服务器地址或用户名")
 
+    if url.endswith('/emby'):
+        url = url[:-5]
+
     try:
-        auth_url = f"{url.rstrip('/')}/emby/Users/AuthenticateByName"
+        auth_url = f"{url}/emby/Users/AuthenticateByName"
         device_id = str(uuid.uuid4())
         auth_header = f'MediaBrowser Client="EmbyLens", Device="Server", DeviceId="{device_id}", Version="1.0.0"'
         
