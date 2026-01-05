@@ -62,13 +62,15 @@ const fetchHistoryLog = async (date: string) => {
   consoleLogs.value = []
   try {
     const res = await axios.get(`/api/system/logs/content/${date}`)
-    const lines = res.data.content.split('\n')
+    const lines = res.data.content.split('\n').filter((l: string) => l.trim())
+    // 历史日志也按倒序排（最新在上）
+    lines.reverse()
     consoleLogs.value = lines.map((line: string, index: number) => ({
       id: index,
       content: line
     }))
     logCounter = lines.length
-    nextTick(scrollToBottom)
+    nextTick(scrollToTop)
   } catch (e) {
     appendLog(`>>> 无法加载 ${date} 的日志文件 <<<`)
   } finally {
@@ -113,16 +115,21 @@ const connectWebSocket = () => {
 }
 
 const appendLog = (content: string) => {
-  if (consoleLogs.value.length > 5000) {
-    consoleLogs.value = consoleLogs.value.slice(-4000)
+  if (consoleLogs.value.length > 10000) {
+    consoleLogs.value = consoleLogs.value.slice(0, 8000)
   }
-  consoleLogs.value.push({
+  // 核心改动：使用 unshift 将新日志放入数组头部 (最新在上)
+  consoleLogs.value.unshift({
     id: logCounter++,
     content: content
   })
   if (autoScroll.value) {
-    nextTick(scrollToBottom)
+    nextTick(scrollToTop)
   }
+}
+
+const scrollToTop = () => {
+  virtualListInst.value?.scrollTo({ position: 'top' })
 }
 
 const scrollToBottom = () => {

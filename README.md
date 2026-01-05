@@ -79,10 +79,13 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
       embylens:
         image: pipi20xx/embylens:latest
         container_name: embylens
+        network_mode: bridge
         ports:
           - "6565:6565"
         volumes:
           - ./data:/app/data
+        environment:
+          - TZ=Asia/Shanghai
         restart: always
     ```
 2.  **启动服务**：`docker-compose up -d`

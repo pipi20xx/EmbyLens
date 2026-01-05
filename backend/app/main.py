@@ -16,7 +16,7 @@ os.makedirs("/app/data", exist_ok=True)
 app = FastAPI(
     title="EmbyLens API",
     description="Emby 媒体库管理与去重工具后端",
-    version="1.0.0"
+    version="1.0.1"
 )
 
 # 全局性能审计中间件
@@ -75,7 +75,8 @@ async def websocket_endpoint(websocket: WebSocket):
     
     # 获取最近的历史日志并回填
     from app.utils.logger import get_last_n_logs
-    history = get_last_n_logs(100)
+    history = get_last_n_logs(200) # 增加回填行数到 200
+    history.reverse() # 反转，确保最新的一条最先发出（配合前端 unshift）
     for line in history:
         try:
             await websocket.send_text(line)

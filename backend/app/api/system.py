@@ -17,10 +17,13 @@ async def fetch_log_content(date: str):
 
 @router.get("/logs/raw", response_class=PlainTextResponse)
 async def fetch_raw_log(type: str = Query("monitor")):
-    """复刻样板：返回当前最新的原始文本日志"""
+    """复刻样板：返回当前最新的原始文本日志 (倒序，最新在上)"""
     current_date = datetime.now().strftime("%Y-%m-%d")
     content = get_log_content(current_date)
-    return content
+    # 按行分割，反转，再合并
+    lines = content.splitlines()
+    lines.reverse()
+    return "\n".join(lines)
 
 @router.get("/logs/export/{date}", response_class=PlainTextResponse)
 async def export_log_by_date(date: str):

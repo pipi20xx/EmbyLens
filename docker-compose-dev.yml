@@ -9,4 +9,6 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
+      - TZ=Asia/Shanghai
+    network_mode: bridge
     restart: always

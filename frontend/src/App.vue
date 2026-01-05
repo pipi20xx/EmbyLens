@@ -165,7 +165,10 @@ const themeOptions = [
             <div class="logo-container">
               <n-space align="center" :size="10">
                 <n-icon size="24" :color="currentThemeType === 'purple' ? '#bb86fc' : '#705df2'"><LensIcon /></n-icon>
-                <div v-if="!collapsed" class="logo-text">EmbyLens</div>
+                <div v-if="!collapsed" class="logo-info">
+                  <div class="logo-text">EmbyLens</div>
+                  <div class="version-tag">v1.0.1</div>
+                </div>
               </n-space>
             </div>
             
@@ -224,7 +227,9 @@ const themeOptions = [
 <style scoped>
 .main-sider { background-color: var(--sidebar-bg-color); border-right: 1px solid rgba(255, 255, 255, 0.06) !important; }
 .logo-container { display: flex; align-items: center; padding: 12px 16px; height: 50px; }
-.logo-text { font-weight: 800; font-size: 14px; color: #eee; }
+.logo-info { display: flex; flex-direction: column; justify-content: center; }
+.logo-text { font-weight: 800; font-size: 14px; color: #eee; line-height: 1.2; }
+.version-tag { font-size: 10px; color: rgba(255, 255, 255, 0.4); font-family: monospace; margin-top: -2px; }
 .sidebar-footer { padding: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .view-wrapper { flex: 1; width: 100%; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
