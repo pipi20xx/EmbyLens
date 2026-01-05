@@ -3,7 +3,10 @@
     <!-- 1. Logo 区域 -->
     <div class="logo-box">
       <n-icon size="32" color="#705df2"><LensIcon /></n-icon>
-      <span v-if="!collapsed" class="logo-text">EmbyLens</span>
+      <div v-if="!collapsed" class="logo-info">
+        <span class="logo-text">EmbyLens</span>
+        <span class="version-badge">v1.0.0</span>
+      </div>
     </div>
 
     <!-- 2. 强可见控制台 (设置与日志) - 自定义按钮样式 -->
@@ -111,10 +114,24 @@ const menuItems = [
   gap: 12px;
 }
 
+.logo-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .logo-text {
   font-size: 19px;
   font-weight: bold;
   color: #705df2;
+  line-height: 1.2;
+}
+
+.version-badge {
+  font-size: 10px;
+  color: #555;
+  font-family: monospace;
+  margin-top: -2px;
 }
 
 /* 核心工具栏：强制显色 */
