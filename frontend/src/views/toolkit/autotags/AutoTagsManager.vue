@@ -181,8 +181,49 @@ const handleSync = async () => { message.info('同步指令已下发'); await ax
 </script>
 
 <style scoped>
-.autotag-container { padding: 0; }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin: 24px 0 12px 0; }
-.rules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; min-height: 100px; }
-.empty-rules { grid-column: span 3; padding: 40px; background: rgba(255,255,255,0.02); border-radius: 8px; }
+
+.autotag-container { 
+
+  width: 100%;
+
+}
+
+.section-header { 
+
+  display: flex; 
+
+  justify-content: space-between; 
+
+  align-items: center; 
+
+  margin: 24px 0 12px 0; 
+
+}
+
+.rules-grid { 
+
+  display: grid; 
+
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+
+  gap: 12px; 
+
+  min-height: 100px; 
+
+}
+
+.empty-rules { 
+
+  grid-column: 1 / -1; 
+
+  padding: 40px; 
+
+  background: rgba(255,255,255,0.02); 
+
+  border-radius: 8px; 
+
+  border: 1px dashed var(--border-color);
+
+}
+
 </style>

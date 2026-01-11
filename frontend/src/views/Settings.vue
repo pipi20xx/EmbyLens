@@ -11,33 +11,33 @@
           <!-- 1. Emby 核心连接 -->
           <n-card title="Emby 服务端连接" size="small" segmented>
             <template #header-extra>
-              <n-icon size="20" color="#bb86fc"><ServerIcon /></n-icon>
+              <n-icon size="20" color="var(--primary-color)"><ServerIcon /></n-icon>
             </template>
             <n-form label-placement="top" :model="serverForm" size="medium">
-              <n-grid :cols="2" :x-gap="24">
-                <n-form-item-gi label="服务器地址 (IP/URL)">
+              <n-grid :cols="2" :x-gap="24" item-responsive responsive="screen">
+                <n-form-item-gi span="2 m:1" label="服务器地址 (IP/URL)">
                   <n-input v-model:value="serverForm.url" placeholder="http://192.168.50.12:8096" />
                 </n-form-item-gi>
-                <n-form-item-gi label="管理级 API Key">
+                <n-form-item-gi span="2 m:1" label="管理级 API Key">
                   <n-input v-model:value="serverForm.api_key" type="password" show-password-on="mousedown" />
                 </n-form-item-gi>
-                <n-form-item-gi label="用户 ID (User ID)">
+                <n-form-item-gi span="2 m:1" label="用户 ID (User ID)">
                   <n-input v-model:value="serverForm.user_id" placeholder="例如: 50da1234567890..." />
                 </n-form-item-gi>
-                <n-form-item-gi label="服务器别名">
+                <n-form-item-gi span="2 m:1" label="服务器别名">
                   <n-input v-model:value="serverForm.name" placeholder="默认服务器" />
                 </n-form-item-gi>
               </n-grid>
 
               <n-divider title-placement="left">账号登录 (用于删除操作)</n-divider>
-              <n-grid :cols="3" :x-gap="12">
-                <n-form-item-gi label="Emby 用户名">
+              <n-grid :cols="3" :x-gap="12" item-responsive responsive="screen">
+                <n-form-item-gi span="3 m:1" label="Emby 用户名">
                   <n-input v-model:value="serverForm.username" placeholder="请输入管理员用户名" />
                 </n-form-item-gi>
-                <n-form-item-gi label="Emby 密码">
+                <n-form-item-gi span="3 m:1" label="Emby 密码">
                   <n-input v-model:value="serverForm.password" type="password" show-password-on="mousedown" />
                 </n-form-item-gi>
-                <n-form-item-gi label="会话令牌 (Session Token)">
+                <n-form-item-gi span="3 m:1" label="会话令牌 (Session Token)">
                   <n-input v-model:value="serverForm.session_token" disabled placeholder="登录后自动填充" />
                 </n-form-item-gi>
               </n-grid>
@@ -47,7 +47,7 @@
           <!-- 2. 扩展 API 服务集成 (通用化) -->
           <n-card title="第三方 API 服务集成" size="small" status="info" segmented>
             <template #header-extra>
-              <n-icon size="20" color="#01b4e4"><ApiIcon /></n-icon>
+              <n-icon size="20" color="var(--primary-color)"><ApiIcon /></n-icon>
             </template>
             <n-form label-placement="left" label-width="140" size="medium">
               <n-form-item label="TMDB API Key">
@@ -62,23 +62,23 @@
           <!-- 3. HTTP 代理配置 -->
           <n-card title="网络代理设置" size="small" segmented>
             <template #header-extra>
-              <n-icon size="20" color="#4caf50"><ProxyIcon /></n-icon>
+              <n-icon size="20" color="var(--primary-color)"><ProxyIcon /></n-icon>
             </template>
             <n-form label-placement="top" size="medium">
-              <n-grid :cols="2" :x-gap="24">
-                <n-form-item-gi label="启用代理">
+              <n-grid :cols="2" :x-gap="24" item-responsive responsive="screen">
+                <n-form-item-gi span="2 m:1" label="启用代理">
                   <n-switch v-model:value="serverForm.proxy.enabled">
                     <template #checked>已开启代理</template>
                     <template #unchecked>已关闭代理</template>
                   </n-switch>
                 </n-form-item-gi>
-                <n-form-item-gi label="排除 Emby 服务器">
+                <n-form-item-gi span="2 m:1" label="排除 Emby 服务器">
                   <n-switch v-model:value="serverForm.proxy.exclude_emby">
                     <template #checked>Emby 直连 (不走代理)</template>
                     <template #unchecked>Emby 强制走代理</template>
                   </n-switch>
                 </n-form-item-gi>
-                <n-form-item-gi label="代理服务器地址" span="2">
+                <n-form-item-gi span="2" label="代理服务器地址">
                   <n-input v-model:value="serverForm.proxy.url" placeholder="例如: http://127.0.0.1:7890" :disabled="!serverForm.proxy.enabled" />
                 </n-form-item-gi>
               </n-grid>
@@ -249,7 +249,21 @@ const copyToClipboard = (text: string) => {
 </script>
 
 <style scoped>
-.settings-container { height: 100%; }
-.settings-content { max-width: 1000px; margin: 0 auto; padding-bottom: 40px; }
-.debug-code-wrapper { background-color: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); }
+.settings-container { 
+  height: 100%; 
+  width: 100%;
+}
+.settings-content { 
+  width: 100%;
+  padding-bottom: 40px; 
+}
+.debug-code-wrapper { 
+  background-color: rgba(0, 0, 0, 0.3); 
+  padding: 12px; 
+  border-radius: 8px; 
+  border: 1px solid var(--border-color); 
+}
+:deep(.n-h2 .n-text--primary-type) {
+  color: var(--primary-color);
+}
 </style>

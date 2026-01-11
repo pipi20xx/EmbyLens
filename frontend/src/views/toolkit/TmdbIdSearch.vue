@@ -214,7 +214,45 @@ const handleSearch = async () => {
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1200px; margin: 0 auto; }
-.json-code-wrapper { background: #050505; padding: 16px; border-radius: 8px; max-height: 65vh; overflow-y: auto; }
-.overview-box { background: rgba(255,255,255,0.03); padding: 12px; border-left: 4px solid #bb86fc; border-radius: 4px; }
+
+.toolkit-container { 
+
+  width: 100%; 
+
+}
+
+:deep(.n-h2 .n-text--primary-type) {
+
+  color: var(--primary-color);
+
+}
+
+.json-code-wrapper { 
+
+  background: #000; 
+
+  padding: 16px; 
+
+  border-radius: 8px; 
+
+  max-height: 65vh; 
+
+  overflow-y: auto; 
+
+  border: 1px solid var(--border-color);
+
+}
+
+.overview-box { 
+
+  background: rgba(255,255,255,0.03); 
+
+  padding: 12px; 
+
+  border-left: 4px solid var(--primary-color); 
+
+  border-radius: 4px; 
+
+}
+
 </style>

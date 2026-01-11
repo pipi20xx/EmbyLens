@@ -154,5 +154,19 @@ const handleAction = async (endpoint: string) => {
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1200px; margin: 0 auto; }
+
+.toolkit-container { 
+
+  width: 100%; 
+
+}
+
+:deep(.n-h2 .n-text--info-type),
+
+:deep(.n-h2 .n-text--primary-type) {
+
+  color: var(--primary-color);
+
+}
+
 </style>

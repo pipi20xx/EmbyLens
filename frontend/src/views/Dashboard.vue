@@ -27,7 +27,7 @@
           <n-card bordered size="small">
             <n-statistic label="库状态" :value="stats.status === 'connected' ? '就绪' : '待同步'">
               <template #prefix>
-                <n-icon :color="stats.status === 'connected' ? '#18a058' : '#f0a020'">
+                <n-icon :color="stats.status === 'connected' ? 'var(--primary-color)' : '#f0a020'">
                   <StatusIcon />
                 </n-icon>
               </template>
@@ -38,6 +38,20 @@
     </n-space>
   </div>
 </template>
+
+<style scoped>
+.dashboard-page {
+  width: 100%;
+}
+:deep(.n-statistic .n-statistic__label) {
+  font-weight: 500;
+  color: var(--text-color);
+  opacity: 0.8;
+}
+:deep(.n-statistic .n-statistic-value__content) {
+  color: var(--primary-color);
+}
+</style>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'

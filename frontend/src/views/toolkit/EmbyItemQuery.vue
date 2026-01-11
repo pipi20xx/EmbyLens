@@ -101,11 +101,16 @@ const copyToClipboard = (text: string) => {
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1200px; margin: 0 auto; }
+.toolkit-container { 
+  width: 100%; 
+}
+:deep(.n-h2 .n-text--primary-type) {
+  color: var(--primary-color);
+}
 .json-viewer {
   background-color: rgba(0, 0, 0, 0.3);
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
 }
 </style>

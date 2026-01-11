@@ -483,14 +483,17 @@ const copyRawJson = () => {
 </script>
 
 <style scoped>
-.toolkit-container { padding: 4px; }
+.toolkit-container { 
+  width: 100%;
+  transition: all 0.3s ease;
+}
 .search-results-list {
   margin-top: 12px;
   max-height: 400px;
   overflow-y: auto;
 }
 .json-code-wrapper {
-  background: #050505;
+  background: #000;
   padding: 16px;
   border-radius: 8px;
   max-height: 65vh;
@@ -499,7 +502,7 @@ const copyRawJson = () => {
 .overview-box {
   background: rgba(255, 255, 255, 0.03);
   padding: 12px;
-  border-left: 4px solid #bb86fc;
+  border-left: 4px solid var(--primary-color);
   border-radius: 4px;
 }
 .empty-holder {
@@ -507,7 +510,7 @@ const copyRawJson = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed rgba(255,255,255,0.1);
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
 }
 .results-area {
@@ -518,36 +521,37 @@ const copyRawJson = () => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 统一分拣参考表样式 */
+/* 统一分拣参考表样式 - 使用变量 */
 .lab-report-card {
   margin-top: 24px;
-  background: #0a0a0a !important;
-  border: 1px solid rgba(187, 134, 252, 0.3) !important;
+  background: var(--modal-bg-color) !important;
+  border: 1px solid var(--primary-border-color) !important;
   border-radius: 8px;
   overflow: hidden;
 }
 .report-header {
-  background: linear-gradient(90deg, rgba(187, 134, 252, 0.15) 0%, transparent 100%);
+  background: linear-gradient(90deg, var(--primary-border-color) 0%, transparent 100%);
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(187, 134, 252, 0.3);
+  border-bottom: 1px solid var(--primary-border-color);
   display: flex;
   align-items: center;
 }
 .report-title {
   font-family: 'Fira Code', monospace;
   font-weight: 800;
-  color: #bb86fc;
+  color: var(--primary-color);
   letter-spacing: 1px;
-  text-shadow: 0 0 8px rgba(187, 134, 252, 0.4);
+  text-shadow: 0 0 8px var(--primary-border-color);
 }
 .report-row {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
 }
 .report-row:last-child { border-bottom: none; }
 .row-label {
   font-size: 12px;
-  color: rgba(187, 134, 252, 0.8);
+  color: var(--primary-color);
+  opacity: 0.8;
   margin-bottom: 6px;
   display: flex;
   align-items: center;
@@ -556,37 +560,36 @@ const copyRawJson = () => {
 .data-tag {
   font-family: 'Fira Code', monospace;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-color);
   display: inline-block;
   margin: 0 6px 6px 0;
   transition: all 0.2s;
 }
 .data-tag:hover {
-  border-color: rgba(187, 134, 252, 0.5);
-  background: rgba(187, 134, 252, 0.05);
+  border-color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.05);
 }
 .tag-orange {
   color: #f0a020;
-  border-color: rgba(240, 160, 32, 0.2);
-  background: rgba(240, 160, 32, 0.03);
+  border-color: rgba(240, 160, 32, 0.3);
 }
 .tag-orange:hover {
-  border-color: rgba(240, 160, 32, 0.5);
-  background: rgba(240, 160, 32, 0.08);
+  border-color: #f0a020;
 }
 .pool-box {
-  background: #050505;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
   padding: 12px;
   border-radius: 6px;
   font-family: 'Fira Code', monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #ccc;
+  color: var(--text-color);
+  opacity: 0.9;
   word-break: break-all;
 }
 .alias-text { color: #f0a020 !important; }

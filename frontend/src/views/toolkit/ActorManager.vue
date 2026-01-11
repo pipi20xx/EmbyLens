@@ -212,7 +212,41 @@ const handleSync = async () => {
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1400px; margin: 0 auto; }
-.selected-item { background-color: rgba(187, 134, 252, 0.1) !important; border-left: 4px solid #bb86fc; }
-.json-code-wrapper { background: #050505; padding: 16px; border-radius: 8px; max-height: 60vh; overflow-y: auto; border: 1px solid #333; }
+
+.toolkit-container { 
+
+  width: 100%; 
+
+}
+
+:deep(.n-h2 .n-text--primary-type) {
+
+  color: var(--primary-color);
+
+}
+
+.selected-item { 
+
+  background-color: var(--primary-border-color) !important; 
+
+  border-left: 4px solid var(--primary-color); 
+
+}
+
+.json-code-wrapper { 
+
+  background: #000; 
+
+  padding: 16px; 
+
+  border-radius: 8px; 
+
+  max-height: 60vh; 
+
+  overflow-y: auto; 
+
+  border: 1px solid var(--border-color); 
+
+}
+
 </style>

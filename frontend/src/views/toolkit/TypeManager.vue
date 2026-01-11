@@ -182,5 +182,10 @@ const runAdder = async () => {
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1200px; margin: 0 auto; }
+.toolkit-container { 
+  width: 100%; 
+}
+:deep(.n-h2 .n-text--primary-type) {
+  color: var(--primary-color);
+}
 </style>

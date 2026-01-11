@@ -110,9 +110,14 @@ const themeOverrides = computed(() => {
 const syncThemeVariables = (theme: GlobalThemeOverrides) => {
   const root = document.documentElement
   const common = theme.common!
+  root.style.setProperty('--primary-color', common.primaryColor!)
+  root.style.setProperty('--primary-hover', common.primaryColorHover!)
   root.style.setProperty('--app-bg-color', common.bodyColor!)
-  root.style.setProperty('--sidebar-bg-color', common.cardColor!)
-  root.style.setProperty('--n-primary-color', common.primaryColor!)
+  root.style.setProperty('--card-bg-color', common.cardColor!)
+  root.style.setProperty('--modal-bg-color', common.modalColor || common.cardColor!)
+  root.style.setProperty('--text-color', common.textColorBase!)
+  root.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.09)')
+  root.style.setProperty('--primary-border-color', `${common.primaryColor}4D`) // 30% opacity
 }
 
 onMounted(() => {

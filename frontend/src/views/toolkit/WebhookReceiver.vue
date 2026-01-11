@@ -4,12 +4,15 @@
       <div class="page-header">
         <n-h2 prefix="bar" align-text><n-text type="primary">Webhook 情报中心</n-text></n-h2>
         <n-text depth="3">实时捕获、持久化存储 Emby 服务器发出的所有通知事件。为您提供最原始的 JSON 审计链路。</n-text>
+        <n-alert type="warning" size="small" :bordered="false" style="margin-top: 12px">
+          <b>声明：</b>本页面仅用于接收测试、展示 Emby 的原始推送数据，不具备任何后台自动化联动功能。如需自动化打标签，请前往“自动标签助手”。
+        </n-alert>
       </div>
 
       <!-- 1. 接收地址提示 -->
       <n-alert title="Webhook 接收地址" type="info" bordered>
         请在 Emby 管理后台 -> Webhook 中添加以下地址：
-        <code style="margin-left: 8px; color: #bb86fc">http://{{ currentHost }}:6565/api/webhook/receive</code>
+        <code class="code-url">http://{{ currentHost }}:6565/api/webhook/receive</code>
       </n-alert>
 
       <!-- 2. 事件列表 -->
@@ -157,6 +160,47 @@ onMounted(fetchLogs)
 </script>
 
 <style scoped>
-.toolkit-container { max-width: 1200px; margin: 0 auto; }
-.json-code-wrapper { background: #050505; padding: 16px; border-radius: 8px; max-height: 60vh; overflow-y: auto; border: 1px solid #333; }
+
+.toolkit-container { 
+
+  width: 100%; 
+
+}
+
+:deep(.n-h2 .n-text--primary-type) {
+
+  color: var(--primary-color);
+
+}
+
+.code-url {
+
+  margin-left: 8px;
+
+  color: var(--primary-color);
+
+  background: rgba(0, 0, 0, 0.2);
+
+  padding: 2px 6px;
+
+  border-radius: 4px;
+
+}
+
+.json-code-wrapper { 
+
+  background: #000; 
+
+  padding: 16px; 
+
+  border-radius: 8px; 
+
+  max-height: 60vh; 
+
+  overflow-y: auto; 
+
+  border: 1px solid var(--border-color); 
+
+}
+
 </style>

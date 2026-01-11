@@ -124,6 +124,16 @@ const handleBulkDelete = () => {
 </script>
 
 <style scoped>
-.dedupe-layout { padding: 0; }
-:deep(.n-data-table-tr--with-children) { background-color: rgba(255, 255, 255, 0.02); }
+.dedupe-layout { 
+  width: 100%;
+}
+:deep(.n-h2 .n-text--primary-type) {
+  color: var(--primary-color);
+}
+:deep(.n-data-table-tr--with-children) { 
+  background-color: rgba(255, 255, 255, 0.02); 
+}
+:deep(.n-data-table .n-data-table-td--selection) {
+  color: var(--primary-color);
+}
 </style>
