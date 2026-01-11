@@ -3,7 +3,7 @@
     <n-space vertical size="large">
       <div class="page-header">
         <n-h2 prefix="bar" align-text><n-text type="primary">剧集 TMDB ID 反向查询</n-text></n-h2>
-        <n-text depth="3">根据单集 (Episode) ID 向上追溯其所属剧集并提取 TMDB 唯一标识符。</n-text>
+        <n-text depth="3">根据 <b>Emby 库内</b>的单集 (Episode) ID 向上追溯其所属剧集并提取 TMDB 唯一标识符。</n-text>
       </div>
 
       <!-- 1. 输入表单 -->
