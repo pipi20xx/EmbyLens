@@ -33,6 +33,7 @@ import {
   SearchOutlined as SearchIcon,
   MyLocationOutlined as TargetIcon,
   YoutubeSearchedForOutlined as DeepSearchIcon,
+  ScienceOutlined as LabIcon,
   PeopleAltOutlined as ActorIcon,
   SyncAltOutlined as WebhookIcon
 } from '@vicons/material'
@@ -46,6 +47,7 @@ import LockManagerView from './views/toolkit/LockManager.vue'
 import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
+import TmdbLabView from './views/toolkit/TmdbLab.vue'
 import ActorManagerView from './views/toolkit/ActorManager.vue'
 import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
 import DedupeView from './views/Dedupe.vue'
@@ -128,6 +130,7 @@ const menuOptions: MenuOption[] = [
   { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
+  { label: 'TMDB 实验中心', key: 'TmdbLabView', icon: renderIcon(LabIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
@@ -135,7 +138,7 @@ const menuOptions: MenuOption[] = [
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, ActorManagerView, WebhookReceiverView, SettingsView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorManagerView, WebhookReceiverView, SettingsView
   }
   return views[currentViewKey.value] || DashboardView
 })
@@ -167,7 +170,7 @@ const themeOptions = [
                 <n-icon size="24" :color="currentThemeType === 'purple' ? '#bb86fc' : '#705df2'"><LensIcon /></n-icon>
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
-                  <div class="version-tag">v1.0.1</div>
+                  <div class="version-tag">v1.0.2</div>
                 </div>
               </n-space>
             </div>
