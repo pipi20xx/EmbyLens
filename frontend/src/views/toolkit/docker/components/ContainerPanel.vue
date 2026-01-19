@@ -51,6 +51,17 @@ const showLogsModal = ref(false)
 const showCustomPortModal = ref(false)
 const customPortForm = ref({ name: '', port: '' })
 
+// 状态本地化
+const statusMap: Record<string, string> = {
+  'running': '运行中',
+  'exited': '已停止',
+  'restarting': '重启中',
+  'paused': '已暂停',
+  'created': '已创建',
+  'removing': '移除中',
+  'dead': '已失效'
+}
+
 const fetchContainers = async () => {
   if (!props.hostId) return
   loading.value = true
@@ -100,7 +111,8 @@ const saveCustomPort = async () => {
 const columns: DataTableColumns<any> = [
   { title: '名称', key: 'name', width: 150 },
   { title: '状态', key: 'status', width: 80, render(row) {
-      return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small' }, { default: () => row.status })
+      const text = statusMap[row.status] || row.status
+      return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small' }, { default: () => text })
     }
   },
   { title: '端口映射', key: 'ports', render(row) {

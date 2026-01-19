@@ -2,7 +2,11 @@
   <div class="compose-panel">
     <n-space vertical size="medium">
       <n-space justify="end" v-if="hostId">
-        <n-button type="primary" @click="handleCreateProject">新建项目</n-button>
+        <n-button-group>
+          <n-button type="primary" @click="handleCreateProject">新建项目</n-button>
+          <n-button type="success" secondary @click="handleBulkAction('up')">全部启动/更新</n-button>
+          <n-button type="error" secondary @click="handleBulkAction('down')">全部停止</n-button>
+        </n-button-group>
       </n-space>
       
       <n-grid :cols="3" :x-gap="12" :y-gap="12">
@@ -17,7 +21,7 @@
                   <template #icon><n-icon><push-pin-icon /></n-icon></template>
                 </n-button>
                 <n-tag :type="p.status?.includes('running') ? 'success' : 'default'" size="small">
-                  {{ p.status || 'unknown' }}
+                  {{ formatStatus(p.status) }}
                 </n-tag>
                 <n-button size="tiny" circle quaternary @click="$emit('browse-path', p.path)" title="浏览目录">
                   <template #icon><n-icon><folder-icon /></n-icon></template>
@@ -118,6 +122,29 @@ const commandResult = ref({ stdout: '', stderr: '' })
 const currentProject = ref({ name: '', content: '', path: '' })
 const isEditingProject = ref(false)
 
+// 状态本地化
+const statusMap: Record<string, string> = {
+  'running': '运行中',
+  'exited': '已停止',
+  'restarting': '重启中',
+  'paused': '已暂停',
+  'created': '已创建',
+  'unknown': '未知'
+}
+
+const formatStatus = (status: string) => {
+  if (!status) return '未知'
+  // 处理 running(1) 或 exited(0) 这种格式
+  const match = status.match(/^([a-z]+)\(?(\d*)\)?$/i)
+  if (match) {
+    const key = match[1].toLowerCase()
+    const count = match[2]
+    const text = statusMap[key] || key
+    return count ? `${text}(${count})` : text
+  }
+  return status
+}
+
 // 路径记忆逻辑
 const baseSavePath = ref('/opt/docker-compose')
 const storageKey = computed(() => `embylens_last_path_${props.hostId}`)
@@ -136,7 +163,7 @@ const finalSavePath = computed(() => {
 const fetchProjects = async () => {
   if (!props.hostId) return
   const res = await axios.get(`/api/docker/compose/${props.hostId}/projects`)
-  projects.value = res.data
+  projects.value = (res.data || []).sort((a: any, b: any) => a.name.localeCompare(b.name))
 }
 
 watch(() => props.hostId, () => {
@@ -150,6 +177,29 @@ watch(() => props.pickedPath, (val) => {
     baseSavePath.value = val
   }
 })
+
+const handleBulkAction = (action: string) => {
+  const actionText = action === 'up' ? '启动/更新' : '停止'
+  dialog.warning({
+    title: `批量${actionText}`,
+    content: `确定要${actionText}当前主机下的所有 Compose 项目吗？这可能会消耗较多系统资源并导致服务短暂中断。`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const m = message.loading(`正在批量${actionText}所有项目...`, { duration: 0 })
+      try {
+        await axios.post(`/api/docker/compose/${props.hostId}/projects/bulk-action`, { action })
+        message.success(`批量${actionText}指令已发送`)
+        fetchProjects()
+        emit('refresh-containers')
+      } catch (e) {
+        message.error('操作失败')
+      } finally {
+        m.destroy()
+      }
+    }
+  })
+}
 
 const handleCreateProject = () => { 
   currentProject.value = { 
@@ -240,9 +290,29 @@ const runComposeAction = async (p: any, action: string) => {
   loadingActions.value[p.name] = true
   try {
     const res = await axios.post(`/api/docker/compose/${props.hostId}/projects/${p.name}/action`, { action, path: p.config_file || p.path })
-    commandResult.value = { stdout: res.data.stdout, stderr: res.data.stderr }
-    showCommandResult.value = true
+    
+    if (res.data.success) {
+      // 进一步优化过滤逻辑，增加停止相关的关键字
+      const noise = ['Started', 'Stopped', 'Stopping', 'Removing', 'Removed', 'Network', 'default']
+      const stderr = res.data.stderr || ''
+      const isNoise = noise.some(n => stderr.includes(n))
+      
+      const hasRealOutput = res.data.stdout?.trim() || (stderr.trim() && !isNoise)
+      
+      if (!hasRealOutput) {
+        message.success('操作成功')
+      } else {
+        commandResult.value = { stdout: res.data.stdout, stderr: res.data.stderr }
+        showCommandResult.value = true
+      }
+    } else {
+      commandResult.value = { stdout: res.data.stdout, stderr: res.data.stderr }
+      showCommandResult.value = true
+      message.error('操作异常')
+    }
     emit('refresh-containers')
+  } catch (e) {
+    message.error('请求失败')
   } finally {
     loadingActions.value[p.name] = false
     fetchProjects()

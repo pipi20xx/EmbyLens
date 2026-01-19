@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { NSpace, NCard, NText, NSelect, NButton, NTag, NTabs, NTabPane, useMessage, useDialog } from 'naive-ui'
 import axios from 'axios'
 
@@ -87,6 +87,13 @@ const hosts = ref<any[]>([])
 const selectedHostId = ref<string | null>(null)
 const activeTab = ref('containers')
 const refreshing = ref(false)
+
+const STORAGE_KEY = 'embylens_selected_docker_host'
+
+// 记忆选择的主机
+watch(selectedHostId, (val) => {
+  if (val) localStorage.setItem(STORAGE_KEY, val)
+})
 
 const showHostModal = ref(false)
 const showBrowserModal = ref(false)
@@ -131,8 +138,15 @@ const currentHostPaths = computed(() => (currentHost.value?.compose_scan_paths |
 const fetchHosts = async () => {
   const res = await axios.get('/api/docker/hosts')
   hosts.value = res.data
-  if (hosts.value.length > 0 && !selectedHostId.value) {
-    selectedHostId.value = hosts.value[0].id
+  
+  if (hosts.value.length > 0) {
+    const savedHostId = localStorage.getItem(STORAGE_KEY)
+    // 如果有记忆的 ID 且在当前列表中，则恢复它
+    if (savedHostId && hosts.value.some(h => h.id === savedHostId)) {
+      selectedHostId.value = savedHostId
+    } else if (!selectedHostId.value) {
+      selectedHostId.value = hosts.value[0].id
+    }
   }
 }
 

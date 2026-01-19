@@ -27,7 +27,13 @@ async def add_process_time_header(request: Request, call_next):
     process_time = (time.time() - start_time) * 1000
     
     # 排除高频且无意义的系统级审计，防止日志循环刷屏
-    exclude_paths = ["/api/system/logs", "/api/stats/summary", "/api/status"]
+    exclude_paths = [
+        "/api/system/logs", 
+        "/api/stats/summary", 
+        "/api/status",
+        "/api/docker" # 彻底排除所有 Docker 相关接口的审计日志
+    ]
+    
     should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)
 
     if should_audit:

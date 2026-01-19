@@ -156,6 +156,35 @@ async def project_action(host_id: str, name: str, action: str = Body(..., embed=
     res = service.exec_command(cmd_map[action], cwd=os.path.dirname(path))
     return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
 
+@router.post("/{host_id}/projects/bulk-action")
+async def bulk_project_action(host_id: str, action: str = Body(..., embed=True)):
+    """批量操作所有项目"""
+    projects = await list_projects(host_id)
+    results = []
+    
+    for p in projects:
+        path = p.get("config_file") or p.get("path")
+        if not path: continue
+        
+        # 统一处理路径：如果是目录则尝试寻找 yml
+        if not path.endswith(('.yml', '.yaml')):
+            path = os.path.join(path, "docker-compose.yml")
+
+        try:
+            service = get_docker_service(host_id)
+            cmd_map = {
+                "up": f"docker compose -f {path} up -d",
+                "down": f"docker compose -f {path} down"
+            }
+            if action not in cmd_map: continue
+            
+            res = service.exec_command(cmd_map[action], cwd=os.path.dirname(path))
+            results.append({"name": p['name'], "success": res["success"]})
+        except Exception as e:
+            results.append({"name": p['name'], "success": false, "error": str(e)})
+            
+    return {"results": results}
+
 @router.post("/{host_id}/chmod")
 async def chmod_path(host_id: str, path: str = Body(..., embed=True), mode: Optional[str] = Body(None, embed=True), 
                      owner: Optional[str] = Body(None, embed=True), group: Optional[str] = Body(None, embed=True), 

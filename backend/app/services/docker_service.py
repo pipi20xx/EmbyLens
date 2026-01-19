@@ -156,12 +156,29 @@ class DockerService:
         import subprocess
         full_cmd = f"cd {cwd} && {command}" if cwd else command
         
+        # 噪音过滤器：过滤掉那些无害但烦人的 Docker 警告
+        noise_filters = [
+            "the attribute `version` is obsolete",
+            "search/all: the attribute `version` is obsolete",
+            "recreate: the attribute `version` is obsolete"
+        ]
+
+        def filter_noise(text: str) -> str:
+            if not text: return ""
+            lines = text.split('\n')
+            # 只有当该行不包含任何噪音片段时才保留
+            filtered = [line for line in lines if not any(noise in line for noise in noise_filters)]
+            return '\n'.join(filtered).strip()
+
         if self.host_config.get("type") == "local":
             try:
                 process = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                stdout = process.stdout
+                stderr = filter_noise(process.stderr)
+                
                 if process.returncode != 0 and log_error:
-                    logger.error(f"Local Command Failed: {command} (Code: {process.returncode}, Err: {process.stderr})")
-                return {"success": process.returncode == 0, "stdout": process.stdout, "stderr": process.stderr}
+                    logger.error(f"Local Command Failed: {command} (Code: {process.returncode}, Err: {stderr})")
+                return {"success": process.returncode == 0, "stdout": stdout, "stderr": stderr}
             except Exception as e:
                 return {"success": False, "stdout": "", "stderr": str(e)}
         
@@ -178,7 +195,7 @@ class DockerService:
                 stdin, stdout, stderr = ssh.exec_command(full_cmd)
                 
                 out = stdout.read().decode()
-                err = stderr.read().decode()
+                err = filter_noise(stderr.read().decode())
                 exit_status = stdout.channel.recv_exit_status()
                 
                 if exit_status != 0 and log_error:
