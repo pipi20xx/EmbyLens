@@ -19,6 +19,7 @@ class DockerHostConfig(BaseModel):
     ssh_pass: Optional[str] = None
     use_tls: Optional[bool] = False
     base_url: Optional[str] = None
+    compose_scan_paths: Optional[str] = "" # 新增：逗号分隔的扫描路径
 
 @router.get("/hosts")
 async def get_hosts():

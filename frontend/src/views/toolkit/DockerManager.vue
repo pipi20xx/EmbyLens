@@ -32,26 +32,68 @@
           <!-- Compose 管理标签 -->
           <n-tab-pane name="compose" tab="Compose 项目">
             <n-space vertical size="medium">
-              <n-space justify="end">
-                <n-button type="primary" @click="handleCreateProject">新建项目</n-button>
-                <n-button @click="fetchProjects">刷新项目</n-button>
+              <n-space justify="space-between" align="center">
+                <n-space align="center">
+                  <n-select
+                    v-model:value="selectedHostId"
+                    :options="hostOptions"
+                    placeholder="选择 Docker 主机"
+                    style="width: 200px"
+                    @update:value="fetchProjects"
+                  />
+                  <n-space size="small" align="center" style="max-width: 600px">
+                    <n-text depth="3" style="font-size: 12px">扫描范围:</n-text>
+                    <template v-if="hosts.find(h => h.id === selectedHostId)?.compose_scan_paths">
+                      <n-tag 
+                        v-for="path in hosts.find(h => h.id === selectedHostId).compose_scan_paths.split(',').filter(p => p.trim())" 
+                        :key="path" 
+                        closable 
+                        size="small" 
+                        type="info"
+                        @close="removeScanPath(path)"
+                      >
+                        {{ path }}
+                      </n-tag>
+                    </template>
+                    <n-text v-else depth="3" style="font-size: 12px">仅探测运行中项目</n-text>
+                  </n-space>
+                  <n-button v-if="selectedHostId && hosts.find(h => h.id === selectedHostId)?.compose_scan_paths" size="tiny" type="error" quaternary @click="clearScanPaths">清空全部</n-button>
+                </n-space>
+                <n-space>
+                  <n-button type="info" ghost @click="browseRemotePath('/')" :disabled="!selectedHostId">扫描外部目录</n-button>
+                  <n-button type="primary" @click="handleCreateProject" :disabled="!selectedHostId">新建项目</n-button>
+                  <n-button @click="fetchProjects" :disabled="!selectedHostId">刷新项目</n-button>
+                </n-space>
               </n-space>
               
-              <n-grid :cols="3" :x-gap="12" :y-gap="12">
+              <n-alert v-if="!selectedHostId" type="info">请先在上方或“容器管理”页选择一个 Docker 主机以查看其 Compose 项目。</n-alert>
+
+              <n-grid :cols="3" :x-gap="12" :y-gap="12" v-else>
                 <n-gi v-for="p in projects" :key="p.name">
                   <n-card :title="p.name" size="small" hoverable>
                     <template #header-extra>
-                      <n-space>
-                        <n-button size="tiny" tertiary @click="editProject(p.name)">编辑</n-button>
-                        <n-button size="tiny" type="error" ghost @click="deleteProject(p.name)">删除</n-button>
+                      <n-space align="center">
+                        <n-tag :type="p.type === 'scanned' ? 'success' : 'warning'" size="small">
+                          {{ p.type === 'scanned' ? '已记忆' : '探测到' }}
+                        </n-tag>
+                        <n-button v-if="p.type === 'detected'" size="tiny" circle quaternary @click="pinProject(p)" title="永久记忆此项目路径">
+                          <template #icon><n-icon><push-pin-icon /></n-icon></template>
+                        </n-button>
+                        <n-tag :type="p.status?.includes('running') ? 'success' : 'default'" size="small">
+                          {{ p.status || 'unknown' }}
+                        </n-tag>
+                        <n-button size="tiny" tertiary @click="editProject(p)">编辑</n-button>
+                        <n-button size="tiny" type="error" ghost @click="deleteProject(p)">删除</n-button>
                       </n-space>
                     </template>
                     <n-space vertical>
-                      <n-text depth="3" style="font-size: 12px">{{ p.path }}</n-text>
+                      <n-ellipsis style="max-width: 100%">
+                        <n-text depth="3" style="font-size: 11px">{{ p.config_file || p.path }}</n-text>
+                      </n-ellipsis>
                       <n-space justify="space-around">
-                        <n-button size="small" type="primary" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p.name, 'up')">启动/更新</n-button>
-                        <n-button size="small" type="warning" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p.name, 'pull')">拉取</n-button>
-                        <n-button size="small" type="error" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p.name, 'down')">停止</n-button>
+                        <n-button size="small" type="primary" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'up')">启动/更新</n-button>
+                        <n-button size="small" type="warning" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'pull')">拉取</n-button>
+                        <n-button size="small" type="error" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'down')">停止</n-button>
                       </n-space>
                     </n-space>
                   </n-card>
@@ -72,8 +114,8 @@
             <n-space justify="space-between" align="center">
               <div>
                 <n-text strong>{{ host.name }}</n-text>
-                <n-tag size="small" :type="host.type === 'local' ? 'info' : 'warning'" style="margin-left: 8px">
-                  {{ host.type === 'local' ? '本地' : 'SSH' }}
+                <n-tag size="small" type="warning" style="margin-left: 8px">
+                  SSH 远程
                 </n-tag>
               </div>
               <n-space>
@@ -93,40 +135,39 @@
         <n-form-item label="名称">
           <n-input v-model:value="editHostForm.name" />
         </n-form-item>
-        <n-form-item label="类型">
+        <n-form-item label="连接类型">
           <n-select
             v-model:value="editHostForm.type"
             :options="[
-              { label: '本地 Docker (Socket)', value: 'local' },
-              { label: '远程 Docker (SSH)', value: 'ssh' },
-              { label: '远程 Docker (TCP)', value: 'tcp' }
+              { label: '远程 Docker (SSH)', value: 'ssh' }
             ]"
           />
         </n-form-item>
-        <template v-if="editHostForm.type === 'ssh' || editHostForm.type === 'tcp'">
-          <n-form-item :label="editHostForm.type === 'ssh' ? 'SSH 地址' : '主机地址'">
-            <n-input v-model:value="editHostForm.ssh_host" />
+        <template v-if="editHostForm.type === 'ssh'">
+          <n-form-item label="SSH 地址">
+            <n-input v-model:value="editHostForm.ssh_host" placeholder="127.0.0.1 或 远程IP" />
           </n-form-item>
-          <n-form-item :label="editHostForm.type === 'ssh' ? 'SSH 端口' : 'TCP 端口'">
+          <n-form-item label="SSH 端口">
             <n-input-number v-model:value="editHostForm.ssh_port" :min="1" :max="65535" style="width: 100%" />
           </n-form-item>
-          <template v-if="editHostForm.type === 'ssh'">
-            <n-form-item label="SSH 用户">
-              <n-input v-model:value="editHostForm.ssh_user" />
-            </n-form-item>
-            <n-form-item label="SSH 密码">
-              <n-input v-model:value="editHostForm.ssh_pass" type="password" show-password-on="mousedown" />
-            </n-form-item>
-          </template>
-          <template v-if="editHostForm.type === 'tcp'">
-            <n-form-item label="安全连接">
-              <n-switch v-model:value="editHostForm.use_tls" />
-            </n-form-item>
-          </template>
-        </template>
-        <template v-if="editHostForm.type === 'local'">
-          <n-form-item label="Socket 路径">
-            <n-input v-model:value="editHostForm.base_url" />
+          <n-form-item label="SSH 用户">
+            <n-input v-model:value="editHostForm.ssh_user" />
+          </n-form-item>
+          <n-form-item label="SSH 密码">
+            <n-input v-model:value="editHostForm.ssh_pass" type="password" show-password-on="mousedown" />
+          </n-form-item>
+          <n-form-item label="Compose 扫描路径">
+            <n-input-group>
+              <n-input 
+                v-model:value="editHostForm.compose_scan_paths" 
+                type="textarea" 
+                placeholder="例如: /opt/docker (多个路径用逗号分隔)" 
+                :autosize="{ minRows: 2, maxRows: 4 }"
+              />
+              <n-button type="primary" ghost @click="browseRemotePath(browserPath || '/')">
+                浏览
+              </n-button>
+            </n-input-group>
           </n-form-item>
         </template>
         <n-space justify="end">
@@ -134,6 +175,39 @@
           <n-button type="primary" @click="saveHost">保存</n-button>
         </n-space>
       </n-form>
+    </n-modal>
+
+    <!-- 远程文件夹浏览器 -->
+    <n-modal v-model:show="showBrowserModal" preset="card" title="浏览远程目录" style="width: 500px">
+      <n-space vertical>
+        <n-breadcrumb>
+          <n-breadcrumb-item @click="browseRemotePath('/')">根目录</n-breadcrumb-item>
+          <n-breadcrumb-item>{{ browserPath }}</n-breadcrumb-item>
+        </n-breadcrumb>
+        
+        <n-list hoverable clickable bordered style="max-height: 400px; overflow-y: auto">
+          <n-list-item v-if="browserPath !== '/'" @click="browseRemotePath(browserPath.substring(0, browserPath.lastIndexOf('/')) || '/')">
+            <n-text depth="3">.. (返回上级)</n-text>
+          </n-list-item>
+          <n-list-item v-for="item in browserItems" :key="item.path" @click="browseRemotePath(item.path)">
+            <template #suffix>
+              <n-button 
+                v-if="(hosts.find(h => h.id === selectedHostId)?.compose_scan_paths || '').split(',').includes(item.path)"
+                size="tiny" type="error" quaternary @click.stop="removeScanPath(item.path)"
+              >
+                移除
+              </n-button>
+              <n-button v-else size="tiny" type="primary" quaternary @click.stop="selectBrowserPath(item.path)">
+                选择此文件夹
+              </n-button>
+            </template>
+            <n-space align="center">
+              <n-icon size="20" color="#fadb14"><folder-icon /></n-icon>
+              {{ item.name }}
+            </n-space>
+          </n-list-item>
+        </n-list>
+      </n-space>
     </n-modal>
 
     <!-- Compose 编辑弹窗 -->
@@ -198,11 +272,26 @@ import {
   NInput, NInputNumber, NList, NListItem, NText, NTag, useMessage, useDialog,
   NTabs, NTabPane, NGrid, NGi, NIcon
 } from 'naive-ui'
-import { EditOutlined as EditIcon } from '@vicons/material'
+import { 
+  EditOutlined as EditIcon,
+  FolderOutlined as FolderIcon,
+  PushPinOutlined as PushPinIcon
+} from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
 
-interface DockerHost { id: string; name: string; type: string; ssh_host?: string; ssh_port?: number; ssh_user?: string; ssh_pass?: string; use_tls?: boolean; base_url?: string; }
+interface DockerHost { 
+  id: string; 
+  name: string; 
+  type: string; 
+  ssh_host?: string; 
+  ssh_port?: number; 
+  ssh_user?: string; 
+  ssh_pass?: string; 
+  use_tls?: boolean; 
+  base_url?: string; 
+  compose_scan_paths?: string; 
+}
 interface Container { id: string; name: string; image: string; status: string; created: string; ports?: any; }
 
 const message = useMessage()
@@ -221,13 +310,119 @@ const showComposeModal = ref(false)
 const showLogsModal = ref(false)
 const showCommandResult = ref(false)
 const showCustomPortModal = ref(false)
+const showBrowserModal = ref(false)
+const browserPath = ref('/')
+const browserItems = ref<any[]>([])
+const browserLoading = ref(false)
+
+const browseRemotePath = async (path: string = '/') => {
+  const hostId = selectedHostId.value || editHostForm.value.id
+  if (!hostId) {
+    message.warning('请先选择一个 Docker 主机'); return
+  }
+  
+  browserLoading.value = true
+  try {
+    const res = await axios.get(`/api/docker/compose/${hostId}/ls`, {
+      params: { path }
+    })
+    browserPath.value = res.data.current_path
+    browserItems.value = res.data.items
+    showBrowserModal.value = true
+  } catch (e) {
+    message.error('无法读取远程目录，请确保主机配置正确且已保存')
+  } finally {
+    browserLoading.value = false
+  }
+}
+
+const selectBrowserPath = async (path: string) => {
+  if (!selectedHostId.value) return
+  
+  const currentHost = hosts.value.find(h => h.id === selectedHostId.value)
+  if (!currentHost) return
+
+  const pathList = (currentHost.compose_scan_paths || '').split(',').map((p: string) => p.trim()).filter((p: string) => p)
+  if (!pathList.includes(path)) {
+    pathList.push(path)
+    currentHost.compose_scan_paths = pathList.join(',')
+    
+    try {
+      await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost)
+      message.success(`已添加: ${path}`)
+      // 保持弹窗开启，允许继续选择其他文件夹
+      fetchProjects()
+    } catch (e) {
+      message.error('保存失败')
+    }
+  } else {
+    message.info('该路径已在扫描列表中')
+  }
+}
+
+const clearScanPaths = async () => {
+  if (!selectedHostId.value) return
+  const currentHost = hosts.value.find(h => h.id === selectedHostId.value)
+  if (!currentHost) return
+
+  dialog.warning({
+    title: '重置扫描范围',
+    content: '确定要清空所有已记录的扫描路径吗？（探测到的运行中项目不会受影响）',
+    positiveText: '确定清空',
+    onPositiveClick: async () => {
+      currentHost.compose_scan_paths = ''
+      await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost)
+      message.success('扫描路径已重置')
+      fetchProjects()
+    }
+  })
+}
+
+const removeScanPath = async (path: string) => {
+  if (!selectedHostId.value) return
+  const currentHost = hosts.value.find(h => h.id === selectedHostId.value)
+  if (!currentHost) return
+
+  let pathList = (currentHost.compose_scan_paths || '').split(',').map((p: string) => p.trim()).filter((p: string) => p)
+  pathList = pathList.filter(p => p !== path)
+  currentHost.compose_scan_paths = pathList.join(',')
+  
+  try {
+    await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost)
+    message.info(`已移除路径: ${path}`)
+    fetchProjects()
+  } catch (e) {
+    message.error('保存失败')
+  }
+}
+
+const pinProject = async (p: any) => {
+  if (!selectedHostId.value) return
+  const currentHost = hosts.value.find(h => h.id === selectedHostId.value)
+  if (!currentHost) return
+
+  const path = p.path
+  const pathList = (currentHost.compose_scan_paths || '').split(',').map((item: string) => item.trim()).filter((item: string) => item)
+  
+  if (!pathList.includes(path)) {
+    pathList.push(path)
+    currentHost.compose_scan_paths = pathList.join(',')
+    try {
+      await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost)
+      message.success(`项目路径已永久记忆: ${path}`)
+      fetchProjects()
+    } catch (e) {
+      message.error('保存失败')
+    }
+  }
+}
 
 const editHostForm = ref<Partial<DockerHost>>({})
 const containerLogs = ref('')
 const commandResult = ref({ stdout: '', stderr: '' })
-const customPortForm = ref({ name: '', port: '' })
+const currentPortForm = ref({ name: '', port: '' })
 const containerSettings = ref<Record<string, any>>({})
-const currentProject = ref({ name: '', content: '' })
+const currentProject = ref({ name: '', content: '', path: '' })
 const isEditingProject = ref(false)
 
 const columns: DataTableColumns<Container> = [
@@ -281,14 +476,22 @@ const columns: DataTableColumns<Container> = [
 
 const fetchHosts = async () => {
   const res = await axios.get('/api/docker/hosts'); hosts.value = res.data
-  if (hosts.value.length > 0 && !selectedHostId.value) { selectedHostId.value = hosts.value[0].id; fetchContainers() }
+  if (hosts.value.length > 0 && !selectedHostId.value) { 
+    selectedHostId.value = hosts.value[0].id; 
+    fetchContainers();
+    fetchProjects();
+  }
 }
 const fetchContainers = async () => {
   if (!selectedHostId.value) return; loading.value = true
   try { const res = await axios.get(`/api/docker/${selectedHostId.value}/containers`); containers.value = res.data } 
   catch (e) { message.error('获取容器失败') } finally { loading.value = false }
 }
-const fetchProjects = async () => { const res = await axios.get('/api/docker/compose/projects'); projects.value = res.data }
+const fetchProjects = async () => { 
+  if (!selectedHostId.value) return;
+  const res = await axios.get(`/api/docker/compose/${selectedHostId.value}/projects`); 
+  projects.value = res.data 
+}
 const fetchContainerSettings = async () => { const res = await axios.get('/api/docker/container-settings'); containerSettings.value = res.data }
 
 const handleContainerAction = async (id: string, action: string) => {
@@ -335,24 +538,56 @@ const handleCreateProject = () => {
     content: `version: "3.8"
 services:
   app:
-    image: ` 
+    image: `,
+    path: ''
   }; 
   isEditingProject.value = false; 
   showComposeModal.value = true 
 }
-const editProject = async (name: string) => { const res = await axios.get(`/api/docker/compose/projects/${name}`); currentProject.value = res.data; isEditingProject.value = true; showComposeModal.value = true }
-const saveProject = async () => { await axios.post('/api/docker/compose/projects', currentProject.value); message.success('保存成功'); showComposeModal.value = false; fetchProjects() }
-const deleteProject = (name: string) => { dialog.error({ title: '删除项目', content: `确定删除 ${name} 吗？`, positiveText: '删除', onPositiveClick: async () => { await axios.delete(`/api/docker/compose/projects/${name}`); fetchProjects() } }) }
-const runComposeAction = async (name: string, action: string) => {
-  loadingActions.value[name] = true
+const editProject = async (p: any) => { 
+  const res = await axios.get(`/api/docker/compose/${selectedHostId.value}/projects/${p.name}`, {
+    params: { path: p.config_file || p.path }
+  }); 
+  currentProject.value = { ...res.data, path: p.config_file || p.path }; 
+  isEditingProject.value = true; 
+  showComposeModal.value = true 
+}
+const saveProject = async () => { 
+  await axios.post(`/api/docker/compose/${selectedHostId.value}/projects`, 
+    { name: currentProject.value.name, content: currentProject.value.content },
+    { params: { path: currentProject.value.path } }
+  ); 
+  message.success('保存成功'); 
+  showComposeModal.value = false; 
+  fetchProjects() 
+}
+const deleteProject = (p: any) => { 
+  dialog.error({ 
+    title: '删除项目', 
+    content: `确定从视图中移除项目 ${p.name} 吗？（不会删除远程文件）`, 
+    positiveText: '确认', 
+    onPositiveClick: async () => { 
+      await axios.delete(`/api/docker/compose/${selectedHostId.value}/projects/${p.name}`, {
+        params: { path: p.config_file || p.path }
+      }); 
+      fetchProjects() 
+    } 
+  }) 
+}
+const runComposeAction = async (p: any, action: string) => {
+  if (!selectedHostId.value) return;
+  loadingActions.value[p.name] = true
   try {
-    const res = await axios.post(`/api/docker/compose/projects/${name}/action`, { action })
+    const res = await axios.post(`/api/docker/compose/${selectedHostId.value}/projects/${p.name}/action`, { 
+      action,
+      path: p.config_file || p.path
+    })
     commandResult.value = { stdout: res.data.stdout, stderr: res.data.stderr }; showCommandResult.value = true
-  } finally { loadingActions.value[name] = false; fetchContainers() }
+  } finally { loadingActions.value[p.name] = false; fetchContainers(); fetchProjects() }
 }
 const showLogs = async (id: string, name: string) => { const res = await axios.get(`/api/docker/${selectedHostId.value}/containers/${id}/logs?tail=200`); containerLogs.value = res.data.logs; showLogsModal.value = true }
 const testConnection = async (id: string) => { const res = await axios.post(`/api/docker/${id}/test`); message.info(res.data.status === 'ok' ? '连接正常' : '连接失败') }
-const handleAddHost = () => { editHostForm.value = { type: 'local', ssh_port: 22, ssh_user: 'root' }; showEditModal.value = true }
+const handleAddHost = () => { editHostForm.value = { type: 'ssh', ssh_port: 22, ssh_user: 'root' }; showEditModal.value = true }
 const handleEditHost = (h: any) => { editHostForm.value = { ...h }; showEditModal.value = true }
 const saveHost = async () => {
   if (editHostForm.value.id) await axios.put(`/api/docker/hosts/${editHostForm.value.id}`, editHostForm.value)

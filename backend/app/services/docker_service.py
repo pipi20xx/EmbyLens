@@ -1,5 +1,6 @@
 import docker
 import paramiko
+import os
 from typing import List, Dict, Any, Optional
 from app.utils.logger import logger
 from app.core.config_manager import get_config
@@ -9,24 +10,19 @@ from app.core.config_manager import get_config
 # 1. 强制策略补丁：禁止拒绝新主机
 _original_set_policy = paramiko.SSHClient.set_missing_host_key_policy
 def _forced_set_policy(self, policy):
-    # 无论外界想设置什么策略（比如 docker-py 默认设置的 RejectPolicy），都强制改为 AutoAddPolicy
     return _original_set_policy(self, paramiko.AutoAddPolicy())
 paramiko.SSHClient.set_missing_host_key_policy = _forced_set_policy
 
-# 2. 密码注入补丁：拦截连接动作并注入密码
+# 2. 密码注入补丁
 _original_connect = paramiko.SSHClient.connect
 def _patched_connect(self, hostname, port=22, username=None, password=None, **kwargs):
-    # 如果调用时没带密码，我们去配置里找找看
     if not password:
         config = get_config()
         hosts = config.get("docker_hosts", [])
-        # 根据 IP 匹配对应的密码
         host_match = next((h for h in hosts if h.get("ssh_host") == hostname), None)
         if host_match and host_match.get("ssh_pass"):
             password = host_match.get("ssh_pass")
-            # logger.info(f"Injecting password for SSH host: {hostname}")
     
-    # 确保禁用了主机密钥检查 (双重保险)
     kwargs['allow_agent'] = False
     kwargs['look_for_keys'] = False
     return _original_connect(self, hostname, port=port, username=username, password=password, **kwargs)
@@ -50,16 +46,8 @@ class DockerService:
                 ssh_host = self.host_config.get("ssh_host")
                 ssh_user = self.host_config.get("ssh_user", "root")
                 ssh_port = self.host_config.get("ssh_port", 22)
-                
-                # 构建基础 URL
                 base_url = f"ssh://{ssh_user}@{ssh_host}:{ssh_port}"
-                
-                # 必须使用 use_ssh_client=False 才能让 paramiko 补丁生效
-                return docker.DockerClient(
-                    base_url=base_url,
-                    use_ssh_client=False,
-                    timeout=15
-                )
+                return docker.DockerClient(base_url=base_url, use_ssh_client=False, timeout=15)
             
             elif host_type == "tcp":
                 host = self.host_config.get("ssh_host")
@@ -75,21 +63,47 @@ class DockerService:
             return None
 
     def list_containers(self, all=True) -> List[Dict[str, Any]]:
-        if not self.client: return []
-        try:
-            containers = self.client.containers.list(all=all)
-            return [{
-                "id": c.short_id,
-                "full_id": c.id,
-                "name": c.name,
-                "image": c.image.tags[0] if c.image.tags else c.image.id,
-                "status": c.status,
-                "created": c.attrs.get("Created"),
-                "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {})
-            } for c in containers]
-        except Exception as e:
-            logger.error(f"Error listing containers: {e}")
-            return []
+        # 优先尝试通过 docker-py 客户端获取（效率高，数据全）
+        if self.client:
+            try:
+                containers = self.client.containers.list(all=all)
+                return [{
+                    "id": c.short_id,
+                    "full_id": c.id,
+                    "name": c.name,
+                    "image": c.image.tags[0] if c.image.tags else c.image.id,
+                    "status": c.status,
+                    "created": c.attrs.get("Created"),
+                    "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {})
+                } for c in containers]
+            except Exception as e:
+                logger.warning(f"Docker-py client failed, falling back to SSH Shell: {e}")
+
+        # 如果客户端不可用或报错，通过 SSH 执行 docker ps 命令解析 (纯 SSH 模式)
+        if self.host_config.get("type") == "ssh":
+            cmd = "docker ps -a --format '{{json .}}'" if all else "docker ps --format '{{json .}}'"
+            res = self.exec_command(cmd)
+            if res["success"]:
+                try:
+                    import json
+                    lines = res["stdout"].strip().split('\n')
+                    results = []
+                    for line in lines:
+                        if not line: continue
+                        c = json.loads(line)
+                        results.append({
+                            "id": c.get("ID"),
+                            "full_id": c.get("ID"),
+                            "name": c.get("Names"),
+                            "image": c.get("Image"),
+                            "status": c.get("Status").lower().split(' ')[0], # "Up 2 hours" -> "up"
+                            "created": c.get("CreatedAt"),
+                            "ports": c.get("Ports")
+                        })
+                    return results
+                except Exception as e:
+                    logger.error(f"Failed to parse docker ps output: {e}")
+        return []
 
     def container_action(self, container_id: str, action: str):
         if not self.client: return False
@@ -100,22 +114,12 @@ class DockerService:
             elif action == "restart": container.restart()
             elif action == "remove": container.remove(force=True)
             elif action == "recreate":
-                # 获取原配置
                 attrs = container.attrs
                 image_tag = attrs['Config']['Image']
                 name = attrs['Name'].lstrip('/')
-                
-                # 尝试拉取最新镜像 (Force Pull)
-                logger.info(f"⚓ [Docker] 正在强制拉取最新镜像: {image_tag}")
                 self.client.images.pull(image_tag)
-                logger.info(f"🚚 [Docker] 镜像拉取完成，准备销毁旧容器: {name}")
-                
-                # 停止并移除旧容器
                 container.stop()
                 container.remove()
-                logger.info(f"🔥 [Docker] 旧容器 {name} 已移除，正在使用原配置创建新容器...")
-                
-                # 重新创建
                 create_kwargs = {
                     "image": image_tag,
                     "name": name,
@@ -127,7 +131,6 @@ class DockerService:
                     "network_mode": attrs.get('HostConfig', {}).get('NetworkMode', 'bridge')
                 }
                 self.client.containers.run(**create_kwargs)
-                logger.info(f"✨ [Docker] 容器 {name} 重构完成并已启动")
             return True
         except Exception as e:
             logger.error(f"Error performing action {action} on container {container_id}: {e}")
@@ -147,3 +150,101 @@ class DockerService:
             return self.client.ping()
         except Exception:
             return False
+
+    def exec_command(self, command: str, cwd: Optional[str] = None) -> Dict[str, Any]:
+        """在远程或本地执行 shell 命令"""
+        import subprocess
+        full_cmd = f"cd {cwd} && {command}" if cwd else command
+        
+        if self.host_config.get("type") == "local":
+            try:
+                process = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                return {"success": process.returncode == 0, "stdout": process.stdout, "stderr": process.stderr}
+            except Exception as e:
+                return {"success": False, "stdout": "", "stderr": str(e)}
+        
+        elif self.host_config.get("type") == "ssh":
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                ssh_host = self.host_config.get("ssh_host")
+                ssh_user = self.host_config.get("ssh_user", "root")
+                ssh_port = self.host_config.get("ssh_port", 22)
+                ssh_pass = self.host_config.get("ssh_pass")
+                
+                ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_pass, timeout=10)
+                stdin, stdout, stderr = ssh.exec_command(full_cmd)
+                
+                out = stdout.read().decode()
+                err = stderr.read().decode()
+                exit_status = stdout.channel.recv_exit_status()
+                
+                if exit_status != 0:
+                    logger.error(f"SSH Command Failed: {command} (Code: {exit_status}, Err: {err})")
+                
+                return {
+                    "success": exit_status == 0,
+                    "stdout": out,
+                    "stderr": err
+                }
+            except Exception as e:
+                logger.error(f"SSH Connection Error during exec: {e}")
+                return {"success": False, "stdout": "", "stderr": str(e)}
+            finally:
+                ssh.close()
+        return {"success": False, "stdout": "", "stderr": "Unsupported host type"}
+
+    def read_file(self, file_path: str) -> str:
+        if self.host_config.get("type") == "local":
+            if not os.path.exists(file_path): return ""
+            with open(file_path, "r") as f: return f.read()
+            
+        elif self.host_config.get("type") == "ssh":
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                ssh.connect(self.host_config.get("ssh_host"), 
+                            port=self.host_config.get("ssh_port", 22), 
+                            username=self.host_config.get("ssh_user"), 
+                            password=self.host_config.get("ssh_pass"))
+                sftp = ssh.open_sftp()
+                with sftp.open(file_path, 'r') as f:
+                    content = f.read().decode()
+                sftp.close()
+                return content
+            except Exception as e:
+                logger.error(f"SFTP Read Error: {e}")
+                return ""
+            finally:
+                ssh.close()
+        return ""
+
+    def write_file(self, file_path: str, content: str) -> bool:
+        if self.host_config.get("type") == "local":
+            try:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "w") as f: f.write(content)
+                return True
+            except: return False
+            
+        elif self.host_config.get("type") == "ssh":
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                ssh.connect(self.host_config.get("ssh_host"), 
+                            port=self.host_config.get("ssh_port", 22), 
+                            username=self.host_config.get("ssh_user"), 
+                            password=self.host_config.get("ssh_pass"))
+                sftp = ssh.open_sftp()
+                remote_dir = os.path.dirname(file_path)
+                ssh.exec_command(f"mkdir -p {remote_dir}")
+                with sftp.open(file_path, 'w') as f:
+                    f.write(content)
+                sftp.close()
+                return True
+            except Exception as e:
+                logger.error(f"SFTP Write Error: {e}")
+                return False
+            finally:
+                ssh.close()
+        return False
