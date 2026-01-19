@@ -47,7 +47,15 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "url": "",
         "exclude_emby": True
-    }
+    },
+    "docker_hosts": [
+        {
+            "id": "local",
+            "name": "本机 Docker",
+            "type": "local",
+            "base_url": "unix://var/run/docker.sock"
+        }
+    ]
 }
 
 def get_config() -> Dict[str, Any]:
@@ -68,6 +76,10 @@ def get_config() -> Dict[str, Any]:
                     sub_config = DEFAULT_CONFIG[key].copy()
                     sub_config.update(data[key])
                     full_config[key] = sub_config
+            
+            # 确保 docker_hosts 存在
+            if "docker_hosts" not in data:
+                full_config["docker_hosts"] = DEFAULT_CONFIG["docker_hosts"]
                 
             return full_config
     except Exception:

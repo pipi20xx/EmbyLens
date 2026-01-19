@@ -10,6 +10,8 @@ services:
       - "6565:6565"
     volumes:
       - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
       - TZ=Asia/Shanghai

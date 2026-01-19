@@ -33,6 +33,11 @@ const router = createRouter({
           component: () => import('../views/toolkit/LockManager.vue'),
         },
         {
+          path: 'toolkit/docker-manager',
+          name: 'DockerManager',
+          component: () => import('../views/toolkit/DockerManager.vue'),
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('../views/Settings.vue'),

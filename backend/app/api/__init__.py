@@ -12,6 +12,7 @@ from .actors import router as actors_router
 from .webhook import router as webhook_router
 from .dedupe import router as dedupe_router
 from .autotags import router as autotags_router
+from .docker import router as docker_router
 
 router = APIRouter()
 
@@ -28,6 +29,7 @@ router.include_router(actors_router, prefix="/actors", tags=["Actors"])
 router.include_router(webhook_router, prefix="/webhook", tags=["Webhook"])
 router.include_router(dedupe_router, prefix="/dedupe", tags=["Deduplication"])
 router.include_router(autotags_router, prefix="/autotags", tags=["AutoTags"])
+router.include_router(docker_router, prefix="/docker", tags=["Docker"])
 
 @router.get("/status")
 async def get_status():

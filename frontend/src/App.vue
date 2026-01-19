@@ -54,6 +54,7 @@ import ActorManagerView from './views/toolkit/ActorManager.vue'
 import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
 import DedupeView from './views/Dedupe.vue'
 import AutoTagsView from './views/toolkit/autotags/AutoTagsManager.vue'
+import DockerManagerView from './views/toolkit/DockerManager.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -142,11 +143,12 @@ const menuOptions: MenuOption[] = [
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
+  { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(ConsoleIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView
   }
   return views[currentViewKey.value] || DashboardView
 })

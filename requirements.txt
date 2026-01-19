@@ -8,3 +8,5 @@ pydantic-settings==2.1.0
 httpx==0.25.1
 python-multipart==0.0.6
 websockets==12.0
+docker==7.0.0
+paramiko==3.4.0
