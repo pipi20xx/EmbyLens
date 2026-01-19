@@ -7,7 +7,7 @@ import subprocess
 import json
 import time
 from app.utils.logger import logger, audit_log
-from app.core.config_manager import get_config
+from app.core.config_manager import get_config, save_config
 from app.services.docker_service import DockerService
 
 router = APIRouter()
@@ -30,14 +30,13 @@ def get_docker_service(host_id: str):
 
 @router.get("/{host_id}/ls")
 async def list_directory(host_id: str, path: str = "/"):
-    """浏览远程或本地主机的文件夹"""
+    """浏览远程或本地主机的目录内容"""
     service = get_docker_service(host_id)
-    # 使用 ls -F 命令来区分文件夹和文件，文件夹末尾会有 /
-    cmd = f"ls -F '{path}'"
-    res = service.exec_command(cmd)
+    # 使用 ls -p 参数，文件夹后会跟 /
+    cmd = f"ls -p '{path}'"
+    res = service.exec_command(cmd, log_error=False)
     
     if not res["success"]:
-        # 尝试默认路径
         if path != "/":
             return await list_directory(host_id, "/")
         raise HTTPException(status_code=500, detail=res["stderr"])
@@ -48,15 +47,13 @@ async def list_directory(host_id: str, path: str = "/"):
         if not line: continue
         is_dir = line.endswith('/')
         name = line.rstrip('/')
-        if is_dir:
-            items.append({
-                "name": name,
-                "path": os.path.join(path, name),
-                "is_dir": True
-            })
+        items.append({
+            "name": name,
+            "path": os.path.join(path, name),
+            "is_dir": is_dir
+        })
     
-    # 按名称排序，文件夹优先
-    items.sort(key=lambda x: (not x["is_dir"], x["name"]))
+    items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
     return {"current_path": path, "items": items}
 
 @router.get("/{host_id}/projects")
@@ -65,10 +62,10 @@ async def list_projects(host_id: str):
     projects = []
     managed_paths = set()
     
-    # 1. 探测已运行的项目
+    # 1. 尝试通过 docker compose ls 探测已运行的项目
     detect_commands = ["docker compose ls --all --format json", "docker-compose ls --all --format json"]
     for cmd in detect_commands:
-        res = service.exec_command(cmd)
+        res = service.exec_command(cmd, log_error=False)
         if res["success"] and res["stdout"].strip():
             try:
                 detected_projects = json.loads(res["stdout"])
@@ -87,13 +84,18 @@ async def list_projects(host_id: str):
                 break
             except: continue
 
-    # 2. 扫描指定路径
+    # 2. 根据用户配置的扫描路径进行深度搜索
     scan_paths_str = service.host_config.get("compose_scan_paths", "")
     if scan_paths_str:
         paths = [p.strip() for p in scan_paths_str.split(",") if p.strip()]
         for base_path in paths:
+            # 静默检查路径是否存在
+            check_cmd = f"[ -d '{base_path}' ] && echo 'ok'"
+            if service.exec_command(check_cmd, log_error=False)["stdout"].strip() != "ok":
+                continue
+
             find_cmd = f"find {base_path} -maxdepth 4 \( -name 'docker-compose.yml' -o -name 'docker-compose.yaml' \)"
-            res = service.exec_command(find_cmd)
+            res = service.exec_command(find_cmd, log_error=False)
             if res["success"] and res["stdout"].strip():
                 found_files = res["stdout"].strip().split("\n")
                 for file_path in found_files:
@@ -108,15 +110,13 @@ async def list_projects(host_id: str):
                     })
                     managed_paths.add(file_path)
 
-    # 3. 本置项目兜底 (仅本地主机)
+    # 3. 本地内置项目
     if service.host_config.get("type") == "local" and os.path.exists(COMPOSE_DIR):
         for d in os.listdir(COMPOSE_DIR):
             path = os.path.join(COMPOSE_DIR, d)
             cfg = os.path.join(path, "docker-compose.yml")
             if os.path.isdir(path) and cfg not in managed_paths:
-                projects.append({
-                    "name": d, "path": path, "config_file": cfg, "type": "internal", "status": "unknown"
-                })
+                projects.append({"name": d, "path": path, "config_file": cfg, "type": "internal", "status": "unknown"})
     
     return projects
 
@@ -128,8 +128,6 @@ async def get_project(host_id: str, name: str, path: Optional[str] = None):
     if not path:
         raise HTTPException(status_code=400, detail="Path is required")
     content = service.read_file(path)
-    if not content:
-        raise HTTPException(status_code=404, detail="File not found")
     return {"name": name, "content": content, "path": path}
 
 @router.post("/{host_id}/projects")
@@ -158,6 +156,38 @@ async def project_action(host_id: str, name: str, action: str = Body(..., embed=
     res = service.exec_command(cmd_map[action], cwd=os.path.dirname(path))
     return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
 
+@router.post("/{host_id}/chmod")
+async def chmod_path(host_id: str, path: str = Body(..., embed=True), mode: Optional[str] = Body(None, embed=True), 
+                     owner: Optional[str] = Body(None, embed=True), group: Optional[str] = Body(None, embed=True), 
+                     recursive: bool = Body(False, embed=True)):
+    service = get_docker_service(host_id)
+    rec_flag = "-R " if recursive else ""
+    if mode:
+        service.exec_command(f"chmod {rec_flag}{mode} '{path}'")
+    if owner or group:
+        target = f"{owner or ''}:{group or ''}".strip(":")
+        service.exec_command(f"chown {rec_flag}{target} '{path}'")
+    return {"message": "Success"}
+
 @router.delete("/{host_id}/projects/{name}")
-async def delete_project(host_id: str, name: str, path: Optional[str] = None):
-    return {"message": "Removed from view"}
+async def delete_project(host_id: str, name: str, path: Optional[str] = None, delete_files: bool = False):
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    host_match = next((h for h in hosts if h.get("id") == host_id), None)
+    service = get_docker_service(host_id)
+    
+    if delete_files and path:
+        project_dir = os.path.dirname(path).rstrip('/')
+        if len(project_dir) < 5 or project_dir in ["/", "/root", "/home", "/etc", "/var"]:
+            raise HTTPException(status_code=400, detail="Security Limit: Cannot delete system directories")
+        
+        service.exec_command(f"rm -rf '{project_dir}'")
+        
+        if host_match and "compose_scan_paths" in host_match:
+            paths = [p.strip().rstrip('/') for p in host_match["compose_scan_paths"].split(",") if p.strip()]
+            if project_dir in paths:
+                paths = [p for p in paths if p != project_dir]
+                host_match["compose_scan_paths"] = ",".join(paths)
+                save_config(config)
+
+    return {"message": "Removed"}

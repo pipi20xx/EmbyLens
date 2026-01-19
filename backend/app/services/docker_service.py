@@ -151,7 +151,7 @@ class DockerService:
         except Exception:
             return False
 
-    def exec_command(self, command: str, cwd: Optional[str] = None) -> Dict[str, Any]:
+    def exec_command(self, command: str, cwd: Optional[str] = None, log_error: bool = True) -> Dict[str, Any]:
         """在远程或本地执行 shell 命令"""
         import subprocess
         full_cmd = f"cd {cwd} && {command}" if cwd else command
@@ -159,6 +159,8 @@ class DockerService:
         if self.host_config.get("type") == "local":
             try:
                 process = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                if process.returncode != 0 and log_error:
+                    logger.error(f"Local Command Failed: {command} (Code: {process.returncode}, Err: {process.stderr})")
                 return {"success": process.returncode == 0, "stdout": process.stdout, "stderr": process.stderr}
             except Exception as e:
                 return {"success": False, "stdout": "", "stderr": str(e)}
@@ -179,7 +181,7 @@ class DockerService:
                 err = stderr.read().decode()
                 exit_status = stdout.channel.recv_exit_status()
                 
-                if exit_status != 0:
+                if exit_status != 0 and log_error:
                     logger.error(f"SSH Command Failed: {command} (Code: {exit_status}, Err: {err})")
                 
                 return {
@@ -188,7 +190,7 @@ class DockerService:
                     "stderr": err
                 }
             except Exception as e:
-                logger.error(f"SSH Connection Error during exec: {e}")
+                if log_error: logger.error(f"SSH Connection Error during exec: {e}")
                 return {"success": False, "stdout": "", "stderr": str(e)}
             finally:
                 ssh.close()
