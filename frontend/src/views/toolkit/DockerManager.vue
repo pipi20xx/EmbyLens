@@ -40,7 +40,7 @@
           <n-tab-pane name="containers" tab="容器管理">
             <container-panel ref="containerPanelRef" :host-id="selectedHostId" :hosts="hosts" />
           </n-tab-pane>
-          <n-tab-pane name="compose" tab="Compose 项目">
+          <n-tab-pane name="compose" tab="Compose 管理">
             <compose-panel 
               ref="composePanelRef" 
               :host-id="selectedHostId" 
@@ -51,6 +51,9 @@
               @browse-path="browseRemotePath"
               @request-pick-path="handleRequestPickPath"
             />
+          </n-tab-pane>
+          <n-tab-pane name="maintenance" tab="配置">
+            <maintenance-panel :host-id="selectedHostId" />
           </n-tab-pane>
         </n-tabs>
       </n-card>
@@ -77,6 +80,7 @@ import axios from 'axios'
 // 导入乐高组件
 import ContainerPanel from './docker/components/ContainerPanel.vue'
 import ComposePanel from './docker/components/ComposePanel.vue'
+import MaintenancePanel from './docker/components/MaintenancePanel.vue'
 import HostManagerModal from './docker/components/HostManagerModal.vue'
 import FileBrowserModal from './docker/components/FileBrowserModal.vue'
 

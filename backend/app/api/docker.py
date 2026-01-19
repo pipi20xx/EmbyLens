@@ -128,6 +128,27 @@ async def test_connection(host_id: str):
         logger.error(f"💔 [Docker] 主机连接测试失败: {host_id}")
     return {"status": "ok" if is_ok else "error"}
 
+@router.post("/{host_id}/prune-images")
+async def prune_images(host_id: str, dangling: bool = Body(True, embed=True), all_unused: bool = Body(False, embed=True)):
+    """清理镜像"""
+    service = get_docker_service(host_id)
+    # 构建命令
+    cmd = "docker image prune -f"
+    if all_unused:
+        cmd = "docker image prune -a -f"
+    elif not dangling:
+        return {"message": "No action taken", "stdout": ""}
+        
+    res = service.exec_command(cmd)
+    return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
+
+@router.post("/{host_id}/prune-cache")
+async def prune_cache(host_id: str):
+    """清理构建缓存"""
+    service = get_docker_service(host_id)
+    res = service.exec_command("docker builder prune -f")
+    return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
+
 @router.get("/container-settings")
 async def get_container_settings():
     config = get_config()
