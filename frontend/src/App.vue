@@ -180,7 +180,7 @@ const themeOptions = [
                 <n-icon size="24" :color="currentThemeType === 'purple' ? '#bb86fc' : '#705df2'"><LensIcon /></n-icon>
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
-                  <div class="version-tag">v1.0.3</div>
+                  <div class="version-tag">v1.0.4</div>
                 </div>
               </n-space>
             </div>
@@ -214,9 +214,7 @@ const themeOptions = [
 
           <n-layout-content content-style="padding: 16px; min-height: 100vh; display: flex; flex-direction: column; background-color: var(--app-bg-color);">
             <div class="view-wrapper">
-              <transition name="fade" mode="out-in">
-                <component :is="currentView" />
-              </transition>
+              <component :is="currentView" :key="currentViewKey" />
             </div>
           </n-layout-content>
         </n-layout>

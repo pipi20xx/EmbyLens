@@ -74,8 +74,17 @@ const stats = ref({
 const fetchStats = async () => {
   try {
     const res = await axios.get('/api/stats/summary')
-    stats.value = res.data
-  } catch (e) {}
+    if (res.data && typeof res.data === 'object') {
+      stats.value = {
+        movies: res.data.movies ?? 0,
+        series: res.data.series ?? 0,
+        duplicates: res.data.duplicates ?? 0,
+        status: res.data.status ?? 'idle'
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch stats:', e)
+  }
 }
 
 onMounted(() => {

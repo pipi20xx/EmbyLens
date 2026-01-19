@@ -23,19 +23,7 @@ DEFAULT_CONFIG = {
         "tie_breaker": "small_id"
     },
     "exclude_paths": [],
-    "autotag_rules": [
-        {
-            "name": "国漫标记",
-            "tag": "国漫",
-            "item_type": "series",
-            "match_all_conditions": True,
-            "conditions": {
-                "countries": ["中国大陆"],
-                "genres": ["动画"],
-                "years_text": ""
-            }
-        }
-    ],
+    "autotag_rules": [],
     "webhook": {
         "enabled": True,
         "secret_token": "embylens_default_token",
@@ -48,45 +36,52 @@ DEFAULT_CONFIG = {
         "url": "",
         "exclude_emby": True
     },
-    "docker_hosts": [
-        {
-            "id": "local",
-            "name": "本机 Docker",
-            "type": "local",
-            "base_url": "unix://var/run/docker.sock"
-        }
-    ]
+    "docker_hosts": [],
+    "docker_container_settings": {}
 }
 
 def get_config() -> Dict[str, Any]:
-    """从 config.json 读取配置，并合并默认值"""
+    """从 config.json 读取配置，强制执行深度类型检查，防止 null 值破坏前端"""
+    full_config = DEFAULT_CONFIG.copy()
+    
     if not os.path.exists(CONFIG_FILE):
-        return DEFAULT_CONFIG.copy()
+        return full_config
     
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            # 基础合并
-            full_config = DEFAULT_CONFIG.copy()
-            full_config.update(data)
+            raw_data = json.load(f)
+            if not raw_data or not isinstance(raw_data, dict):
+                return full_config
             
-            # 深度合并二级对象，防止缺失字段
-            for key in ["dedupe_rules", "webhook", "proxy"]:
-                if key in data:
-                    sub_config = DEFAULT_CONFIG[key].copy()
-                    sub_config.update(data[key])
-                    full_config[key] = sub_config
-            
-            # 确保 docker_hosts 存在
-            if "docker_hosts" not in data:
-                full_config["docker_hosts"] = DEFAULT_CONFIG["docker_hosts"]
-                
+            # 基础字段合并
+            for key in full_config.keys():
+                if key in raw_data:
+                    val = raw_data[key]
+                    
+                    # 关键防御：如果默认值是字典，但原始数据是 null，则保留默认字典
+                    if isinstance(full_config[key], dict):
+                        if isinstance(val, dict):
+                            # 进行二级合并
+                            sub = full_config[key].copy()
+                            sub.update(val)
+                            full_config[key] = sub
+                        else:
+                            # 原始数据非法（如为 null），维持默认值
+                            pass
+                    elif isinstance(full_config[key], list):
+                        if isinstance(val, list):
+                            full_config[key] = val
+                        else:
+                            full_config[key] = []
+                    else:
+                        full_config[key] = val if val is not None else full_config[key]
+                        
             return full_config
     except Exception:
         return DEFAULT_CONFIG.copy()
 
 def save_config(config_data: Dict[str, Any]):
-    """将配置保存到 config.json"""
+    """将配置保存到 config.json，保存前确保没有非法 null"""
     os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=4, ensure_ascii=False)

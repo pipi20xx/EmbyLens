@@ -32,7 +32,8 @@ async def save_server_config(config: Dict[str, Any]):
 @router.get("/current")
 async def get_current_config():
     """获取当前 config.json 内容"""
-    return get_config()
+    config = get_config()
+    return config if config is not None else {}
 
 @router.post("/login")
 async def emby_login():

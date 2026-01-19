@@ -11,7 +11,9 @@ export function useAutoTags() {
     loading.value = true
     try {
       const res = await axios.get('/api/autotags/rules')
-      rules.value = res.data
+      rules.value = Array.isArray(res.data) ? res.data : []
+    } catch (e) {
+      rules.value = []
     } finally {
       loading.value = false
     }

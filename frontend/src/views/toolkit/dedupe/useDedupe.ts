@@ -46,8 +46,9 @@ export function useDedupe() {
     selectedIds.value = []
     try {
       const res = await axios.get('/api/dedupe/items', { params: { query_text: searchName.value } })
-      items.value = processItems(res.data)
+      items.value = processItems(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
+      items.value = []
       message.error('加载列表失败')
     } finally {
       loading.value = false
@@ -57,7 +58,7 @@ export function useDedupe() {
   const onLoadChildren = async (row: any) => {
     try {
       const res = await axios.get('/api/dedupe/items', { params: { parent_id: row.id } })
-      row.children = processItems(res.data)
+      row.children = processItems(Array.isArray(res.data) ? res.data : [])
     } catch (e) {}
   }
 
@@ -68,8 +69,9 @@ export function useDedupe() {
       try {
         const res = await axios.get('/api/dedupe/duplicates')
         // 后端现在直接返回平铺的重复项列表
-        items.value = processItems(res.data)
+        items.value = processItems(Array.isArray(res.data) ? res.data : [])
       } catch (e) {
+        items.value = []
         message.error('加载重复项失败')
       } finally {
         loading.value = false
@@ -107,14 +109,16 @@ export function useDedupe() {
     try {
       // 不传任何参数，让后端全库扫描
       const res = await axios.post('/api/dedupe/smart-select')
-      suggestedItems.value = res.data
-      selectedIds.value = res.data.map((i: any) => i.id)
+      const data = Array.isArray(res.data) ? res.data : []
+      suggestedItems.value = data
+      selectedIds.value = data.map((i: any) => i.id)
       
-      if (res.data.length === 0) {
+      if (data.length === 0) {
         message.info('未发现符合规则的可清理项目')
       }
-      return res.data
+      return data
     } catch (e) {
+      suggestedItems.value = []
       message.error('算法执行失败')
       return []
     } finally {

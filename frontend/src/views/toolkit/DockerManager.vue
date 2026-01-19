@@ -140,17 +140,21 @@ const currentHost = computed(() => hosts.value.find(h => h.id === selectedHostId
 const currentHostPaths = computed(() => (currentHost.value?.compose_scan_paths || '').split(',').map(p => p.trim()).filter(p => p))
 
 const fetchHosts = async () => {
-  const res = await axios.get('/api/docker/hosts')
-  hosts.value = res.data
-  
-  if (hosts.value.length > 0) {
-    const savedHostId = localStorage.getItem(STORAGE_KEY)
-    // 如果有记忆的 ID 且在当前列表中，则恢复它
-    if (savedHostId && hosts.value.some(h => h.id === savedHostId)) {
-      selectedHostId.value = savedHostId
-    } else if (!selectedHostId.value) {
-      selectedHostId.value = hosts.value[0].id
+  try {
+    const res = await axios.get('/api/docker/hosts')
+    hosts.value = Array.isArray(res.data) ? res.data : []
+    
+    if (hosts.value.length > 0) {
+      const savedHostId = localStorage.getItem(STORAGE_KEY)
+      // 如果有记忆的 ID 且在当前列表中，则恢复它
+      if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
+        selectedHostId.value = savedHostId
+      } else if (!selectedHostId.value) {
+        selectedHostId.value = hosts.value[0].id
+      }
     }
+  } catch (e) {
+    hosts.value = []
   }
 }
 

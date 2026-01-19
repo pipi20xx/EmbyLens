@@ -181,7 +181,7 @@ async def bulk_project_action(host_id: str, action: str = Body(..., embed=True))
             res = service.exec_command(cmd_map[action], cwd=os.path.dirname(path))
             results.append({"name": p['name'], "success": res["success"]})
         except Exception as e:
-            results.append({"name": p['name'], "success": false, "error": str(e)})
+            results.append({"name": p['name'], "success": False, "error": str(e)})
             
     return {"results": results}
 

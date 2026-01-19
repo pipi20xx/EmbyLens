@@ -117,7 +117,8 @@ const columns: DataTableColumns<any> = [
   },
   { title: '端口映射', key: 'ports', render(row) {
       const tags: any[] = []
-      const currentHost = props.hosts.find(h => h.id === props.hostId)
+      const hostsList = Array.isArray(props.hosts) ? props.hosts : []
+      const currentHost = hostsList.find(h => h && h.id === props.hostId)
       const targetIp = (!currentHost?.ssh_host || currentHost.ssh_host === '127.0.0.1') ? window.location.hostname : currentHost.ssh_host
       if (row.ports) {
         for (const [containerPort, bindings] of Object.entries(row.ports)) {

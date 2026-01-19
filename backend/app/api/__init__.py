@@ -16,7 +16,20 @@ from .docker import router as docker_router
 from .docker_compose import router as compose_router
 
 router = APIRouter()
-...
+
+router.include_router(server_router, prefix="/server", tags=["Server"])
+router.include_router(stats_router, prefix="/stats", tags=["Stats"])
+router.include_router(system_router, prefix="/system", tags=["System"])
+router.include_router(toolkit_router, prefix="/toolkit", tags=["Toolkit"])
+router.include_router(emby_items_router, prefix="/emby_items", tags=["EmbyItems"])
+router.include_router(tmdb_lookup_router, prefix="/tmdb_lookup", tags=["TMDBLookup"])
+router.include_router(tmdb_search_router, prefix="/tmdb_search", tags=["TMDBSearch"])
+router.include_router(tmdb_lab_router, prefix="/tmdb_lab", tags=["TMDBLab"])
+router.include_router(actor_lab_router, prefix="/actor_lab", tags=["ActorLab"])
+router.include_router(actors_router, prefix="/actors", tags=["Actors"])
+router.include_router(webhook_router, prefix="/webhook", tags=["Webhook"])
+router.include_router(dedupe_router, prefix="/dedupe", tags=["Dedupe"])
+router.include_router(autotags_router, prefix="/autotags", tags=["AutoTags"])
 router.include_router(docker_router, prefix="/docker", tags=["Docker"])
 router.include_router(compose_router, prefix="/docker/compose", tags=["DockerCompose"])
 

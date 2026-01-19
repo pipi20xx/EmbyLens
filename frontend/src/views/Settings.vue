@@ -155,10 +155,26 @@ const serverForm = reactive({
 const fetchCurrent = async () => {
   try {
     const res = await axios.get('/api/server/current')
-    if (res.data) {
-      Object.assign(serverForm, res.data)
+    const data = res.data
+    if (data && typeof data === 'object') {
+      serverForm.name = data.name || ''
+      serverForm.url = data.url || ''
+      serverForm.api_key = data.api_key || ''
+      serverForm.user_id = data.user_id || ''
+      serverForm.tmdb_api_key = data.tmdb_api_key || ''
+      serverForm.username = data.username || ''
+      serverForm.password = data.password || ''
+      serverForm.session_token = data.session_token || ''
+      
+      if (data.proxy) {
+        serverForm.proxy.enabled = !!data.proxy.enabled
+        serverForm.proxy.url = data.proxy.url || ''
+        serverForm.proxy.exclude_emby = data.proxy.exclude_emby !== false
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Failed to load server config:', e)
+  }
 }
 
 onMounted(fetchCurrent)
