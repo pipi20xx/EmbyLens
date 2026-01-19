@@ -149,6 +149,62 @@ async def prune_cache(host_id: str):
     res = service.exec_command("docker builder prune -f")
     return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
 
+import json
+import os
+
+class DaemonUpdate(BaseModel):
+    config: Dict[str, Any]
+    restart: bool = False
+
+@router.get("/{host_id}/daemon-config")
+async def get_daemon_config(host_id: str):
+    """读取远程主机的 /etc/docker/daemon.json"""
+    service = get_docker_service(host_id)
+    content = service.read_file("/etc/docker/daemon.json")
+    if not content:
+        return {}
+    try:
+        return json.loads(content)
+    except:
+        return {"_raw": content}
+
+@router.post("/{host_id}/daemon-config")
+async def save_daemon_config(host_id: str, data: DaemonUpdate):
+    """保存配置并备份"""
+    service = get_docker_service(host_id)
+    config = data.config
+    restart = data.restart
+    
+    # 1. 读取旧配置用于备份
+    old_content = service.read_file("/etc/docker/daemon.json")
+    
+    # 2. 本地备份
+    if old_content:
+        backup_dir = "data/backups/daemon_configs"
+        os.makedirs(backup_dir, exist_ok=True)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        with open(f"{backup_dir}/{host_id}_{timestamp}.json", "w") as f:
+            f.write(old_content)
+            
+        # 3. 远程备份 (daemon.json.bak)
+        service.exec_command("cp /etc/docker/daemon.json /etc/docker/daemon.json.bak")
+
+    # 4. 写入新配置
+    new_content = json.dumps(config, indent=4)
+    if not service.write_file("/etc/docker/daemon.json", new_content):
+        raise HTTPException(status_code=500, detail="写入文件失败，请检查 SSH 账户是否有 root 权限")
+
+    # 5. 重启 Docker (如果勾选)
+    restart_res = None
+    if restart:
+        # 使用 systemctl 重启，这是最标准的方式
+        restart_res = service.exec_command("systemctl daemon-reload && systemctl restart docker")
+
+    return {
+        "message": "配置已保存并备份", 
+        "restart_result": restart_res
+    }
+
 @router.get("/container-settings")
 async def get_container_settings():
     config = get_config()
