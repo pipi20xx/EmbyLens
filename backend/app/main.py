@@ -52,6 +52,17 @@ async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
+    # 强制禁用 SSH 主机密钥检查，解决 Docker SSH 连接 known_hosts 问题
+    try:
+        ssh_config_dir = os.path.expanduser("~/.ssh")
+        os.makedirs(ssh_config_dir, exist_ok=True)
+        config_path = os.path.join(ssh_config_dir, "config")
+        with open(config_path, "w") as f:
+            f.write("Host *\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n")
+        os.chmod(config_path, 0o600)
+    except Exception as e:
+        logger.error(f"Failed to setup SSH config: {e}")
+    
     # 启动自动标签 Webhook 消费 Worker
     from app.api.autotags import webhook_worker
     asyncio.create_task(webhook_worker())

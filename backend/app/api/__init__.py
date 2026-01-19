@@ -13,23 +13,12 @@ from .webhook import router as webhook_router
 from .dedupe import router as dedupe_router
 from .autotags import router as autotags_router
 from .docker import router as docker_router
+from .docker_compose import router as compose_router
 
 router = APIRouter()
-
-router.include_router(server_router, prefix="/server", tags=["Server"])
-router.include_router(stats_router, prefix="/stats", tags=["Stats"])
-router.include_router(system_router, prefix="/system", tags=["System"])
-router.include_router(toolkit_router, prefix="/toolkit", tags=["Toolkit"])
-router.include_router(emby_items_router, prefix="/items", tags=["EmbyItems"])
-router.include_router(tmdb_lookup_router, prefix="/tmdb", tags=["TMDBLookup"])
-router.include_router(tmdb_search_router, prefix="/tmdb-search", tags=["TMDBSearch"])
-router.include_router(tmdb_lab_router, prefix="/tmdb-lab", tags=["TMDBLab"])
-router.include_router(actor_lab_router, prefix="/actor-lab", tags=["ActorLab"])
-router.include_router(actors_router, prefix="/actors", tags=["Actors"])
-router.include_router(webhook_router, prefix="/webhook", tags=["Webhook"])
-router.include_router(dedupe_router, prefix="/dedupe", tags=["Deduplication"])
-router.include_router(autotags_router, prefix="/autotags", tags=["AutoTags"])
+...
 router.include_router(docker_router, prefix="/docker", tags=["Docker"])
+router.include_router(compose_router, prefix="/docker/compose", tags=["DockerCompose"])
 
 @router.get("/status")
 async def get_status():
