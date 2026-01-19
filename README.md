@@ -14,6 +14,13 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 *   **概览统计**：直观展示媒体库的资源总量、库数量、系统运行状态。
 *   **审计流水**：记录最近的维护操作，确保系统变动可追溯。
 
+### 🐳 Docker 容器管理 (Docker Manager) - [新功能!]
+*   **多机管理**：支持管理本机 Docker 以及通过 **SSH** 或 **TCP** 管理多台远程服务器。
+*   **容器生命周期**：支持容器的启动、停止、重启、删除及实时日志查看。
+*   **智能重构 (Update)**：一键拉取最新镜像并按照原配置重新创建容器，实现服务的秒级无感更新。
+*   **Compose 项目**：内置 Docker Compose 管理器，支持 YAML 在线编辑、项目启动 (Up)、停止 (Down) 及镜像预拉取。
+*   **便捷跳转**：自动解析端口映射，并支持针对 Host 模式容器自定义访问端口，实现一键点击跳转服务页面。
+
 ### ♻️ 重复项清理 (Dedupe Ultimate)
 *   **多维度查重**：精准识别重复的电影、剧集。
 *   **智能优选**：基于分辨率、编码、动态范围自动评估版本优劣。
@@ -74,7 +81,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 ## 🏗️ 技术栈
 
 -   **前端**: Vue 3 (Composition API) + Vite + TypeScript + Naive UI
--   **后端**: Python 3.10 + FastAPI + SQLAlchemy (Async) + httpx
+-   **后端**: Python 3.10 + FastAPI + Docker SDK + Paramiko + httpx
 -   **图标**: Material Design Icons (@vicons/material)
 
 ---
@@ -92,10 +99,12 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
         image: pipi20xx/embylens:latest
         container_name: embylens
         network_mode: bridge
+        user: root # 确保有权限操作 Docker Socket
         ports:
           - "6565:6565"
         volumes:
           - ./data:/app/data
+          - /var/run/docker.sock:/var/run/docker.sock # 映射 Socket 以管理本机容器
         environment:
           - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
           - TZ=Asia/Shanghai
@@ -113,7 +122,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 ### 🛠️ 初始配置步骤
 1.  **环境集成**：前往“系统设置”，填入 Emby URL 和 API Key。
 2.  **刷新索引**：进入对应工具（如重复项清理），点击“从 Emby 同步”。
-3.  **开始维护**：根据需要选择对应的原子化工具进行操作。
+3.  **Docker 管理**：进入“Docker 容器管理”，即可看到本机容器；支持通过 SSH 添加远程服务器。
 
 ---
 
@@ -122,3 +131,4 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 本项目的设计和功能受到了以下优秀项目的启发，特此感谢：
 
 - [kuroyukihime0/emby_scripts](https://github.com/kuroyukihime0/emby_scripts)
+
