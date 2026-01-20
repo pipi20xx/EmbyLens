@@ -17,8 +17,6 @@ class PostgresService:
     @classmethod
     async def get_connection(cls, config: PostgresConfig):
         """获取或创建连接 (这里简化处理，直接返回新连接或维护一个简单的单例)"""
-        # 注意：在生产环境中通常使用 Connection Pool (psycopg.AsyncConnectionPool)
-        # 这里为了演示核心逻辑，使用常规连接。
         conn_str = f"host={config.host} port={config.port} user={config.username} password={config.password} dbname={config.database} connect_timeout=5"
         return await psycopg.AsyncConnection.connect(conn_str, autocommit=True)
 
@@ -55,7 +53,8 @@ class PostgresService:
                         pg_catalog.pg_get_userbyid(d.datdba) as owner,
                         pg_catalog.shobj_description(d.oid, 'pg_database') as description
                     FROM pg_catalog.pg_database d
-                    WHERE d.datistemplate = false;
+                    WHERE d.datistemplate = false
+                    ORDER BY d.datname ASC;
                 """)
                 rows = await cur.fetchall()
                 return [
@@ -68,15 +67,12 @@ class PostgresService:
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
                 if owner:
-                    # 修改所有者
                     query = sql.SQL("ALTER DATABASE {db} OWNER TO {owner}").format(
                         db=sql.Identifier(dbname),
                         owner=sql.Identifier(owner)
                     )
                     await cur.execute(query)
-                
                 if description is not None:
-                    # 修改注释
                     query = sql.SQL("COMMENT ON DATABASE {db} IS {comment}").format(
                         db=sql.Identifier(dbname),
                         comment=sql.Literal(description)
@@ -88,14 +84,80 @@ class PostgresService:
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
                 await cur.execute("""
-                    SELECT usename, usesuper, usecreatedb 
-                    FROM pg_user;
+                    SELECT 
+                        rolname, rolsuper, rolcreatedb, rolcreaterole, 
+                        rolcanlogin, rolinherit, rolreplication, 
+                        rolconnlimit, rolbypassrls, rolvaliduntil 
+                    FROM pg_roles
+                    WHERE rolname NOT LIKE 'pg_%'
+                    ORDER BY rolname ASC;
                 """)
                 rows = await cur.fetchall()
                 return [
-                    {"username": r[0], "is_superuser": r[1], "can_create_db": r[2]} 
+                    {
+                        "username": r[0], 
+                        "is_superuser": r[1], 
+                        "can_create_db": r[2],
+                        "can_create_role": r[3],
+                        "can_login": r[4],
+                        "inherit": r[5],
+                        "replication": r[6],
+                        "connection_limit": r[7],
+                        "bypass_rls": r[8],
+                        "valid_until": cls.json_serializer(r[9]) if r[9] else None
+                    } 
                     for r in rows
                 ]
+
+    @classmethod
+    async def create_user(cls, config: PostgresConfig, username: str, password: str, 
+                          can_login: bool = True, is_superuser: bool = False,
+                          can_create_db: bool = False, can_create_role: bool = False,
+                          inherit: bool = True, replication: bool = False, 
+                          bypass_rls: bool = False, connection_limit: int = -1):
+        async with await cls.get_connection(config) as conn:
+            async with conn.cursor() as cur:
+                parts = []
+                parts.append("LOGIN" if can_login else "NOLOGIN")
+                parts.append("SUPERUSER" if is_superuser else "NOSUPERUSER")
+                parts.append("CREATEDB" if can_create_db else "NOCREATEDB")
+                parts.append("CREATEROLE" if can_create_role else "NOCREATEROLE")
+                parts.append("INHERIT" if inherit else "NOINHERIT")
+                parts.append("REPLICATION" if replication else "NOREPLICATION")
+                parts.append("BYPASSRLS" if bypass_rls else "NOBYPASSRLS")
+                parts.append(f"CONNECTION LIMIT {connection_limit}")
+                parts.append(f"PASSWORD {sql.Literal(password).as_string(conn)}")
+
+                raw_sql = f"CREATE ROLE {sql.Identifier(username).as_string(conn)} {' '.join(parts)}"
+                await cur.execute(raw_sql)
+
+    @classmethod
+    async def update_user(cls, config: PostgresConfig, username: str, 
+                          password: str = None, can_login: bool = None,
+                          is_superuser: bool = None, can_create_db: bool = None, 
+                          can_create_role: bool = None, inherit: bool = None,
+                          replication: bool = None, bypass_rls: bool = None,
+                          connection_limit: int = None, valid_until: str = None):
+        async with await cls.get_connection(config) as conn:
+            async with conn.cursor() as cur:
+                parts = []
+                if password: parts.append(f"PASSWORD {sql.Literal(password).as_string(conn)}")
+                if can_login is not None: parts.append("LOGIN" if can_login else "NOLOGIN")
+                if is_superuser is not None: parts.append("SUPERUSER" if is_superuser else "NOSUPERUSER")
+                if can_create_db is not None: parts.append("CREATEDB" if can_create_db else "NOCREATEDB")
+                if can_create_role is not None: parts.append("CREATEROLE" if can_create_role else "NOCREATEROLE")
+                if inherit is not None: parts.append("INHERIT" if inherit else "NOINHERIT")
+                if replication is not None: parts.append("REPLICATION" if replication else "NOREPLICATION")
+                if bypass_rls is not None: parts.append("BYPASSRLS" if bypass_rls else "NOBYPASSRLS")
+                if connection_limit is not None: parts.append(f"CONNECTION LIMIT {connection_limit}")
+                
+                if valid_until:
+                    val = "infinity" if valid_until == "infinity" else sql.Literal(valid_until).as_string(conn)
+                    parts.append(f"VALID UNTIL {val}")
+
+                if parts:
+                    raw_sql = f"ALTER ROLE {sql.Identifier(username).as_string(conn)} {' '.join(parts)}"
+                    await cur.execute(raw_sql)
 
     @classmethod
     async def get_tables(cls, config: PostgresConfig) -> List[str]:
@@ -115,8 +177,6 @@ class PostgresService:
     async def get_table_data(cls, config: PostgresConfig, table_name: str, page: int, page_size: int):
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
-                # 1. 获取列定义 (防止 SQL 注入：不要直接拼接表名到查询中，除非通过 sql.Identifier)
-                # information_schema 是安全的
                 await cur.execute("""
                     SELECT column_name, data_type 
                     FROM information_schema.columns 
@@ -127,15 +187,12 @@ class PostgresService:
                 col_rows = await cur.fetchall()
                 columns = [ColumnDefinition(name=r[0], type=r[1]) for r in col_rows]
 
-                # 2. 获取总数
-                # 使用 psycopg.sql 安全构建查询
                 count_query = sql.SQL("SELECT COUNT(*) FROM {table}").format(
                     table=sql.Identifier(table_name)
                 )
                 await cur.execute(count_query)
                 total = (await cur.fetchone())[0]
 
-                # 3. 获取分页数据
                 offset = (page - 1) * page_size
                 data_query = sql.SQL("SELECT * FROM {table} LIMIT {limit} OFFSET {offset}").format(
                     table=sql.Identifier(table_name),
@@ -145,13 +202,11 @@ class PostgresService:
                 await cur.execute(data_query)
                 rows = await cur.fetchall()
 
-                # 转换为字典列表
                 formatted_rows = []
                 for row in rows:
                     row_dict = {}
                     for i, col in enumerate(columns):
                         val = row[i]
-                        # 序列化特殊类型
                         if isinstance(val, (datetime, date, time, UUID, dict, list)):
                             row_dict[col.name] = cls.json_serializer(val)
                         else:
@@ -159,21 +214,6 @@ class PostgresService:
                     formatted_rows.append(row_dict)
 
                 return columns, formatted_rows, total
-
-    @classmethod
-    async def create_user(cls, config: PostgresConfig, username: str, password: str, is_superuser: bool):
-        async with await cls.get_connection(config) as conn:
-            async with conn.cursor() as cur:
-                role_type = "SUPERUSER" if is_superuser else "NOSUPERUSER"
-                query = sql.SQL("CREATE USER {user} WITH PASSWORD {password} {role}").format(
-                    user=sql.Identifier(username),
-                    password=sql.Literal(password),
-                    role=sql.Placeholder()
-                )
-                # 注意：CREATE USER 不支持 Placeholder 里的关键字，需要特殊处理
-                # 这里简单拼接受限关键词
-                raw_sql = f"CREATE USER {sql.Identifier(username).as_string(conn)} WITH PASSWORD {sql.Literal(password).as_string(conn)} {role_type}"
-                await cur.execute(raw_sql)
 
     @classmethod
     async def drop_user(cls, config: PostgresConfig, username: str):
@@ -199,13 +239,11 @@ class PostgresService:
     async def drop_database(cls, config: PostgresConfig, dbname: str):
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
-                # 核心逻辑：强制终止所有连接到该数据库的会话，否则无法删除
                 await cur.execute("""
                     SELECT pg_terminate_backend(pg_stat_activity.pid)
                     FROM pg_stat_activity
                     WHERE pg_stat_activity.datname = %s
                     AND pid <> pg_backend_pid();
                 """, (dbname,))
-                
                 query = sql.SQL("DROP DATABASE {db}").format(db=sql.Identifier(dbname))
                 await cur.execute(query)

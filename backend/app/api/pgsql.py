@@ -4,7 +4,7 @@ import uuid
 from app.schemas.pgsql import (
     PostgresConfig, PostgresHost, TestConnectionResponse, TableListResponse,
     QueryParams, DataViewerResponse, UserCreateRequest, DbCreateRequest,
-    DbInfo, DbUpdateRequest
+    DbInfo, DbUpdateRequest, UserUpdateRequest
 )
 from app.services.pgsql_service import PostgresService
 from app.core.config_manager import get_config, save_config
@@ -65,34 +65,28 @@ async def get_users(config: PostgresConfig):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/tables", response_model=TableListResponse)
-async def get_tables(config: PostgresConfig):
+@router.patch("/users/{username}")
+async def update_user(username: str, config: PostgresConfig, req: UserUpdateRequest):
     try:
-        tables = await PostgresService.get_tables(config)
-        return TableListResponse(tables=tables)
+        await PostgresService.update_user(
+            config, username, req.password, req.can_login, req.is_superuser, 
+            req.can_create_db, req.can_create_role, req.inherit,
+            req.replication, req.bypass_rls, req.connection_limit, req.valid_until
+        )
+        return {"message": f"User {username} updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/data", response_model=DataViewerResponse)
-async def get_table_data(config: PostgresConfig, params: QueryParams):
-    try:
-        columns, rows, total = await PostgresService.get_table_data(
-            config, params.table_name, params.page, params.page_size
-        )
-        return DataViewerResponse(
-            columns=columns,
-            rows=rows,
-            total=total,
-            page=params.page,
-            page_size=params.page_size
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# ... (中间代码)
 
 @router.post("/users/create")
 async def create_user(config: PostgresConfig, req: UserCreateRequest):
     try:
-        await PostgresService.create_user(config, req.username, req.password, req.is_superuser)
+        await PostgresService.create_user(
+            config, req.username, req.password, req.can_login, req.is_superuser,
+            req.can_create_db, req.can_create_role, req.inherit,
+            req.replication, req.bypass_rls, req.connection_limit
+        )
         return {"message": f"User {req.username} created successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

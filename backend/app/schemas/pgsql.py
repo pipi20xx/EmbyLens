@@ -39,7 +39,26 @@ class DataViewerResponse(BaseModel):
 class UserCreateRequest(BaseModel):
     username: str
     password: str
+    can_login: bool = True
     is_superuser: bool = False
+    can_create_db: bool = False
+    can_create_role: bool = False
+    inherit: bool = True
+    replication: bool = False
+    bypass_rls: bool = False
+    connection_limit: int = -1
+
+class UserUpdateRequest(BaseModel):
+    password: Optional[str] = None
+    can_login: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    can_create_db: Optional[bool] = None
+    can_create_role: Optional[bool] = None
+    inherit: Optional[bool] = None
+    replication: Optional[bool] = None
+    bypass_rls: Optional[bool] = None
+    connection_limit: Optional[int] = None
+    valid_until: Optional[str] = None
 
 class DbCreateRequest(BaseModel):
     dbname: str
