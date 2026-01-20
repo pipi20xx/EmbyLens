@@ -15,6 +15,7 @@ from .autotags import router as autotags_router
 from .docker import router as docker_router
 from .docker_compose import router as compose_router
 from .pgsql import router as pgsql_router
+from .navigation import router as navigation_router
 
 router = APIRouter()
 
@@ -34,6 +35,7 @@ router.include_router(autotags_router, prefix="/autotags", tags=["AutoTags"])
 router.include_router(docker_router, prefix="/docker", tags=["Docker"])
 router.include_router(compose_router, prefix="/docker/compose", tags=["DockerCompose"])
 router.include_router(pgsql_router, prefix="/pgsql", tags=["PostgreSQL"])
+router.include_router(navigation_router, prefix="/navigation", tags=["Navigation"])
 
 @router.get("/status")
 async def get_status():

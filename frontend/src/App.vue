@@ -58,6 +58,7 @@ import DedupeView from './views/Dedupe.vue'
 import AutoTagsView from './views/toolkit/autotags/AutoTagsManager.vue'
 import DockerManagerView from './views/toolkit/DockerManager.vue'
 import PostgresManagerView from './views/toolkit/PostgresManager.vue'
+import SiteNavView from './views/toolkit/sitenav/SiteNav.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import AppLogo from './components/AppLogo.vue'
@@ -137,6 +138,14 @@ const syncThemeVariables = (theme: GlobalThemeOverrides) => {
 }
 
 onMounted(() => {
+  // --- 路径入口检测 ---
+  // 如果访问路径是 /home，强制进入站点导航页，忽略记忆
+  if (window.location.pathname === '/home') {
+    currentViewKey.value = 'SiteNavView'
+    // 可选：进入后将地址栏清理回根路径，避免刷新时反复触发强制逻辑
+    window.history.replaceState({}, '', '/')
+  }
+
   const initialTheme = currentThemeType.value === 'purple' ? purpleOverrides : modernOverrides
   syncThemeVariables(initialTheme)
 })
@@ -158,11 +167,12 @@ const menuOptions: MenuOption[] = [
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
+  { label: '站点导航页', key: 'SiteNavView', icon: renderIcon(LensIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView, PostgresManagerView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView, PostgresManagerView, SiteNavView
   }
   return views[currentViewKey.value] || DashboardView
 })

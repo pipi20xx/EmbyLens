@@ -11,7 +11,7 @@ import os
 import time
 
 # 确保数据目录存在
-os.makedirs("/app/data", exist_ok=True)
+os.makedirs("/app/data/nav_icons", exist_ok=True)
 
 app = FastAPI(
     title="EmbyLens API",
@@ -32,7 +32,8 @@ async def add_process_time_header(request: Request, call_next):
         "/api/stats/summary", 
         "/api/status",
         "/api/docker", # 彻底排除所有 Docker 相关接口的审计日志
-        "/api/pgsql"   # 彻底排除所有 PostgreSQL 相关接口的审计日志
+        "/api/pgsql",  # 彻底排除所有 PostgreSQL 相关接口的审计日志
+        "/api/navigation" # 排除导航模块审计日志
     ]
     
     should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)
@@ -115,6 +116,14 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         pass
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+# ... (其他导入)
+
+# 挂载图标目录
+os.makedirs("/app/data/nav_icons", exist_ok=True)
+app.mount("/nav_icons", StaticFiles(directory="/app/data/nav_icons"), name="nav_icons")
+
 # 包含 API 路由
 app.include_router(api_router, prefix="/api")
 
@@ -139,8 +148,8 @@ if os.path.exists("./static"):
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # 排除 API 路径
-        if full_path.startswith("api"):
+        # 排除 API 和图标缓存路径，防止被 SPA 路由拦截
+        if full_path.startswith("api") or full_path.startswith("nav_icons"):
             return None
         
         # 检查是否是具体的文件请求（比如 /vite.svg）
