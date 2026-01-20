@@ -188,17 +188,15 @@ const openUrl = (url: string) => window.open(url, '_blank')
       </div>
 
       <div v-for="group in groupedSites" :key="group.id" class="category-section">
-        <div class="category-header">
-          <div class="category-title">{{ group.name }}</div>
-          <div class="category-action">
-            <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
-              <template #icon><n-icon><AddIcon /></n-icon></template>
-            </n-button>
-          </div>
-          <div class="category-line"></div>
-        </div>
-
-        <div class="sites-flex-container">
+              <div class="category-header">
+                <div class="category-title">{{ group.name }}</div>
+                <div class="category-action">
+                  <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
+                    <template #icon><n-icon><AddIcon /></n-icon></template>
+                  </n-button>
+                </div>
+              </div>
+                <div class="sites-flex-container">
           <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
             <div 
               class="site-card" 
@@ -284,7 +282,6 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .category-title { font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .category-action { opacity: 0; transition: opacity 0.2s; }
 .category-header:hover .category-action { opacity: 1; }
-.category-line { height: 1px; background: #fff; opacity: 0.2; flex: 1; }
 
 .sites-flex-container { display: flex; flex-wrap: wrap; gap: 12px; }
 .site-item-wrapper { flex-shrink: 0; }
