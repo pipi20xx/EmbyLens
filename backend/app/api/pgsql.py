@@ -50,6 +50,14 @@ async def get_databases(config: PostgresConfig):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/databases/create")
+async def create_database(config: PostgresConfig, req: DbCreateRequest):
+    try:
+        await PostgresService.create_database(config, req.dbname, req.owner)
+        return {"message": f"Database {req.dbname} created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.patch("/databases/{dbname}")
 async def update_database(dbname: str, config: PostgresConfig, req: DbUpdateRequest):
     try:
@@ -58,10 +66,32 @@ async def update_database(dbname: str, config: PostgresConfig, req: DbUpdateRequ
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.delete("/databases/{dbname}")
+async def drop_database(dbname: str, config: PostgresConfig):
+    try:
+        await PostgresService.drop_database(config, dbname)
+        return {"message": f"Database {dbname} dropped successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# --- 用户/角色操作 ---
+
 @router.post("/users", response_model=List[dict])
 async def get_users(config: PostgresConfig):
     try:
         return await PostgresService.get_users(config)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/users/create")
+async def create_user(config: PostgresConfig, req: UserCreateRequest):
+    try:
+        await PostgresService.create_user(
+            config, req.username, req.password, req.can_login, req.is_superuser,
+            req.can_create_db, req.can_create_role, req.inherit,
+            req.replication, req.bypass_rls, req.connection_limit
+        )
+        return {"message": f"User {req.username} created successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -77,20 +107,6 @@ async def update_user(username: str, config: PostgresConfig, req: UserUpdateRequ
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# ... (中间代码)
-
-@router.post("/users/create")
-async def create_user(config: PostgresConfig, req: UserCreateRequest):
-    try:
-        await PostgresService.create_user(
-            config, req.username, req.password, req.can_login, req.is_superuser,
-            req.can_create_db, req.can_create_role, req.inherit,
-            req.replication, req.bypass_rls, req.connection_limit
-        )
-        return {"message": f"User {req.username} created successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 @router.delete("/users/{username}")
 async def drop_user(username: str, config: PostgresConfig):
     try:
@@ -99,18 +115,28 @@ async def drop_user(username: str, config: PostgresConfig):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/databases/create")
-async def create_database(config: PostgresConfig, req: DbCreateRequest):
+# --- 数据/表操作 ---
+
+@router.post("/tables", response_model=TableListResponse)
+async def get_tables(config: PostgresConfig):
     try:
-        await PostgresService.create_database(config, req.dbname, req.owner)
-        return {"message": f"Database {req.dbname} created successfully"}
+        tables = await PostgresService.get_tables(config)
+        return TableListResponse(tables=tables)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.delete("/databases/{dbname}")
-async def drop_database(dbname: str, config: PostgresConfig):
+@router.post("/data", response_model=DataViewerResponse)
+async def get_table_data(config: PostgresConfig, params: QueryParams):
     try:
-        await PostgresService.drop_database(config, dbname)
-        return {"message": f"Database {dbname} dropped successfully"}
+        columns, rows, total = await PostgresService.get_table_data(
+            config, params.table_name, params.page, params.page_size
+        )
+        return DataViewerResponse(
+            columns=columns,
+            rows=rows,
+            total=total,
+            page=params.page,
+            page_size=params.page_size
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

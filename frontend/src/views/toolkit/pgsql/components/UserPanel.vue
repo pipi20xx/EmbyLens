@@ -201,10 +201,16 @@ const handleDrop = (username: string) => {
   dialog.warning({
     title: '删除角色',
     content: `确定要删除角色 "${username}" 吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
     onPositiveClick: async () => {
-      await axios.delete(`/api/pgsql/users/${username}`, { data: props.host })
-      message.success('已删除')
-      fetchUsers()
+      try {
+        await axios.delete(`/api/pgsql/users/${username}`, { data: props.host })
+        message.success('已删除')
+        fetchUsers()
+      } catch (e) {
+        message.error('删除失败')
+      }
     }
   })
 }

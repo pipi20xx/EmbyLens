@@ -24,7 +24,22 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
     *   **Daemon 维护**：可视化配置镜像加速器 (`registry-mirrors`)、HTTP/HTTPS 代理 (`proxies`)、日志切割规则及 `live-restore`。
     *   **双重备份**：修改配置前自动生成远程 `.bak` 文件并同步备份至本地 `data` 目录。
     *   **一键清理**：支持清理未标签镜像 (Dangling)、未使用镜像 (Unused) 及构建缓存。
-*   **便捷跳转**：自动解析端口映射，支持针对 Host 模式自定义端口实现一键访问。
+*   **便捷跳转**：自动解析端口映射，针对 Host 模式自定义端口实现一键访问。
+
+### 🐘 PostgreSQL 运维管理 (PostgreSQL Manager)
+*   **多实例纳管**：支持同时维护多个 PostgreSQL 服务器配置，支持持久化记忆与一键切换。
+*   **数据库全生命周期**：
+    -   **概览展示**：直观列出所有非模板数据库及其所有者 (Owner) 与备注说明。
+    -   **属性维护**：支持在线修改数据库所有者及添加/更新数据库注释 (Comment)。
+    -   **安全管理**：创建数据库时支持指定所有者；删除库时自动执行会话强踢逻辑，确保运维无阻碍。
+*   **专业级角色管理**：
+    -   **精简视图**：自动过滤系统级角色 (pg_*)，仅展示业务相关角色。
+    -   **全量权限控制**：支持对角色进行 `LOGIN`、`SUPERUSER`、`CREATEDB`、`CREATEROLE`、`INHERIT`、`REPLICATION` 及 `BYPASSRLS` 的精细化勾选。
+    -   **连接与安全**：支持设置 `CONNECTION LIMIT` 及 `VALID UNTIL`（账户有效期），并提供便捷的密码重置功能。
+*   **数据浏览器 (Data Browser)**：
+    -   **多库穿透**：支持在同一主机下自由切换数据库以浏览不同库的表结构。
+    -   **动态网格**：自动解析表结构，根据 `columns` 定义动态生成数据网格，支持查看普通表、视图及外表。
+    -   **工业级分页**：支持大规模数据分页加载，确保极速响应。
 
 ### ♻️ 重复项清理 (Dedupe Ultimate)
 *   **多维度查重**：精准识别重复的电影、剧集。
@@ -86,7 +101,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 ## 🏗️ 技术栈
 
 -   **前端**: Vue 3 (Composition API) + Vite + TypeScript + Naive UI
--   **后端**: Python 3.10 + FastAPI + Docker SDK + Paramiko + httpx
+-   **后端**: Python 3.10 + FastAPI + Docker SDK + Paramiko + psycopg (v3) + httpx
 -   **图标**: Material Design Icons (@vicons/material)
 
 ---

@@ -2,13 +2,19 @@
   <n-layout has-sider style="height: calc(100vh - 300px); min-height: 500px;" bordered>
     <n-layout-sider bordered collapse-mode="width" :collapsed-width="48" :width="240" show-trigger>
       <div style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.09)">
-        <n-select
-          v-model:value="currentDb"
-          :options="dbOptions"
-          placeholder="切换数据库"
-          size="small"
-          @update:value="handleDbChange"
-        />
+        <n-space vertical size="small">
+          <n-select
+            v-model:value="currentDb"
+            :options="dbOptions"
+            placeholder="切换数据库"
+            size="small"
+            @update:value="handleDbChange"
+          />
+          <n-button block size="tiny" ghost icon-placement="right" @click="fetchTables">
+            刷新表列表
+            <template #icon><n-icon><RefreshIcon /></n-icon></template>
+          </n-button>
+        </n-space>
       </div>
       <n-menu
         v-model:value="selectedTable"
@@ -18,9 +24,8 @@
       />
     </n-layout-sider>
     <n-layout-content content-style="padding: 16px; display: flex; flex-direction: column;">
-      <!-- ... (保持原有 content 内容不变) -->
       <div v-if="!selectedTable" class="empty-state">
-        <n-empty :description="currentDb ? '该库下没有公有表或请从左侧选择' : '请先在上方选择一个数据库'" />
+        <n-empty :description="currentDb ? '该库下没有发现公有表，或请从左侧选择' : '请先在上方选择一个数据库'" />
       </div>
       <div v-else style="flex: 1; display: flex; flex-direction: column;">
         <n-space justify="space-between" align="center" style="margin-bottom: 12px">
@@ -47,11 +52,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, h } from 'vue'
-import { NLayout, NLayoutSider, NLayoutContent, NMenu, NDataTable, NEmpty, NSpace, NIcon, NText, NTag, NButton, NSelect } from 'naive-ui'
-import { TableChartOutlined as TableIcon } from '@vicons/material'
+import { NLayout, NLayoutSider, NLayoutContent, NMenu, NDataTable, NEmpty, NSpace, NIcon, NText, NTag, NButton, NSelect, useMessage } from 'naive-ui'
+import { TableChartOutlined as TableIcon, RefreshOutlined as RefreshIcon } from '@vicons/material'
 import axios from 'axios'
 
 const props = defineProps<{ host: any }>()
+const message = useMessage()
 
 const dbList = ref<string[]>([])
 const currentDb = ref<string | null>(null)
@@ -94,13 +100,21 @@ const fetchDatabases = async () => {
   if (!props.host) return
   try {
     const res = await axios.post('/api/pgsql/databases', props.host)
-    dbList.value = res.data
-    // 如果当前没选库，默认选配置里的库，或者第一个
-    if (!currentDb.value) {
-      currentDb.value = props.host.database || dbList.value[0]
+    // 后端返回的是对象数组
+    dbList.value = res.data.map((db: any) => db.name)
+    
+    // 初始化数据库选中
+    if (!currentDb.value && dbList.value.length > 0) {
+      if (dbList.value.includes(props.host.database)) {
+        currentDb.value = props.host.database
+      } else {
+        currentDb.value = dbList.value[0]
+      }
       fetchTables()
     }
-  } catch (e) {}
+  } catch (e: any) {
+    message.error('加载数据库列表失败')
+  }
 }
 
 // 2. 获取选中库下的表
@@ -109,7 +123,12 @@ const fetchTables = async () => {
   try {
     const res = await axios.post('/api/pgsql/tables', activeConfig.value)
     tableList.value = res.data.tables
-  } catch (e) {}
+    if (tableList.value.length === 0) {
+      message.info('该库下未发现公有表')
+    }
+  } catch (e: any) {
+    message.error('加载表列表失败: ' + (e.response?.data?.detail || e.message))
+  }
 }
 
 const fetchTableData = async () => {
@@ -132,7 +151,9 @@ const fetchTableData = async () => {
     }))
     tableData.value = res.data.rows
     pagination.itemCount = res.data.total
-  } catch (e) {}
+  } catch (e: any) {
+    message.error('加载数据失败')
+  }
   finally { loading.value = false }
 }
 

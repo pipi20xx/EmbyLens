@@ -195,7 +195,7 @@ const themeOptions = [
                 <n-icon size="24" :color="currentThemeType === 'purple' ? '#bb86fc' : '#705df2'"><LensIcon /></n-icon>
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
-                  <div class="version-tag">v1.0.4</div>
+                  <div class="version-tag">v1.0.5</div>
                 </div>
               </n-space>
             </div>

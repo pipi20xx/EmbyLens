@@ -16,7 +16,7 @@ os.makedirs("/app/data", exist_ok=True)
 app = FastAPI(
     title="EmbyLens API",
     description="Emby 媒体库管理与去重工具后端",
-    version="1.0.4"
+    version="1.0.5"
 )
 
 # 全局性能审计中间件
@@ -31,7 +31,8 @@ async def add_process_time_header(request: Request, call_next):
         "/api/system/logs", 
         "/api/stats/summary", 
         "/api/status",
-        "/api/docker" # 彻底排除所有 Docker 相关接口的审计日志
+        "/api/docker", # 彻底排除所有 Docker 相关接口的审计日志
+        "/api/pgsql"   # 彻底排除所有 PostgreSQL 相关接口的审计日志
     ]
     
     should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)

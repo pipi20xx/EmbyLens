@@ -65,6 +65,13 @@ const activeTab = ref('data')
 const refreshing = ref(false)
 const showHostModal = ref(false)
 
+const STORAGE_KEY = 'embylens_selected_pgsql_host'
+
+// 监听并记忆选择的主机
+watch(selectedHostId, (val) => {
+  if (val) localStorage.setItem(STORAGE_KEY, val)
+})
+
 const tablePanelRef = ref()
 const dbPanelRef = ref()
 const userPanelRef = ref()
@@ -76,8 +83,15 @@ const fetchHosts = async () => {
   try {
     const res = await axios.get('/api/pgsql/hosts')
     hosts.value = res.data
-    if (hosts.value.length > 0 && !selectedHostId.value) {
-      selectedHostId.value = hosts.value[0].id
+    
+    if (hosts.value.length > 0) {
+      const savedHostId = localStorage.getItem(STORAGE_KEY)
+      // 如果有记忆的 ID 且在当前列表中，则恢复它
+      if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
+        selectedHostId.value = savedHostId
+      } else if (!selectedHostId.value) {
+        selectedHostId.value = hosts.value[0].id
+      }
     }
   } catch (e) {
     message.error('加载主机列表失败')

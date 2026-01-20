@@ -116,10 +116,17 @@ const handleDelete = (id: string) => {
   dialog.warning({
     title: '确认移除',
     content: '确定要移除该数据库主机配置吗？',
+    positiveText: '确认移除',
+    negativeText: '取消',
     onPositiveClick: async () => {
-      await axios.delete(`/api/pgsql/hosts/${id}`)
-      fetchHosts()
-      emit('refresh')
+      try {
+        await axios.delete(`/api/pgsql/hosts/${id}`)
+        fetchHosts()
+        emit('refresh')
+        message.info('已移除')
+      } catch (e) {
+        message.error('移除失败')
+      }
     }
   })
 }
