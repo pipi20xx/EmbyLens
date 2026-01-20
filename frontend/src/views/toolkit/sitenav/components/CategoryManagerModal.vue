@@ -10,7 +10,9 @@ import {
   DeleteOutlined as DeleteIcon,
   AddOutlined as AddIcon,
   CloudDownloadOutlined as ExportIcon,
-  CloudUploadOutlined as ImportIcon
+  CloudUploadOutlined as ImportIcon,
+  EditOutlined as EditIcon,
+  CheckOutlined as SaveIcon
 } from '@vicons/material'
 import { Category } from '../useSiteNav'
 
@@ -19,9 +21,11 @@ const props = defineProps<{
   categories: Category[]
 }>()
 
-const emit = defineEmits(['update:show', 'add', 'delete', 'reorder', 'export', 'import'])
+const emit = defineEmits(['update:show', 'add', 'delete', 'reorder', 'export', 'import', 'update'])
 
 const newCatName = ref('')
+const editingId = ref<number | null>(null)
+const editingName = ref('')
 const dragItem = ref<number | null>(null)
 const dragOverItem = ref<number | null>(null)
 
@@ -29,6 +33,18 @@ const handleAdd = () => {
   if (!newCatName.value) return
   emit('add', newCatName.value)
   newCatName.value = ''
+}
+
+const startEdit = (cat: Category) => {
+  editingId.value = cat.id
+  editingName.value = cat.name
+}
+
+const saveEdit = () => {
+  if (editingId.value && editingName.value) {
+    emit('update', editingId.value, editingName.value)
+    editingId.value = null
+  }
 }
 
 const handleImport = (options: { file: { file: File } }) => {
@@ -62,7 +78,6 @@ const onDragEnd = () => {
     class="category-manager-modal"
   >
     <n-space vertical size="large">
-      <!-- 备份与恢复区域 -->
       <div class="backup-section">
         <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">配置备份与恢复</n-text>
         <n-space>
@@ -70,29 +85,21 @@ const onDragEnd = () => {
             <template #icon><n-icon><ExportIcon /></n-icon></template>
             全量备份 (.zip)
           </n-button>
-          <n-upload
-            :show-file-list="false"
-            @change="handleImport"
-            accept=".zip"
-          >
+          <n-upload :show-file-list="false" @change="handleImport" accept=".zip">
             <n-button secondary size="small" type="info">
               <template #icon><n-icon><ImportIcon /></n-icon></template>
               恢复备份
             </n-button>
           </n-upload>
         </n-space>
-        <n-text depth="3" style="font-size: 11px; margin-top: 6px; display: block; opacity: 0.6;">
-          备份包含所有站点配置及本地缓存图标文件
-        </n-text>
       </div>
 
       <n-divider style="margin: 8px 0" />
 
-      <!-- 分类添加区域 -->
       <div class="add-section">
         <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">添加新分类</n-text>
         <n-input-group>
-          <n-input v-model:value="newCatName" placeholder="例如：下载、监控、办公..." @keyup.enter="handleAdd" />
+          <n-input v-model:value="newCatName" placeholder="新分类名称" @keyup.enter="handleAdd" />
           <n-button type="primary" @click="handleAdd">
             <template #icon><n-icon><AddIcon /></n-icon></template>
             添加
@@ -100,7 +107,7 @@ const onDragEnd = () => {
         </n-input-group>
       </div>
 
-      <n-divider title-placement="left" style="margin: 12px 0">已有分类 (可上下拖拽排序)</n-divider>
+      <n-divider title-placement="left" style="margin: 12px 0">已有分类 (可上下拖拽排序/点图标改名)</n-divider>
       
       <n-scrollbar style="max-height: 350px; padding-right: 12px;">
         <div class="category-list">
@@ -108,101 +115,63 @@ const onDragEnd = () => {
             v-for="cat in categories" 
             :key="cat.id"
             class="category-item"
-            :class="{ 
-              'is-dragging': dragItem === cat.id,
-              'is-drag-over': dragOverItem === cat.id 
-            }"
+            :class="{ 'is-dragging': dragItem === cat.id, 'is-drag-over': dragOverItem === cat.id }"
             draggable="true"
             @dragstart="onDragStart(cat.id)"
             @dragover.prevent
             @dragenter="onDragEnter(cat.id)"
             @dragend="onDragEnd"
           >
-            <div class="drag-handle">
-              <n-icon><DragIcon /></n-icon>
+            <div class="drag-handle"><n-icon><DragIcon /></n-icon></div>
+            
+            <div class="cat-content">
+              <template v-if="editingId === cat.id">
+                <n-input-group>
+                  <n-input size="small" v-model:value="editingName" @keyup.enter="saveEdit" />
+                  <n-button size="small" type="primary" @click="saveEdit">
+                    <template #icon><n-icon><SaveIcon /></n-icon></template>
+                  </n-button>
+                </n-input-group>
+              </template>
+              <template v-else>
+                <span class="cat-name">{{ cat.name }}</span>
+                <n-button quaternary circle size="tiny" @click="startEdit(cat)" class="edit-btn">
+                  <template #icon><n-icon><EditIcon /></n-icon></template>
+                </n-button>
+              </template>
             </div>
-            <div class="cat-name">{{ cat.name }}</div>
-            <div class="cat-actions">
+
+            <div class="cat-actions" v-if="editingId !== cat.id">
               <n-popconfirm @positive-click="emit('delete', cat.id)">
                 <template #trigger>
                   <n-button quaternary circle size="small" type="error">
                     <template #icon><n-icon><DeleteIcon /></n-icon></template>
                   </n-button>
                 </template>
-                删除分类将导致该分类下的站点变为“未分类”，确定吗？
+                确定删除该分类吗？
               </n-popconfirm>
             </div>
-          </div>
-          
-          <div v-if="categories.length === 0" class="empty-cats">
-            暂无分类，请从上方添加
           </div>
         </div>
       </n-scrollbar>
     </n-space>
-
-    <template #footer>
-      <div style="text-align: right; font-size: 12px; opacity: 0.5;">
-        拖拽左侧图标可调整展示顺序
-      </div>
-    </template>
   </n-modal>
 </template>
 
 <style scoped>
-.category-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+.category-list { display: flex; flex-direction: column; gap: 8px; }
 .category-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  transition: all 0.2s;
-  cursor: default;
+  display: flex; align-items: center; padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px; transition: all 0.2s;
 }
-
-.category-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--primary-color);
-}
-
-.drag-handle {
-  cursor: grab;
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-  color: #666;
-  transition: color 0.2s;
-}
-
-.category-item:hover .drag-handle {
-  color: var(--primary-color);
-}
-
-.cat-name {
-  flex: 1;
-  font-weight: 500;
-}
-
-.is-dragging {
-  opacity: 0.4;
-  border-style: dashed;
-}
-
-.is-drag-over {
-  border: 2px solid var(--primary-color);
-  transform: scale(1.01);
-}
-
-.empty-cats {
-  text-align: center;
-  padding: 40px 0;
-  color: #666;
-}
+.category-item:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--primary-color); }
+.drag-handle { cursor: grab; margin-right: 12px; color: #666; }
+.cat-content { flex: 1; display: flex; align-items: center; gap: 8px; }
+.cat-name { font-weight: 500; }
+.edit-btn { opacity: 0; transition: opacity 0.2s; }
+.category-item:hover .edit-btn { opacity: 0.5; }
+.edit-btn:hover { opacity: 1 !important; }
+.is-dragging { opacity: 0.4; border-style: dashed; }
+.is-drag-over { border: 2px solid var(--primary-color); transform: scale(1.01); }
 </style>

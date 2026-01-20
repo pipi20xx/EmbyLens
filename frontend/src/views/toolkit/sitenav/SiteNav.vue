@@ -21,7 +21,7 @@ import CategoryManagerModal from './components/CategoryManagerModal.vue'
 const { 
   sites, categories, loading, fetchSites, fetchCategories, 
   addSite, updateSite, deleteSite, updateSiteOrder,
-  addCategory, deleteCategory, updateCategoryOrder, fetchIconFromUrl, 
+  addCategory, deleteCategory, updateCategory, updateCategoryOrder, fetchIconFromUrl, 
   exportConfig, importConfig, message
 } = useSiteNav()
 
@@ -88,7 +88,8 @@ const onDragEnd = async () => {
 const handleAddSite = (categoryId?: number) => {
   editingSite.value = {
     title: '', url: '', icon: '', description: '',
-    category_id: categoryId,
+    // 关键修复：如果没有传入 ID，尝试使用第一个现有分类，否则留空
+    category_id: categoryId || (categories.value.length > 0 ? categories.value[0].id : undefined),
     order: sites.value.length
   }
   showEditor.value = true
@@ -234,6 +235,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
       @reorder="updateCategoryOrder"
       @export="exportConfig"
       @import="importConfig"
+      @update="updateCategory"
     />
   </div>
 </template>

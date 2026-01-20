@@ -67,6 +67,11 @@ async def create_category(category: CategoryCreate):
     cat_id = nav_service.add_category(category.name)
     return {"id": cat_id, "name": category.name, "order": 0}
 
+@router.put("/categories/{cat_id}")
+async def update_category(cat_id: int, category: CategoryCreate):
+    nav_service.update_category(cat_id, category.name)
+    return {"message": "Updated"}
+
 @router.delete("/categories/{cat_id}")
 async def delete_category(cat_id: int):
     nav_service.delete_category(cat_id)

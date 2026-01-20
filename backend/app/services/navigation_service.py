@@ -37,9 +37,25 @@ def list_categories():
 def add_category(name: str):
     data = get_nav_data()
     new_id = int(time.time() * 1000)
-    data["categories"].append({"id": new_id, "name": name, "order": 0})
+    data["categories"].append({"id": new_id, "name": name, "order": len(data["categories"])})
     save_nav_data(data)
     return new_id
+
+def update_category(cat_id: int, name: str):
+    data = get_nav_data()
+    # 1. 更新分类表中的名称
+    for cat in data["categories"]:
+        if str(cat["id"]) == str(cat_id):
+            cat["name"] = name
+            break
+    
+    # 2. 联动更新：更新所有属于该分类的站点的冗余名称字段
+    for site in data.get("sites", []):
+        if str(site.get("category_id")) == str(cat_id):
+            site["category"] = name
+            
+    save_nav_data(data)
+    return True
 
 def delete_category(cat_id: int):
     data = get_nav_data()

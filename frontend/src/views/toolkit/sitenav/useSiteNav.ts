@@ -67,6 +67,28 @@ export function useSiteNav() {
     }
   }
 
+  const updateCategory = async (id: number, name: string) => {
+    // 1. 立即更新本地状态 (乐观更新)
+    const cat = categories.value.find(c => c.id === id)
+    if (cat) cat.name = name
+    
+    try {
+      const response = await fetch(`/api/navigation/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      })
+      if (!response.ok) throw new Error('Update failed')
+      
+      // 2. 后台刷新确认
+      await fetchCategories()
+      await fetchSites() 
+    } catch (e) {
+      message.error('更新分类失败')
+      await fetchCategories() // 出错时回滚
+    }
+  }
+
   const deleteCategory = async (id: number) => {
     try {
       await fetch(`/api/navigation/categories/${id}`, { method: 'DELETE' })
@@ -190,6 +212,7 @@ export function useSiteNav() {
     fetchSites,
     fetchCategories,
     addCategory,
+    updateCategory,
     deleteCategory,
     updateCategoryOrder,
     addSite,
