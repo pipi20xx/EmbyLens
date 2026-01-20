@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { 
   NLayoutSider, 
   NMenu, 
@@ -7,12 +7,15 @@ import {
   NButton,
   NDropdown,
   NIcon,
-  NSpace
+  NSpace,
+  NTooltip
 } from 'naive-ui'
-import { menuOptions, SettingIcon, ConsoleIcon, ThemeIcon } from '../config/menu'
+import { menuOptions as originalOptions, SettingIcon, ConsoleIcon, ThemeIcon } from '../config/menu'
 import AppLogo from './AppLogo.vue'
-import { currentViewKey, isLogConsoleOpen } from '../store/navigationStore'
+import MenuManagerModal from './MenuManagerModal.vue'
+import { currentViewKey, isLogConsoleOpen, menuSettings } from '../store/navigationStore'
 import { ThemeType } from '../hooks/useTheme'
+import { DragHandleOutlined as MenuManageIcon } from '@vicons/material'
 
 const props = defineProps<{
   themeType: ThemeType
@@ -22,13 +25,24 @@ const props = defineProps<{
 const emit = defineEmits(['update:themeType'])
 
 const collapsed = ref(localStorage.getItem('embylens_sidebar_collapsed') === 'true')
+const showMenuManager = ref(false)
+
+// 根据设置动态计算菜单项
+const filteredMenuOptions = computed(() => {
+  const visibleKeys = menuSettings.value.filter(s => s.visible).map(s => s.key)
+  const sortedOptions = [...menuSettings.value]
+    .map(setting => originalOptions.find(opt => opt.key === setting.key))
+    .filter(opt => opt && visibleKeys.includes(opt.key as string))
+  
+  return sortedOptions as any[]
+})
 
 watch(collapsed, (val) => {
   localStorage.setItem('embylens_sidebar_collapsed', String(val))
 })
 
 const handleThemeSelect = (val: string) => {
-  emit('update:themeType', val)
+  emit('update:themeType', val as ThemeType)
 }
 </script>
 
@@ -61,13 +75,25 @@ const handleThemeSelect = (val: string) => {
         v-model:value="currentViewKey"
         :collapsed-width="56"
         :collapsed-icon-size="18"
-        :options="menuOptions"
+        :options="filteredMenuOptions"
         :indent="14"
       />
     </n-scrollbar>
 
     <div class="sidebar-footer">
       <n-space :vertical="collapsed" justify="space-around" align="center" :size="[4, 8]">
+        <n-tooltip placement="right" v-if="collapsed">
+          <template #trigger>
+            <n-button circle secondary size="small" @click="showMenuManager = true">
+              <template #icon><n-icon><MenuManageIcon /></n-icon></template>
+            </n-button>
+          </template>
+          菜单排序
+        </n-tooltip>
+        <n-button v-else circle secondary size="small" @click="showMenuManager = true">
+          <template #icon><n-icon><MenuManageIcon /></n-icon></template>
+        </n-button>
+
         <n-dropdown trigger="click" :options="themeOptions" @select="handleThemeSelect">
           <n-button circle secondary size="small" :type="themeType === 'purple' ? 'primary' : 'info'">
             <template #icon><n-icon><ThemeIcon /></n-icon></template>
@@ -81,6 +107,8 @@ const handleThemeSelect = (val: string) => {
         </n-button>
       </n-space>
     </div>
+
+    <MenuManagerModal v-model:show="showMenuManager" />
   </n-layout-sider>
 </template>
 
