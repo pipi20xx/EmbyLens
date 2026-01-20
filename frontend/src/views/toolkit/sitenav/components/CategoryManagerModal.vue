@@ -2,12 +2,15 @@
 import { ref } from 'vue'
 import { 
   NModal, NSpace, NInput, NInputGroup, NButton, 
-  NDivider, NIcon, NText, NPopconfirm, NScrollbar
+  NDivider, NIcon, NText, NPopconfirm, NScrollbar,
+  NUpload
 } from 'naive-ui'
 import { 
   DragIndicatorOutlined as DragIcon,
   DeleteOutlined as DeleteIcon,
-  AddOutlined as AddIcon
+  AddOutlined as AddIcon,
+  CloudDownloadOutlined as ExportIcon,
+  CloudUploadOutlined as ImportIcon
 } from '@vicons/material'
 import { Category } from '../useSiteNav'
 
@@ -16,10 +19,9 @@ const props = defineProps<{
   categories: Category[]
 }>()
 
-const emit = defineEmits(['update:show', 'add', 'delete', 'reorder'])
-const newCatName = ref('')
+const emit = defineEmits(['update:show', 'add', 'delete', 'reorder', 'export', 'import'])
 
-// 拖拽逻辑
+const newCatName = ref('')
 const dragItem = ref<number | null>(null)
 const dragOverItem = ref<number | null>(null)
 
@@ -27,6 +29,10 @@ const handleAdd = () => {
   if (!newCatName.value) return
   emit('add', newCatName.value)
   newCatName.value = ''
+}
+
+const handleImport = (options: { file: { file: File } }) => {
+  emit('import', options.file.file)
 }
 
 const onDragStart = (id: number) => { dragItem.value = id }
@@ -51,11 +57,38 @@ const onDragEnd = () => {
     :show="show" 
     @update:show="val => emit('update:show', val)" 
     preset="card" 
-    title="高级设置 - 分类管理" 
+    title="高级设置 - 站点导航" 
     style="width: 450px"
     class="category-manager-modal"
   >
     <n-space vertical size="large">
+      <!-- 备份与恢复区域 -->
+      <div class="backup-section">
+        <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">配置备份与恢复</n-text>
+        <n-space>
+          <n-button secondary size="small" @click="emit('export')">
+            <template #icon><n-icon><ExportIcon /></n-icon></template>
+            全量备份 (.zip)
+          </n-button>
+          <n-upload
+            :show-file-list="false"
+            @change="handleImport"
+            accept=".zip"
+          >
+            <n-button secondary size="small" type="info">
+              <template #icon><n-icon><ImportIcon /></n-icon></template>
+              恢复备份
+            </n-button>
+          </n-upload>
+        </n-space>
+        <n-text depth="3" style="font-size: 11px; margin-top: 6px; display: block; opacity: 0.6;">
+          备份包含所有站点配置及本地缓存图标文件
+        </n-text>
+      </div>
+
+      <n-divider style="margin: 8px 0" />
+
+      <!-- 分类添加区域 -->
       <div class="add-section">
         <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">添加新分类</n-text>
         <n-input-group>
@@ -69,7 +102,7 @@ const onDragEnd = () => {
 
       <n-divider title-placement="left" style="margin: 12px 0">已有分类 (可上下拖拽排序)</n-divider>
       
-      <n-scrollbar style="max-height: 400px; padding-right: 12px;">
+      <n-scrollbar style="max-height: 350px; padding-right: 12px;">
         <div class="category-list">
           <div 
             v-for="cat in categories" 

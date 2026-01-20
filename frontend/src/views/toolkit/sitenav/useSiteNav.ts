@@ -160,6 +160,29 @@ export function useSiteNav() {
     }
   }
 
+  const exportConfig = () => {
+    window.open('/api/navigation/export', '_blank')
+  }
+
+  const importConfig = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch('/api/navigation/import', {
+        method: 'POST',
+        body: formData
+      })
+      if (!res.ok) throw new Error('Import failed')
+      message.success('配置导入成功')
+      await fetchCategories()
+      await fetchSites()
+      return true
+    } catch (e) {
+      message.error('导入失败，请检查文件格式')
+      return false
+    }
+  }
+
   return {
     sites,
     categories,
@@ -174,6 +197,8 @@ export function useSiteNav() {
     deleteSite,
     fetchIconFromUrl,
     updateSiteOrder,
+    exportConfig,
+    importConfig,
     message
   }
 }

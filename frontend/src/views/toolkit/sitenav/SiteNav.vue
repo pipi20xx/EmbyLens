@@ -21,7 +21,8 @@ import CategoryManagerModal from './components/CategoryManagerModal.vue'
 const { 
   sites, categories, loading, fetchSites, fetchCategories, 
   addSite, updateSite, deleteSite, updateSiteOrder,
-  addCategory, deleteCategory, updateCategoryOrder, fetchIconFromUrl, message
+  addCategory, deleteCategory, updateCategoryOrder, fetchIconFromUrl, 
+  exportConfig, importConfig, message
 } = useSiteNav()
 
 onMounted(() => {
@@ -224,9 +225,15 @@ const openUrl = (url: string) => window.open(url, '_blank')
       @save="handleSaveSite" @fetchIcon="handleAutoFetchIcon"
     />
 
+    <!-- 分类积木 -->
     <CategoryManagerModal 
-      v-model:show="showSettings" :categories="categories"
-      @add="addCategory" @delete="deleteCategory" @reorder="updateCategoryOrder"
+      v-model:show="showSettings"
+      :categories="categories"
+      @add="addCategory"
+      @delete="deleteCategory"
+      @reorder="updateCategoryOrder"
+      @export="exportConfig"
+      @import="importConfig"
     />
   </div>
 </template>
