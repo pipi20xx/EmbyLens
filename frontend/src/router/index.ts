@@ -38,10 +38,17 @@ const router = createRouter({
           component: () => import('../views/toolkit/DockerManager.vue'),
         },
         {
-          path: 'toolkit/postgres-manager',
-          name: 'PostgresManager',
-          component: () => import('../views/toolkit/PostgresManager.vue'),
+          path: 'toolkit/tmdb-lab',
+          name: 'TmdbLab',
+          component: () => import('../views/toolkit/TmdbLab.vue'),
         },
+        {
+          path: 'toolkit/bangumi-lab',
+          name: 'BangumiLab',
+          component: () => import('../views/toolkit/BangumiLab.vue'),
+        },
+        {
+          path: 'toolkit/actor-lab',
         {
           path: 'settings',
           name: 'Settings',

@@ -53,6 +53,9 @@
               <n-form-item label="TMDB API Key">
                 <n-input v-model:value="serverForm.tmdb_api_key" type="password" show-password-on="mousedown" placeholder="The Movie Database V3 Key" />
               </n-form-item>
+              <n-form-item label="Bangumi API Token">
+                <n-input v-model:value="serverForm.bangumi_api_token" type="password" show-password-on="mousedown" placeholder="Bangumi Access Token (Bearer)" />
+              </n-form-item>
               <n-form-item label="未来扩展接口">
                 <n-input disabled placeholder="更多第三方服务集成正在开发中..." />
               </n-form-item>
@@ -142,6 +145,7 @@ const serverForm = reactive({
   api_key: '',
   user_id: '',
   tmdb_api_key: '',
+  bangumi_api_token: '',
   username: '',
   password: '',
   session_token: '',
@@ -162,6 +166,7 @@ const fetchCurrent = async () => {
       serverForm.api_key = data.api_key || ''
       serverForm.user_id = data.user_id || ''
       serverForm.tmdb_api_key = data.tmdb_api_key || ''
+      serverForm.bangumi_api_token = data.bangumi_api_token || ''
       serverForm.username = data.username || ''
       serverForm.password = data.password || ''
       serverForm.session_token = data.session_token || ''

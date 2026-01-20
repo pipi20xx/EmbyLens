@@ -7,6 +7,7 @@ from .emby_items import router as emby_items_router
 from .tmdb_lookup import router as tmdb_lookup_router
 from .tmdb_search import router as tmdb_search_router
 from .tmdb_lab import router as tmdb_lab_router
+from .bangumi_lab import router as bangumi_lab_router
 from .actor_lab import router as actor_lab_router
 from .actors import router as actors_router
 from .webhook import router as webhook_router
@@ -27,6 +28,7 @@ router.include_router(emby_items_router, prefix="/emby_items", tags=["EmbyItems"
 router.include_router(tmdb_lookup_router, prefix="/tmdb_lookup", tags=["TMDBLookup"])
 router.include_router(tmdb_search_router, prefix="/tmdb_search", tags=["TMDBSearch"])
 router.include_router(tmdb_lab_router, prefix="/tmdb_lab", tags=["TMDBLab"])
+router.include_router(bangumi_lab_router, prefix="/bangumi_lab", tags=["BangumiLab"])
 router.include_router(actor_lab_router, prefix="/actor_lab", tags=["ActorLab"])
 router.include_router(actors_router, prefix="/actors", tags=["Actors"])
 router.include_router(webhook_router, prefix="/webhook", tags=["Webhook"])

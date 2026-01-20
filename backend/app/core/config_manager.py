@@ -10,6 +10,7 @@ DEFAULT_CONFIG = {
     "api_key": "",
     "user_id": "",
     "tmdb_api_key": "",
+    "bangumi_api_token": "",
     "username": "",
     "password": "",
     "session_token": "",

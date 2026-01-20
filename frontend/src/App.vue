@@ -51,6 +51,7 @@ import EmbyItemQueryView from './views/toolkit/EmbyItemQuery.vue'
 import TmdbReverseLookupView from './views/toolkit/TmdbReverseLookup.vue'
 import TmdbIdSearchView from './views/toolkit/TmdbIdSearch.vue'
 import TmdbLabView from './views/toolkit/TmdbLab.vue'
+import BangumiLabView from './views/toolkit/BangumiLab.vue'
 import ActorLabView from './views/toolkit/ActorLab.vue'
 import ActorManagerView from './views/toolkit/ActorManager.vue'
 import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
@@ -161,6 +162,7 @@ const menuOptions: MenuOption[] = [
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
   { label: 'TMDB 实验中心', key: 'TmdbLabView', icon: renderIcon(LabIcon) },
+  { label: 'Bangumi 实验室', key: 'BangumiLabView', icon: renderIcon(LabIcon) },
   { label: 'TMDB 演员实验室', key: 'ActorLabView', icon: renderIcon(ActorLabIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
@@ -172,7 +174,7 @@ const menuOptions: MenuOption[] = [
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView, PostgresManagerView, SiteNavView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, BangumiLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView, PostgresManagerView, SiteNavView
   }
   return views[currentViewKey.value] || DashboardView
 })
@@ -207,7 +209,7 @@ const themeOptions = [
                 <app-logo :size="28" :theme="currentThemeType" />
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
-                  <div class="version-tag">v1.0.6</div>
+                  <div class="version-tag">v1.0.7</div>
                 </div>
               </n-space>
             </div>

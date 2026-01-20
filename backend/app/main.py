@@ -16,7 +16,7 @@ os.makedirs("/app/data/nav_icons", exist_ok=True)
 app = FastAPI(
     title="EmbyLens API",
     description="Emby 媒体库管理与去重工具后端",
-    version="1.0.6"
+    version="1.0.7"
 )
 
 # 全局性能审计中间件
@@ -31,6 +31,7 @@ async def add_process_time_header(request: Request, call_next):
         "/api/system/logs", 
         "/api/stats/summary", 
         "/api/status",
+        "/api/bangumi_lab", # 屏蔽 Bangumi 实验室审计日志
         "/api/docker", # 彻底排除所有 Docker 相关接口的审计日志
         "/api/pgsql",  # 彻底排除所有 PostgreSQL 相关接口的审计日志
         "/api/navigation" # 排除导航模块审计日志
