@@ -4,12 +4,45 @@ import uuid
 from app.schemas.pgsql import (
     PostgresConfig, PostgresHost, TestConnectionResponse, TableListResponse,
     QueryParams, DataViewerResponse, UserCreateRequest, DbCreateRequest,
-    DbInfo, DbUpdateRequest, UserUpdateRequest
+    DbInfo, DbUpdateRequest, UserUpdateRequest, BackupInfo, BackupCreateRequest
 )
 from app.services.pgsql_service import PostgresService
 from app.core.config_manager import get_config, save_config
 
 router = APIRouter()
+
+# --- 备份管理 ---
+
+@router.get("/backups", response_model=List[BackupInfo])
+async def list_backups():
+    try:
+        return await PostgresService.list_backups()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/backups/create")
+async def create_backup(config: PostgresConfig, req: BackupCreateRequest):
+    try:
+        filename = await PostgresService.create_backup(config, req.dbname)
+        return {"message": f"Backup created: {filename}", "filename": filename}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/backups/restore/{filename}")
+async def restore_backup(filename: str, config: PostgresConfig, dbname: str):
+    try:
+        await PostgresService.restore_backup(config, dbname, filename)
+        return {"message": f"Database {dbname} restored from {filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/backups/{filename}")
+async def delete_backup(filename: str):
+    try:
+        await PostgresService.delete_backup(filename)
+        return {"message": f"Backup {filename} deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # --- 主机管理 (CRUD) ---
 

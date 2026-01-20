@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     docker.io \
     docker-compose \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

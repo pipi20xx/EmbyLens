@@ -35,6 +35,10 @@
           <n-tab-pane name="users" tab="用户列表">
             <user-panel ref="userPanelRef" :host="selectedHost" />
           </n-tab-pane>
+
+          <n-tab-pane name="backup" tab="备份与恢复">
+            <backup-panel ref="backupPanelRef" :host="selectedHost" />
+          </n-tab-pane>
         </n-tabs>
       </n-card>
     </n-space>
@@ -56,6 +60,7 @@ import axios from 'axios'
 import TableBrowserPanel from './pgsql/components/TableBrowserPanel.vue'
 import DatabasePanel from './pgsql/components/DatabasePanel.vue'
 import UserPanel from './pgsql/components/UserPanel.vue'
+import BackupPanel from './pgsql/components/BackupPanel.vue'
 import HostManagerModal from './pgsql/components/HostManagerModal.vue'
 
 const message = useMessage()
@@ -75,6 +80,7 @@ watch(selectedHostId, (val) => {
 const tablePanelRef = ref()
 const dbPanelRef = ref()
 const userPanelRef = ref()
+const backupPanelRef = ref()
 
 const hostOptions = computed(() => hosts.value.map(h => ({ label: h.name, value: h.id })))
 const selectedHost = computed(() => hosts.value.find(h => h.id === selectedHostId.value))
@@ -108,7 +114,8 @@ const refreshAll = async () => {
   await Promise.all([
     tablePanelRef.value?.refresh(),
     dbPanelRef.value?.refresh(),
-    userPanelRef.value?.refresh()
+    userPanelRef.value?.refresh(),
+    backupPanelRef.value?.refresh()
   ])
   refreshing.value = false
 }

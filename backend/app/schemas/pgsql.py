@@ -72,3 +72,12 @@ class DbInfo(BaseModel):
     name: str
     owner: str
     description: Optional[str] = None
+
+class BackupInfo(BaseModel):
+    filename: str
+    size: int
+    created_at: str
+    db_name: str
+
+class BackupCreateRequest(BaseModel):
+    dbname: str

@@ -1,14 +1,127 @@
 import json
+import os
+import subprocess
+import asyncio
 from datetime import datetime, date, time
 from uuid import UUID
 from typing import List, Dict, Any, Tuple, Optional
 import psycopg
 from psycopg import sql
 from app.utils.logger import logger
-from app.schemas.pgsql import PostgresConfig, ColumnDefinition
+from app.schemas.pgsql import PostgresConfig, ColumnDefinition, BackupInfo
 
 class PostgresService:
     _instances: Dict[str, Any] = {}
+
+    @staticmethod
+    def _get_backup_dir() -> str:
+        backup_dir = os.path.join("data", "backups", "pg")
+        os.makedirs(backup_dir, exist_ok=True)
+        return backup_dir
+
+    @classmethod
+    async def list_backups(cls) -> List[BackupInfo]:
+        backup_dir = cls._get_backup_dir()
+        backups = []
+        for f in os.listdir(backup_dir):
+            if f.endswith(".bak") or f.endswith(".sql"):
+                path = os.path.join(backup_dir, f)
+                stats = os.stat(path)
+                # Try to extract db_name from filename: dbname_timestamp.bak
+                parts = f.rsplit("_", 1)
+                db_name = parts[0] if len(parts) > 1 else "unknown"
+                backups.append(BackupInfo(
+                    filename=f,
+                    size=stats.st_size,
+                    created_at=datetime.fromtimestamp(stats.st_mtime).isoformat(),
+                    db_name=db_name
+                ))
+        return sorted(backups, key=lambda x: x.created_at, reverse=True)
+
+    @classmethod
+    async def create_backup(cls, config: PostgresConfig, dbname: str):
+        backup_dir = cls._get_backup_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{dbname}_{timestamp}.bak"
+        file_path = os.path.join(backup_dir, filename)
+
+        env = os.environ.copy()
+        env["PGPASSWORD"] = config.password
+
+        cmd = [
+            "pg_dump",
+            "-h", config.host,
+            "-p", str(config.port),
+            "-U", config.username,
+            "-F", "c",  # Custom format
+            "-b",       # Include blobs
+            "-v",       # Verbose
+            "-f", file_path,
+            dbname
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise Exception(f"Backup failed: {stderr.decode()}")
+
+        return filename
+
+    @classmethod
+    async def restore_backup(cls, config: PostgresConfig, dbname: str, filename: str):
+        backup_dir = cls._get_backup_dir()
+        file_path = os.path.join(backup_dir, filename)
+        
+        if not os.path.exists(file_path):
+            raise Exception("Backup file not found")
+
+        env = os.environ.copy()
+        env["PGPASSWORD"] = config.password
+
+        # First terminate connections to the DB
+        await cls.drop_database(config, dbname)
+        await cls.create_database(config, dbname)
+
+        cmd = [
+            "pg_restore",
+            "-h", config.host,
+            "-p", str(config.port),
+            "-U", config.username,
+            "-d", dbname,
+            "-v",
+            file_path
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        # pg_restore often returns 0 even with warnings, but that's usually OK
+        if process.returncode not in [0, 1]:
+            raise Exception(f"Restore failed: {stderr.decode()}")
+
+        return True
+
+    @classmethod
+    async def delete_backup(cls, filename: str):
+        backup_dir = cls._get_backup_dir()
+        file_path = os.path.join(backup_dir, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
 
     @staticmethod
     def _get_cache_key(config: PostgresConfig) -> str:
