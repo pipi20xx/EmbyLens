@@ -44,31 +44,81 @@
       </n-grid>
 
       <n-grid :x-gap="12" :y-gap="12" :cols="24" item-responsive responsive="screen">
-        <!-- 快捷操作区 -->
+        <!-- EMBY 核心功能区 -->
         <n-gi span="24 m:16">
-          <n-card title="核心功能快捷入口" segmented size="small">
-            <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
-              <n-gi v-for="tool in quickTools" :key="tool.key">
-                <n-card 
-                  embedded 
-                  size="small" 
-                  hoverable 
-                  class="tool-card"
-                  @click="navigateTo(tool.key)"
-                >
-                  <n-space align="center">
-                    <n-icon size="24" color="var(--primary-color)">
-                      <component :is="tool.icon" />
-                    </n-icon>
-                    <div>
-                      <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
-                      <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
-                    </div>
-                  </n-space>
-                </n-card>
-              </n-gi>
-            </n-grid>
-          </n-card>
+          <n-space vertical size="large">
+            <n-card title="EMBY 功能快捷入口" segmented size="small">
+              <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
+                <n-gi v-for="tool in embyTools" :key="tool.key">
+                  <n-card 
+                    embedded 
+                    size="small" 
+                    hoverable 
+                    class="tool-card"
+                    @click="navigateTo(tool.key)"
+                  >
+                    <n-space align="center">
+                      <n-icon size="24" color="var(--primary-color)">
+                        <component :is="tool.icon" />
+                      </n-icon>
+                      <div>
+                        <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
+                        <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
+                      </div>
+                    </n-space>
+                  </n-card>
+                </n-gi>
+              </n-grid>
+            </n-card>
+
+            <n-card title="网站元数据查询" segmented size="small">
+              <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
+                <n-gi v-for="tool in metadataTools" :key="tool.key">
+                  <n-card 
+                    embedded 
+                    size="small" 
+                    hoverable 
+                    class="tool-card"
+                    @click="navigateTo(tool.key)"
+                  >
+                    <n-space align="center">
+                      <n-icon size="24" color="var(--primary-color)">
+                        <component :is="tool.icon" />
+                      </n-icon>
+                      <div>
+                        <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
+                        <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
+                      </div>
+                    </n-space>
+                  </n-card>
+                </n-gi>
+              </n-grid>
+            </n-card>
+
+            <n-card title="其他工具快捷入口" segmented size="small">
+              <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
+                <n-gi v-for="tool in otherTools" :key="tool.key">
+                  <n-card 
+                    embedded 
+                    size="small" 
+                    hoverable 
+                    class="tool-card"
+                    @click="navigateTo(tool.key)"
+                  >
+                    <n-space align="center">
+                      <n-icon size="24" color="var(--primary-color)">
+                        <component :is="tool.icon" />
+                      </n-icon>
+                      <div>
+                        <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
+                        <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
+                      </div>
+                    </n-space>
+                  </n-card>
+                </n-gi>
+              </n-grid>
+            </n-card>
+          </n-space>
         </n-gi>
 
         <!-- 系统信息区 -->
@@ -78,13 +128,44 @@
               <n-list-item>
                 <n-space justify="space-between">
                   <n-text depth="3">前端版本</n-text>
-                  <n-tag size="small" type="primary" quaternary>v1.0.7</n-tag>
+                  <n-space :size="4" align="center">
+                    <n-tag size="small" type="primary" quaternary>{{ versionInfo.current }}</n-tag>
+                    <n-tooltip v-if="versionInfo.has_update" trigger="hover">
+                      <template #trigger>
+                        <n-badge dot type="error" />
+                      </template>
+                      发现新版本: {{ versionInfo.latest }}
+                    </n-tooltip>
+                  </n-space>
+                </n-space>
+              </n-list-item>
+              <n-list-item v-if="versionInfo.has_update">
+                <n-space justify="space-between" align="center">
+                  <n-text depth="3">最新版本</n-text>
+                  <n-text style="font-size: 12px" type="error">{{ versionInfo.latest }}</n-text>
                 </n-space>
               </n-list-item>
               <n-list-item>
                 <n-space justify="space-between">
                   <n-text depth="3">后端连接</n-text>
-                  <n-text style="font-family: monospace">{{ stats.status === 'connected' ? '正常' : '异常' }}</n-text>
+                  <n-text style="font-family: monospace" :type="stats.status === 'connected' ? 'success' : 'error'">
+                    {{ stats.status === 'connected' ? '正常' : '异常' }}
+                  </n-text>
+                </n-space>
+              </n-list-item>
+              <n-list-item>
+                <n-space justify="space-between">
+                  <n-text depth="3">项目链接</n-text>
+                  <n-button 
+                    text 
+                    tag="a" 
+                    href="https://github.com/pipi20xx/EmbyLens" 
+                    target="_blank" 
+                    type="primary"
+                    style="font-size: 13px"
+                  >
+                    GitHub 源码仓库
+                  </n-button>
                 </n-space>
               </n-list-item>
               <n-list-item>
@@ -132,7 +213,7 @@
 import { ref, onMounted, markRaw } from 'vue'
 import { 
   NSpace, NGrid, NGi, NCard, NStatistic, NIcon, NText, 
-  NH2, NList, NListItem, NTag, NButton 
+  NH2, NList, NListItem, NTag, NButton, NTooltip, NBadge
 } from 'naive-ui'
 import axios from 'axios'
 import {
@@ -140,10 +221,19 @@ import {
   LiveTvRound as SeriesIcon,
   AutoDeleteRound as DedupeIcon,
   SensorsRound as StatusIcon,
-  CategoryRound as AutoTagIcon,
+  CategoryRound as CategoryIcon,
   LayersRound as CleanupIcon,
   LockOpenRound as LockIcon,
-  SearchRound as QueryIcon
+  SearchRound as QueryIcon,
+  MyLocationRound as TargetIcon,
+  YoutubeSearchedForRound as DeepSearchIcon,
+  ScienceRound as LabIcon,
+  ContactPageRound as ActorLabIcon,
+  PeopleAltRound as ActorIcon,
+  SyncAltRound as WebhookIcon,
+  StorageRound as PostgresIcon,
+  CameraRound as LensIcon,
+  DnsRound as DockerIcon
 } from '@vicons/material'
 import { currentViewKey } from '../store/navigationStore'
 
@@ -154,30 +244,114 @@ const stats = ref({
   status: 'idle'
 })
 
-const quickTools = [
+const versionInfo = ref({
+  current: 'v1.0.8',
+  latest: 'v1.0.8',
+  has_update: false
+})
+
+const embyTools = [
   { 
-    label: '重复清理', 
+    label: '类型映射管理', 
+    key: 'TypeManagerView', 
+    icon: markRaw(CategoryIcon), 
+    desc: '配置媒体库类型与分类规则' 
+  },
+  { 
+    label: '重复项清理', 
     key: 'DedupeView', 
     icon: markRaw(DedupeIcon), 
     desc: '扫描并合并库中的重复视频' 
   },
   { 
-    label: '自动标签', 
-    key: 'AutoTagsView', 
-    icon: markRaw(AutoTagIcon), 
-    desc: '根据规则自动匹配媒体标签' 
-  },
-  { 
-    label: '媒体净化', 
+    label: '媒体净化清理', 
     key: 'CleanupToolsView', 
     icon: markRaw(CleanupIcon), 
     desc: '清空演职员与修复剧集类型' 
   },
   { 
-    label: '锁定管理', 
+    label: '元数据锁定器', 
     key: 'LockManagerView', 
     icon: markRaw(LockIcon), 
     desc: '批量锁定或解锁元数据字段' 
+  },
+  { 
+    label: '项目元数据查询', 
+    key: 'EmbyItemQueryView', 
+    icon: markRaw(QueryIcon), 
+    desc: '深入查看 Emby 原始元数据' 
+  },
+  { 
+    label: '剧集 TMDB 反查', 
+    key: 'TmdbReverseLookupView', 
+    icon: markRaw(TargetIcon), 
+    desc: '根据文件名反查 TMDB 编号' 
+  },
+  { 
+    label: 'TMDB ID 深度搜索', 
+    key: 'TmdbIdSearchView', 
+    icon: markRaw(DeepSearchIcon), 
+    desc: '通过 ID 精确抓取媒体信息' 
+  },
+  { 
+    label: '演员信息维护', 
+    key: 'ActorManagerView', 
+    icon: markRaw(ActorIcon), 
+    desc: '同步与修复演员头像和资料' 
+  },
+  { 
+    label: '自动标签助手', 
+    key: 'AutoTagsView', 
+    icon: markRaw(CategoryIcon), 
+    desc: '根据规则自动匹配媒体标签' 
+  }
+]
+
+const metadataTools = [
+  { 
+    label: 'TMDB 实验中心', 
+    key: 'TmdbLabView', 
+    icon: markRaw(LabIcon), 
+    desc: 'TMDB 数据抓取与结构化预览' 
+  },
+  { 
+    label: 'Bangumi 实验室', 
+    key: 'BangumiLabView', 
+    icon: markRaw(LabIcon), 
+    desc: '番剧元数据查询与分拣参考' 
+  },
+  { 
+    label: 'TMDB 演员实验室', 
+    key: 'ActorLabView', 
+    icon: markRaw(ActorLabIcon), 
+    desc: '演员资料深度抓取与探针' 
+  }
+]
+
+const otherTools = [
+  { 
+    label: 'Docker 容器管理', 
+    key: 'DockerManagerView', 
+    icon: markRaw(DockerIcon), 
+    desc: '本地与远程 Docker 容器运维' 
+  },
+  { 
+    label: 'PostgreSQL 管理', 
+    key: 'PostgresManagerView', 
+    icon: markRaw(PostgresIcon), 
+    desc: '数据库实例、备份与还原管理' 
+  },
+  { 
+    label: '站点导航页', 
+    key: 'SiteNavView', 
+    icon: markRaw(LensIcon), 
+    desc: '私有化沉浸式聚合导航首页' 
+  },
+  { 
+    label: 'Webhook 接收器', 
+    key: 'WebhookReceiverView', 
+    icon: markRaw(WebhookIcon), 
+    desc: 'Webhook 事件接收与测试工具' 
   }
 ]
 
@@ -201,8 +375,20 @@ const fetchStats = async () => {
   }
 }
 
+const fetchVersion = async () => {
+  try {
+    const res = await axios.get('/api/system/version')
+    if (res.data) {
+      versionInfo.value = res.data
+    }
+  } catch (e) {
+    console.error('Failed to fetch version:', e)
+  }
+}
+
 onMounted(() => {
   fetchStats()
+  fetchVersion()
   setInterval(fetchStats, 10000)
 })
 </script>
