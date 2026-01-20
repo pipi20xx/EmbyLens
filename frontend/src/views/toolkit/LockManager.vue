@@ -20,8 +20,8 @@
           </n-form-item>
           <n-form-item label="执行模式">
             <n-switch v-model:value="common.dry_run">
-              <template #checked>预览模式 (Dry Run)</template>
-              <template #unchecked>实调模式 (Execute)</template>
+              <template #checked>预览模式</template>
+              <template #unchecked>实调模式</template>
             </n-switch>
           </n-form-item>
         </n-form>

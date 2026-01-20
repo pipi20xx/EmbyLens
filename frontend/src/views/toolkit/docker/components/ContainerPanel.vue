@@ -155,5 +155,14 @@ defineExpose({ refresh: fetchContainers })
 </script>
 
 <style scoped>
-.logs-container { background: #000; color: #0f0; padding: 10px; max-height: 500px; overflow: auto; font-size: 12px; font-family: monospace; }
+.logs-container { 
+  background-color: rgba(0, 0, 0, 0.3); 
+  color: var(--text-color); 
+  padding: 12px; 
+  max-height: 500px; 
+  overflow: auto; 
+  font-size: 12px; 
+  font-family: 'Fira Code', 'JetBrains Mono', monospace; 
+  border-radius: 4px;
+}
 </style>

@@ -34,7 +34,7 @@
           <n-card bordered size="small" hoverable>
             <n-statistic label="服务状态" :value="stats.status === 'connected' ? '已连接' : '未就绪'">
               <template #prefix>
-                <n-icon :color="stats.status === 'connected' ? '#18a058' : '#f0a020'">
+                <n-icon :color="stats.status === 'connected' ? 'var(--primary-color)' : '#f0a020'">
                   <StatusIcon />
                 </n-icon>
               </template>
@@ -57,7 +57,7 @@
                   @click="navigateTo(tool.key)"
                 >
                   <n-space align="center">
-                    <n-icon size="24" :color="tool.color">
+                    <n-icon size="24" color="var(--primary-color)">
                       <component :is="tool.icon" />
                     </n-icon>
                     <div>
@@ -159,28 +159,24 @@ const quickTools = [
     label: '重复清理', 
     key: 'DedupeView', 
     icon: markRaw(DedupeIcon), 
-    color: '#18a058',
     desc: '扫描并合并库中的重复视频' 
   },
   { 
     label: '自动标签', 
     key: 'AutoTagsView', 
     icon: markRaw(AutoTagIcon), 
-    color: '#2080f0',
     desc: '根据规则自动匹配媒体标签' 
   },
   { 
     label: '媒体净化', 
     key: 'CleanupToolsView', 
     icon: markRaw(CleanupIcon), 
-    color: '#d03050',
     desc: '清空演职员与修复剧集类型' 
   },
   { 
     label: '锁定管理', 
     key: 'LockManagerView', 
     icon: markRaw(LockIcon), 
-    color: '#f0a020',
     desc: '批量锁定或解锁元数据字段' 
   }
 ]

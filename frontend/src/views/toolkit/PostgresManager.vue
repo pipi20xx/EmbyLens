@@ -1,11 +1,15 @@
 <template>
   <div class="postgres-manager">
     <n-space vertical size="large">
-      <n-card>
+      <div class="page-header">
+        <n-h2 prefix="bar" align-text><n-text type="primary">PostgreSQL 数据库管理</n-text></n-h2>
+        <n-text depth="3">直连 PostgreSQL 数据库，支持数据表浏览、SQL 调试及库级备份还原操作。</n-text>
+      </div>
+
+      <n-card size="small" segmented>
         <template #header>
           <n-space align="center" justify="space-between" style="width: 100%">
             <n-space align="center" size="large">
-              <n-text strong style="font-size: 18px">PostgreSQL 管理</n-text>
               <n-select
                 v-model:value="selectedHostId"
                 :options="hostOptions"

@@ -117,7 +117,7 @@ const handleThemeSelect = (val: string) => {
 .main-sider.transparent-sider { background-color: rgba(15, 15, 20, 0.6) !important; backdrop-filter: blur(10px); }
 .logo-container { display: flex; align-items: center; padding: 12px 16px; height: 50px; }
 .logo-info { display: flex; flex-direction: column; justify-content: center; }
-.logo-text { font-weight: 800; font-size: 14px; color: #eee; line-height: 1.2; }
-.version-tag { font-size: 10px; color: rgba(255, 255, 255, 0.4); font-family: monospace; margin-top: -2px; }
-.sidebar-footer { padding: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.logo-text { font-weight: 800; font-size: 14px; color: var(--primary-color); line-height: 1.2; }
+.version-tag { font-size: 10px; color: var(--text-color); opacity: 0.5; font-family: monospace; margin-top: -2px; }
+.sidebar-footer { padding: 8px; border-top: 1px solid var(--border-color); }
 </style>

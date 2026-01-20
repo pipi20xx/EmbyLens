@@ -1,7 +1,7 @@
 <template>
   <n-layout has-sider style="height: calc(100vh - 300px); min-height: 500px;" bordered>
     <n-layout-sider bordered collapse-mode="width" :collapsed-width="48" :width="240" show-trigger>
-      <div style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.09)">
+      <div style="padding: 12px; border-bottom: 1px solid var(--border-color)">
         <n-space vertical size="small">
           <n-select
             v-model:value="currentDb"

@@ -1,11 +1,15 @@
 <template>
   <div class="docker-manager">
     <n-space vertical size="large">
-      <n-card>
+      <div class="page-header">
+        <n-h2 prefix="bar" align-text><n-text type="primary">Docker 容器与项目管理</n-text></n-h2>
+        <n-text depth="3">统一管理多台远程主机的 Docker 容器及 Docker Compose 项目，支持一键部署与日志回溯。</n-text>
+      </div>
+
+      <n-card size="small" segmented>
         <template #header>
           <n-space align="center" justify="space-between" style="width: 100%">
             <n-space align="center" size="large">
-              <n-text strong style="font-size: 16px">Docker 管理</n-text>
               <n-select
                 v-model:value="selectedHostId"
                 :options="hostOptions"

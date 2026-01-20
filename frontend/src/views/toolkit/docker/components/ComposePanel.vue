@@ -88,9 +88,9 @@
     <!-- 命令行输出弹窗 -->
     <n-modal v-model:show="showCommandResult" preset="dialog" title="操作结果" style="width: 600px">
       <template #default>
-        <div style="background: #1e1e1e; color: #adadad; padding: 10px; font-family: monospace; border-radius: 4px; overflow: auto; max-height: 400px">
-          <div v-if="commandResult.stdout"><b>STDOUT:</b><br>{{ commandResult.stdout }}</div>
-          <div v-if="commandResult.stderr" style="color: #ff9d9d; margin-top: 10px"><b>STDERR:</b><br>{{ commandResult.stderr }}</div>
+        <div style="background: rgba(0, 0, 0, 0.3); color: var(--text-color); padding: 12px; font-family: 'Fira Code', 'JetBrains Mono', monospace; border-radius: 4px; overflow: auto; max-height: 400px; font-size: 12px;">
+          <div v-if="commandResult.stdout"><b style="color: var(--primary-color)">STDOUT:</b><br>{{ commandResult.stdout }}</div>
+          <div v-if="commandResult.stderr" style="margin-top: 10px"><b style="color: #f0a020">STDERR:</b><br>{{ commandResult.stderr }}</div>
         </div>
       </template>
     </n-modal>

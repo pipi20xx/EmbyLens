@@ -158,7 +158,7 @@ onUnmounted(() => {
   <div class="console-wrapper">
     <div class="console-header">
       <n-space align="center" :size="12">
-        <n-icon size="20" color="#bb86fc"><TerminalIcon /></n-icon>
+        <n-icon size="20" color="var(--primary-color)"><TerminalIcon /></n-icon>
         <span class="header-title">{{ selectedDate ? `历史记录: ${selectedDate}` : '实时系统日志 (Live)' }}</span>
         <n-tag v-if="!selectedDate" :type="socketStatus === 'connected' ? 'success' : 'error'" size="tiny" round>
           <template #icon>
@@ -229,15 +229,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #0c0c0e;
+  background-color: var(--modal-bg-color);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .console-header {
   padding: 10px 16px;
-  background-color: #18181c;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -246,15 +246,15 @@ onUnmounted(() => {
 .header-title {
   font-weight: bold;
   font-size: 13px;
-  color: #eee;
+  color: var(--text-color);
 }
 
 .pulse-dot {
   width: 6px;
   height: 6px;
-  background-color: #bb86fc;
+  background-color: var(--primary-color);
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(187, 134, 252, 0.6);
+  box-shadow: 0 0 8px var(--primary-border-color);
   animation: pulse 1.5s infinite;
 }
 
@@ -266,7 +266,7 @@ onUnmounted(() => {
 
 .console-body {
   flex: 1;
-  background-color: #050505;
+  background-color: rgba(0, 0, 0, 0.2);
   padding: 8px 0;
   position: relative;
 }
@@ -280,7 +280,8 @@ onUnmounted(() => {
   font-family: 'Fira Code', 'JetBrains Mono', monospace;
   font-size: 12px;
   line-height: 20px;
-  color: #ccc;
+  color: var(--text-color);
+  opacity: 0.8;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -294,7 +295,8 @@ onUnmounted(() => {
   top: 40%;
   width: 100%;
   text-align: center;
-  color: #555;
+  color: var(--text-color);
+  opacity: 0.4;
   font-style: italic;
 }
 </style>
