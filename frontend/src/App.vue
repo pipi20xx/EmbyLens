@@ -47,11 +47,12 @@ const currentView = computed(() => {
           />
 
           <n-layout-content :content-style="{
-            padding: '24px',
+            padding: 'var(--space-lg)',
             minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)'
+            backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)',
+            transition: 'padding 0.3s ease'
           }">
             <div class="view-wrapper">
               <transition name="fade" mode="out-in">
@@ -63,7 +64,7 @@ const currentView = computed(() => {
 
         <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
           <n-card
-            style="width: 96vw; height: 96vh;"
+            style="width: 90vw; max-width: 1400px; height: 85vh;"
             content-style="padding: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden;"
             :bordered="false"
             size="small"

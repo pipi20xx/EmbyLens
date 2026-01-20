@@ -1,6 +1,6 @@
 <template>
   <div class="settings-container">
-    <n-scrollbar style="max-height: calc(100vh - 64px)">
+    <n-scrollbar style="max-height: calc(100vh - 4rem)">
       <div class="settings-content">
         <n-space vertical size="large">
           <div class="page-header">
@@ -49,7 +49,7 @@
             <template #header-extra>
               <n-icon size="20" color="var(--primary-color)"><ApiIcon /></n-icon>
             </template>
-            <n-form label-placement="left" label-width="140" size="medium">
+            <n-form label-placement="left" label-width="10rem" size="medium">
               <n-form-item label="TMDB API Key">
                 <n-input v-model:value="serverForm.tmdb_api_key" type="password" show-password-on="mousedown" placeholder="The Movie Database V3 Key" />
               </n-form-item>

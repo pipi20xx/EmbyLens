@@ -8,9 +8,9 @@
 
       <n-card embedded :bordered="false" size="small" style="margin-bottom: 8px">
         <n-space justify="space-between" align="center">
-          <n-space align="center" :size="20">
+          <n-space align-center :size="20">
             <n-input-group>
-              <n-input v-model:value="searchName" placeholder="搜索名称或 ID..." style="width: 280px" @keypress.enter="loadItems" />
+              <n-input v-model:value="searchName" placeholder="搜索名称或 ID..." style="width: 20rem" @keypress.enter="loadItems" />
               <n-button type="primary" @click="loadItems">
                 <template #icon><n-icon><SearchIcon /></n-icon></template>
               </n-button>
@@ -44,7 +44,7 @@
         <n-data-table
           remote :columns="columns" :data="items" :loading="loading" :row-key="row => row.id"
           v-model:checked-row-keys="selectedIds" :pagination="false" size="small"
-          max-height="calc(100vh - 220px)" virtual-scroll :cascade="false" @load="onLoadChildren"
+          max-height="calc(100vh - 15rem)" virtual-scroll :cascade="false" @load="onLoadChildren"
         />
       </n-card>
     </n-space>

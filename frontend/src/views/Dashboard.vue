@@ -61,8 +61,8 @@
                       <component :is="tool.icon" />
                     </n-icon>
                     <div>
-                      <div style="font-weight: bold; font-size: 14px">{{ tool.label }}</div>
-                      <n-text depth="3" style="font-size: 12px">{{ tool.desc }}</n-text>
+                      <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
+                      <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
                     </div>
                   </n-space>
                 </n-card>

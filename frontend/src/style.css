@@ -2,6 +2,33 @@
   color-scheme: dark;
   --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "Fira Code", "JetBrains Mono", monospace;
+  
+  /* 响应式间距变量 */
+  --space-unit: 1rem;
+  --space-xs: calc(var(--space-unit) * 0.25);
+  --space-sm: calc(var(--space-unit) * 0.5);
+  --space-md: calc(var(--space-unit) * 1);
+  --space-lg: calc(var(--space-unit) * 1.5);
+  --space-xl: calc(var(--space-unit) * 2);
+}
+
+/* 基础响应式设置 */
+html {
+  font-size: 16px;
+  /* 适应高分屏/低分屏 */
+  transition: font-size 0.2s ease;
+}
+
+@media screen and (max-width: 1280px) {
+  html { font-size: 14px; }
+}
+
+@media screen and (min-width: 1921px) {
+  html { font-size: 18px; }
+}
+
+@media screen and (min-width: 2560px) {
+  html { font-size: 20px; }
 }
 
 html, body, #app {
@@ -15,7 +42,7 @@ html, body, #app {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.01em;
 }
 
 /* 统一行高与文本渲染 */
@@ -26,25 +53,28 @@ p, div, span, label {
 /* 统一代码字体 */
 code, pre, .n-code {
   font-family: var(--font-mono) !important;
+  font-size: 0.95rem !important;
 }
 
 /* 页面头部间距规范 */
 .page-header {
-  margin-bottom: 24px;
-  padding: 4px 0;
+  margin-bottom: var(--space-lg);
+  padding: 0.25rem 0;
 }
 
 .page-header .n-h2 {
-  margin: 0 0 8px 0 !important;
+  margin: 0 0 0.5rem 0 !important;
   font-weight: 700 !important;
   letter-spacing: -0.01em;
+  font-size: 1.75rem !important;
 }
 
 .page-header .n-text--depth-3 {
-  font-size: 14px;
+  font-size: 0.9rem;
+  opacity: 0.7;
 }
 
-/* 卡片样式强化 */
+/* 卡卡样式强化 */
 .n-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   border-color: var(--border-color) !important;
@@ -52,37 +82,40 @@ code, pre, .n-code {
 
 .n-card--hoverable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5) !important;
   border-color: var(--primary-color) !important;
 }
 
 /* 表单项间距优化 */
 .n-form-item {
-  margin-bottom: 16px;
+  margin-bottom: 1.25rem;
 }
 
 .n-form-item .n-form-item-label {
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 0.5rem;
   color: var(--text-color);
-  opacity: 0.9;
+  opacity: 0.95;
+  font-size: 0.95rem;
 }
 
 /* 列表容器间距 */
 .toolkit-container {
-  padding: 4px;
+  padding: 0.25rem;
+  max-width: 1600px; /* PC 端适中宽度限制 */
+  margin: 0 auto;
 }
 
 /* 滚动条美化 */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -101,3 +134,16 @@ code, pre, .n-code {
 .n-menu .n-menu-item-content--selected .n-menu-item-content__icon {
   color: var(--primary-color) !important;
 }
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .page-header .n-h2 { font-size: 1.5rem !important; }
+  .n-layout-content { padding: 1rem !important; }
+}
+
+/* 全局动画优化 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.fade-enter-from { opacity: 0; transform: translateY(4px); }
+.fade-leave-to { opacity: 0; transform: translateY(-4px); }

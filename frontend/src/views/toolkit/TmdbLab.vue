@@ -523,7 +523,7 @@ const copyRawJson = () => {
 
 /* 统一分拣参考表样式 - 使用变量 */
 .lab-report-card {
-  margin-top: 24px;
+  margin-top: var(--space-lg);
   background: var(--modal-bg-color) !important;
   border: 1px solid var(--primary-border-color) !important;
   border-radius: 8px;
@@ -531,42 +531,43 @@ const copyRawJson = () => {
 }
 .report-header {
   background: linear-gradient(90deg, var(--primary-border-color) 0%, transparent 100%);
-  padding: 10px 16px;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--primary-border-color);
   display: flex;
   align-items: center;
 }
 .report-title {
-  font-family: 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-weight: 800;
   color: var(--primary-color);
   letter-spacing: 1px;
+  font-size: 1rem;
   text-shadow: 0 0 8px var(--primary-border-color);
 }
 .report-row {
-  padding: 12px 16px;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
 }
 .report-row:last-child { border-bottom: none; }
 .row-label {
-  font-size: 12px;
+  font-size: 0.8rem;
   color: var(--primary-color);
   opacity: 0.8;
-  margin-bottom: 6px;
+  margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
 }
 .data-tag {
-  font-family: 'Fira Code', monospace;
+  font-family: var(--font-mono);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
-  padding: 2px 8px;
+  padding: 0.2rem 0.6rem;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 0.85rem;
   color: var(--text-color);
   display: inline-block;
-  margin: 0 6px 6px 0;
+  margin: 0 0.5rem 0.5rem 0;
   transition: all 0.2s;
 }
 .data-tag:hover {
@@ -583,10 +584,10 @@ const copyRawJson = () => {
 .pool-box {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-color);
-  padding: 12px;
+  padding: 0.75rem;
   border-radius: 6px;
-  font-family: 'Fira Code', monospace;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   line-height: 1.6;
   color: var(--text-color);
   opacity: 0.9;

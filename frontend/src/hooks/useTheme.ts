@@ -13,15 +13,27 @@ const purpleOverrides: GlobalThemeOverrides = {
     modalColor: '#241630',
     bodyColor: '#0f0913',
     textColorBase: '#e2e2e9',
-    dividerColor: 'rgba(163, 112, 247, 0.15)'
+    dividerColor: 'rgba(163, 112, 247, 0.15)',
+    fontSize: '15px' // 略微增加基础字号以适应 PC
   },
   Card: {
     borderRadius: '12px',
-    borderColor: 'rgba(163, 112, 247, 0.2)'
+    borderColor: 'rgba(163, 112, 247, 0.2)',
+    titleFontSizeMedium: '18px',
+    titleFontWeight: '600'
   },
   Button: {
     borderRadiusMedium: '8px',
-    fontWeight: '500'
+    fontWeight: '500',
+    fontSizeMedium: '14px'
+  },
+  Input: {
+    borderRadius: '8px',
+    fontSizeMedium: '14px'
+  },
+  Menu: {
+    fontSize: '15px',
+    itemHeight: '42px'
   }
 }
 
@@ -35,15 +47,23 @@ const modernOverrides: GlobalThemeOverrides = {
     bodyColor: '#0e0e11',
     modalColor: '#202023',
     textColorBase: '#f4f4f5',
-    dividerColor: 'rgba(255, 255, 255, 0.08)'
+    dividerColor: 'rgba(255, 255, 255, 0.08)',
+    fontSize: '15px'
   },
   Card: {
     borderRadius: '10px',
-    borderColor: 'rgba(255, 255, 255, 0.08)'
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    titleFontSizeMedium: '18px',
+    titleFontWeight: '600'
   },
   Button: {
     borderRadiusMedium: '6px',
-    fontWeight: '500'
+    fontWeight: '500',
+    fontSizeMedium: '14px'
+  },
+  Menu: {
+    fontSize: '15px',
+    itemHeight: '42px'
   }
 }
 
@@ -57,14 +77,22 @@ const oceanicOverrides: GlobalThemeOverrides = {
     bodyColor: '#020617',
     modalColor: '#1e293b',
     textColorBase: '#f1f5f9',
-    dividerColor: 'rgba(45, 212, 191, 0.12)'
+    dividerColor: 'rgba(45, 212, 191, 0.12)',
+    fontSize: '15px'
   },
   Card: {
     borderRadius: '12px',
-    borderColor: 'rgba(45, 212, 191, 0.15)'
+    borderColor: 'rgba(45, 212, 191, 0.15)',
+    titleFontSizeMedium: '18px',
+    titleFontWeight: '600'
   },
   Button: {
-    borderRadiusMedium: '8px'
+    borderRadiusMedium: '8px',
+    fontSizeMedium: '14px'
+  },
+  Menu: {
+    fontSize: '15px',
+    itemHeight: '42px'
   }
 }
 
@@ -78,14 +106,22 @@ const crimsonOverrides: GlobalThemeOverrides = {
     bodyColor: '#0a0808',
     modalColor: '#1c1616',
     textColorBase: '#fceef0',
-    dividerColor: 'rgba(251, 113, 133, 0.12)'
+    dividerColor: 'rgba(251, 113, 133, 0.12)',
+    fontSize: '15px'
   },
   Card: {
     borderRadius: '12px',
-    borderColor: 'rgba(251, 113, 133, 0.15)'
+    borderColor: 'rgba(251, 113, 133, 0.15)',
+    titleFontSizeMedium: '18px',
+    titleFontWeight: '600'
   },
   Button: {
-    borderRadiusMedium: '8px'
+    borderRadiusMedium: '8px',
+    fontSizeMedium: '14px'
+  },
+  Menu: {
+    fontSize: '15px',
+    itemHeight: '42px'
   }
 }
 
