@@ -3,7 +3,8 @@ from typing import List
 import uuid
 from app.schemas.pgsql import (
     PostgresConfig, PostgresHost, TestConnectionResponse, TableListResponse,
-    QueryParams, DataViewerResponse, UserCreateRequest, DbCreateRequest
+    QueryParams, DataViewerResponse, UserCreateRequest, DbCreateRequest,
+    DbInfo, DbUpdateRequest
 )
 from app.services.pgsql_service import PostgresService
 from app.core.config_manager import get_config, save_config
@@ -42,10 +43,18 @@ async def test_connection(config: PostgresConfig):
     success, message, version = await PostgresService.test_connection(config)
     return TestConnectionResponse(success=success, message=message, version=version)
 
-@router.post("/databases", response_model=List[str])
+@router.post("/databases", response_model=List[DbInfo])
 async def get_databases(config: PostgresConfig):
     try:
         return await PostgresService.get_databases(config)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/databases/{dbname}")
+async def update_database(dbname: str, config: PostgresConfig, req: DbUpdateRequest):
+    try:
+        await PostgresService.update_database(config, dbname, req.owner, req.description)
+        return {"message": f"Database {dbname} updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

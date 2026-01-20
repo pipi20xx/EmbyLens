@@ -44,3 +44,12 @@ class UserCreateRequest(BaseModel):
 class DbCreateRequest(BaseModel):
     dbname: str
     owner: Optional[str] = None
+
+class DbUpdateRequest(BaseModel):
+    owner: Optional[str] = None
+    description: Optional[str] = None
+
+class DbInfo(BaseModel):
+    name: str
+    owner: str
+    description: Optional[str] = None

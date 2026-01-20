@@ -46,12 +46,42 @@ class PostgresService:
         return str(obj)
 
     @classmethod
-    async def get_databases(cls, config: PostgresConfig) -> List[str]:
+    async def get_databases(cls, config: PostgresConfig) -> List[Dict[str, Any]]:
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
-                await cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false;")
+                await cur.execute("""
+                    SELECT 
+                        d.datname as name,
+                        pg_catalog.pg_get_userbyid(d.datdba) as owner,
+                        pg_catalog.shobj_description(d.oid, 'pg_database') as description
+                    FROM pg_catalog.pg_database d
+                    WHERE d.datistemplate = false;
+                """)
                 rows = await cur.fetchall()
-                return [row[0] for row in rows]
+                return [
+                    {"name": r[0], "owner": r[1], "description": r[2]} 
+                    for r in rows
+                ]
+
+    @classmethod
+    async def update_database(cls, config: PostgresConfig, dbname: str, owner: str = None, description: str = None):
+        async with await cls.get_connection(config) as conn:
+            async with conn.cursor() as cur:
+                if owner:
+                    # 修改所有者
+                    query = sql.SQL("ALTER DATABASE {db} OWNER TO {owner}").format(
+                        db=sql.Identifier(dbname),
+                        owner=sql.Identifier(owner)
+                    )
+                    await cur.execute(query)
+                
+                if description is not None:
+                    # 修改注释
+                    query = sql.SQL("COMMENT ON DATABASE {db} IS {comment}").format(
+                        db=sql.Identifier(dbname),
+                        comment=sql.Literal(description)
+                    )
+                    await cur.execute(query)
 
     @classmethod
     async def get_users(cls, config: PostgresConfig) -> List[Dict[str, Any]]:
