@@ -9,7 +9,13 @@ DEFAULT_NAV = {
     "categories": [
         {"id": 1, "name": "默认", "order": 0}
     ],
-    "sites": []
+    "sites": [],
+    "settings": {
+        "background_url": "",
+        "background_opacity": 0.4,
+        "background_blur": 5,
+        "background_size": "cover"
+    }
 }
 
 def get_nav_data() -> Dict[str, Any]:
@@ -21,9 +27,18 @@ def get_nav_data() -> Dict[str, Any]:
             # 确保基本结构存在
             if "categories" not in data: data["categories"] = DEFAULT_NAV["categories"]
             if "sites" not in data: data["sites"] = []
+            if "settings" not in data: data["settings"] = DEFAULT_NAV["settings"]
             return data
     except Exception:
         return DEFAULT_NAV.copy()
+
+# ... (中间函数保持不变)
+
+def update_settings(new_settings: Dict[str, Any]):
+    data = get_nav_data()
+    data["settings"].update(new_settings)
+    save_nav_data(data)
+    return data["settings"]
 
 def save_nav_data(data: Dict[str, Any]):
     os.makedirs(os.path.dirname(NAV_FILE), exist_ok=True)

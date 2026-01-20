@@ -21,7 +21,43 @@ from app.schemas.navigation import (
 router = APIRouter()
 
 ICON_DIR = "/app/data/nav_icons"
+BG_DIR = "/app/data/nav_backgrounds"
 os.makedirs(ICON_DIR, exist_ok=True)
+os.makedirs(BG_DIR, exist_ok=True)
+
+# ==========================================
+# 设置管理 API
+# ==========================================
+
+@router.get("/settings")
+async def get_settings():
+    return nav_service.get_nav_data().get("settings", {})
+
+@router.put("/settings")
+async def update_settings(settings: dict):
+    return nav_service.update_settings(settings)
+
+@router.post("/upload-bg")
+async def upload_background(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+        raise HTTPException(status_code=400, detail="只支持图片格式")
+    
+    # 清理旧背景 (可选，保持目录整洁)
+    if os.path.exists(BG_DIR):
+        for old_file in os.listdir(BG_DIR):
+            try: os.remove(os.path.join(BG_DIR, old_file))
+            except: pass
+
+    filename = f"bg_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(BG_DIR, filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(await file.read())
+    
+    url = f"/nav_backgrounds/{filename}"
+    nav_service.update_settings({"background_url": url})
+    return {"url": url}
 
 # ==========================================
 # 辅助工具函数

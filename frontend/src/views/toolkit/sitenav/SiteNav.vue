@@ -19,15 +19,17 @@ import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
 
 const { 
-  sites, categories, loading, fetchSites, fetchCategories, 
+  sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
   addSite, updateSite, deleteSite, updateSiteOrder,
-  addCategory, deleteCategory, updateCategory, updateCategoryOrder, fetchIconFromUrl, 
+  addCategory, deleteCategory, updateCategory, updateCategoryOrder,
+  updateNavSettings, uploadBackground, fetchIconFromUrl, 
   exportConfig, importConfig, message
 } = useSiteNav()
 
 onMounted(() => {
   fetchSites()
   fetchCategories()
+  fetchSettings()
 })
 
 // --- 状态管理 ---
@@ -61,7 +63,6 @@ const onDragEnter = (targetId: number) => {
   const toIndex = sites.value.findIndex(s => s.id === targetId)
 
   if (fromIndex !== -1 && toIndex !== -1) {
-    // 关键：如果跨分类拖拽，我们需要更新被拖拽项的 category_id
     const fromSite = sites.value[fromIndex]
     const toSite = sites.value[toIndex]
     
@@ -70,7 +71,6 @@ const onDragEnter = (targetId: number) => {
       fromSite.category = toSite.category
     }
 
-    // 物理交换数组位置
     const [item] = sites.value.splice(fromIndex, 1)
     sites.value.splice(toIndex, 0, item)
   }
@@ -78,7 +78,6 @@ const onDragEnter = (targetId: number) => {
 
 const onDragEnd = async () => {
   if (dragItem.value === null) return
-  // 同步到后端
   await updateSiteOrder(sites.value.map(s => s.id))
   dragItem.value = null
 }
@@ -88,7 +87,6 @@ const onDragEnd = async () => {
 const handleAddSite = (categoryId?: number) => {
   editingSite.value = {
     title: '', url: '', icon: '', description: '',
-    // 关键修复：如果没有传入 ID，尝试使用第一个现有分类，否则留空
     category_id: categoryId || (categories.value.length > 0 ? categories.value[0].id : undefined),
     order: sites.value.length
   }
@@ -147,7 +145,6 @@ const groupedSites = computed(() => {
 
 const isEmoji = (str: string) => {
   if (!str) return false
-  // 如果包含斜杠或点，说明是路径或 URL，不是 Emoji
   if (str.includes('/') || str.includes('.')) return false
   return /\p{Emoji}/u.test(str) && str.length <= 4
 }
@@ -156,58 +153,73 @@ const openUrl = (url: string) => window.open(url, '_blank')
 
 <template>
   <div class="site-nav-page">
-    <div class="nav-header">
-      <div class="header-left">
-        <div class="page-title">站点导航</div>
-        <div class="page-subtitle">右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）</div>
-      </div>
-      <div class="header-right">
-        <n-button circle quaternary @click="showSettings = true">
-          <template #icon><n-icon><SettingsIcon /></n-icon></template>
-        </n-button>
-      </div>
-    </div>
+    <!-- 背景层 -->
+    <div 
+      v-if="navSettings.background_url" 
+      class="site-nav-background"
+      :style="{
+        backgroundImage: `url('${navSettings.background_url}')`,
+        opacity: navSettings.background_opacity || 0.4,
+        filter: `blur(${navSettings.background_blur || 0}px)`,
+        backgroundSize: navSettings.background_size || 'cover'
+      }"
+    ></div>
 
-    <div v-if="sites.length === 0 && !loading" class="empty-state">
-      <n-empty description="还没有站点">
-        <template #extra>
-          <n-button type="primary" @click="handleAddSite()">添加第一个站点</n-button>
-        </template>
-      </n-empty>
-    </div>
-
-    <div v-for="group in groupedSites" :key="group.id" class="category-section">
-      <div class="category-header">
-        <div class="category-title">{{ group.name }}</div>
-        <div class="category-action">
-          <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
-            <template #icon><n-icon><AddIcon /></n-icon></template>
+    <!-- 内容包裹层 -->
+    <div class="site-nav-content">
+      <div class="nav-header">
+        <div class="header-left">
+          <div class="page-title">站点导航</div>
+          <div class="page-subtitle">右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）</div>
+        </div>
+        <div class="header-right">
+          <n-button circle quaternary @click="showSettings = true">
+            <template #icon><n-icon><SettingsIcon /></n-icon></template>
           </n-button>
         </div>
-        <div class="category-line"></div>
       </div>
 
-      <div class="sites-flex-container">
-        <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
-          <div 
-            class="site-card" 
-            :class="{ 'is-dragging': dragItem === site.id }"
-            draggable="true"
-            @dragstart="onDragStart(site.id)"
-            @dragover.prevent
-            @dragenter="onDragEnter(site.id)"
-            @dragend="onDragEnd"
-            @click="openUrl(site.url)"
-            @contextmenu="handleContextMenu($event, site)"
-          >
-            <div class="site-icon-wrapper">
-              <span v-if="isEmoji(site.icon)" class="emoji-icon">{{ site.icon }}</span>
-              <img v-else-if="site.icon" :src="site.icon" class="image-icon" />
-              <n-icon v-else size="20" :component="LinkIcon" />
-            </div>
-            <div class="site-info">
-              <div class="site-name">{{ site.title }}</div>
-              <div class="site-desc" v-if="site.description">{{ site.description }}</div>
+      <div v-if="sites.length === 0 && !loading" class="empty-state">
+        <n-empty description="还没有站点">
+          <template #extra>
+            <n-button type="primary" @click="handleAddSite()">添加第一个站点</n-button>
+          </template>
+        </n-empty>
+      </div>
+
+      <div v-for="group in groupedSites" :key="group.id" class="category-section">
+        <div class="category-header">
+          <div class="category-title">{{ group.name }}</div>
+          <div class="category-action">
+            <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
+              <template #icon><n-icon><AddIcon /></n-icon></template>
+            </n-button>
+          </div>
+          <div class="category-line"></div>
+        </div>
+
+        <div class="sites-flex-container">
+          <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
+            <div 
+              class="site-card" 
+              :class="{ 'is-dragging': dragItem === site.id }"
+              draggable="true"
+              @dragstart="onDragStart(site.id)"
+              @dragover.prevent
+              @dragenter="onDragEnter(site.id)"
+              @dragend="onDragEnd"
+              @click="openUrl(site.url)"
+              @contextmenu="handleContextMenu($event, site)"
+            >
+              <div class="site-icon-wrapper">
+                <span v-if="isEmoji(site.icon)" class="emoji-icon">{{ site.icon }}</span>
+                <img v-else-if="site.icon" :src="site.icon" class="image-icon" />
+                <n-icon v-else size="20" :component="LinkIcon" />
+              </div>
+              <div class="site-info">
+                <div class="site-name">{{ site.title }}</div>
+                <div class="site-desc" v-if="site.description">{{ site.description }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -226,120 +238,78 @@ const openUrl = (url: string) => window.open(url, '_blank')
       @save="handleSaveSite" @fetchIcon="handleAutoFetchIcon"
     />
 
-    <!-- 分类积木 -->
     <CategoryManagerModal 
-      v-model:show="showSettings"
-      :categories="categories"
-      @add="addCategory"
-      @delete="deleteCategory"
-      @reorder="updateCategoryOrder"
-      @export="exportConfig"
-      @import="importConfig"
-      @update="updateCategory"
+      v-model:show="showSettings" :categories="categories" :settings="navSettings"
+      @add="addCategory" @delete="deleteCategory" @reorder="updateCategoryOrder"
+      @export="exportConfig" @import="importConfig" @update="updateCategory"
+      @uploadBg="uploadBackground" @updateSettings="updateNavSettings"
     />
   </div>
 </template>
 
 <style scoped>
-.site-nav-page { padding: 12px; }
+.site-nav-page { 
+  position: relative; 
+  min-height: calc(100vh - 32px); 
+  margin: -16px; /* 抵消 App.vue 的 padding */
+  padding: 24px;
+}
+
+/* 背景层样式 */
+.site-nav-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  /* 移除 !important，允许内联样式覆盖 */
+  background-size: cover; 
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  background-color: #000;
+  width: 100%;
+  height: 100%;
+}
+
+.site-nav-content {
+  position: relative;
+  z-index: 1;
+}
+
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--primary-color); }
-.page-subtitle { font-size: 12px; opacity: 0.5; }
+.page-title { font-size: 20px; font-weight: 700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.page-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
+
 .category-section { margin-bottom: 32px; }
 .category-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }
-.category-title { font-size: 15px; font-weight: 600; opacity: 0.8; }
+.category-title { font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .category-action { opacity: 0; transition: opacity 0.2s; }
 .category-header:hover .category-action { opacity: 1; }
-.category-line { height: 1px; background: var(--primary-color); opacity: 0.1; flex: 1; }
+.category-line { height: 1px; background: #fff; opacity: 0.2; flex: 1; }
 
-.sites-flex-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.site-item-wrapper {
-  /* 确保拖拽时占位正确 */
-  flex-shrink: 0;
-}
+.sites-flex-container { display: flex; flex-wrap: wrap; gap: 12px; }
+.site-item-wrapper { flex-shrink: 0; }
 
 .site-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding: 4px 8px;
-  height: 60px;
-  /* 固定宽度：180px */
-  width: 180px;
-  background: var(--card-bg-color);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  display: flex; align-items: center; padding: 4px 8px;
+  height: 60px; width: 180px;
+  background: rgba(20, 20, 25, 0.7); /* 半透明背景适配自定义底图 */
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px; cursor: pointer; transition: all 0.2s;
 }
-
-
-.site-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 12px -6px var(--primary-color);
-  background: rgba(255, 255, 255, 0.05);
-}
+.site-card:hover { border-color: var(--primary-color); transform: translateY(-2px); background: rgba(30, 30, 35, 0.8); }
+.site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
 
 .site-icon-wrapper {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  /* 减少右边距 */
-  margin-right: 6px;
-  flex-shrink: 0;
+  width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+  background: transparent; margin-right: 6px; flex-shrink: 0;
 }
+.image-icon { width: 48px; height: 48px; object-fit: contain; }
+.emoji-icon { font-size: 36px; line-height: 1; }
 
-.image-icon {
-  /* 图片尽可能撑满容器 */
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-}
+.site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; }
+.site-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-desc { font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.emoji-icon {
-  /* Emoji 也要足够大 */
-  font-size: 36px;
-  line-height: 1;
-}
-
-.site-info {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  /* 补偿一下文字的垂直居中 */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.site-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.site-desc {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-
+.empty-state { margin-top: 100px; }
 </style>

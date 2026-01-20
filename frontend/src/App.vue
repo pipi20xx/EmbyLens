@@ -200,7 +200,7 @@ const themeOptions = [
             show-trigger="arrow-circle"
             content-style="padding: 8px 0; display: flex; flex-direction: column; height: 100%;"
             v-model:collapsed="collapsed"
-            class="main-sider"
+            :class="{ 'main-sider': true, 'transparent-sider': currentViewKey === 'SiteNavView' }"
           >
             <div class="logo-container">
               <n-space align="center" :size="10">
@@ -239,7 +239,13 @@ const themeOptions = [
             </div>
           </n-layout-sider>
 
-          <n-layout-content content-style="padding: 16px; min-height: 100vh; display: flex; flex-direction: column; background-color: var(--app-bg-color);">
+          <n-layout-content :content-style="{
+            padding: '16px',
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)'
+          }">
             <div class="view-wrapper">
               <component :is="currentView" :key="currentViewKey" />
             </div>
@@ -265,7 +271,8 @@ const themeOptions = [
 </template>
 
 <style scoped>
-.main-sider { background-color: var(--sidebar-bg-color); border-right: 1px solid rgba(255, 255, 255, 0.06) !important; }
+.main-sider { background-color: var(--sidebar-bg-color); border-right: 1px solid rgba(255, 255, 255, 0.06) !important; transition: background-color 0.3s; }
+.main-sider.transparent-sider { background-color: rgba(15, 15, 20, 0.6) !important; backdrop-filter: blur(10px); }
 .logo-container { display: flex; align-items: center; padding: 12px 16px; height: 50px; }
 .logo-info { display: flex; flex-direction: column; justify-content: center; }
 .logo-text { font-weight: 800; font-size: 14px; color: #eee; line-height: 1.2; }

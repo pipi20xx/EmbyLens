@@ -122,7 +122,9 @@ from fastapi.responses import FileResponse
 
 # 挂载图标目录
 os.makedirs("/app/data/nav_icons", exist_ok=True)
+os.makedirs("/app/data/nav_backgrounds", exist_ok=True)
 app.mount("/nav_icons", StaticFiles(directory="/app/data/nav_icons"), name="nav_icons")
+app.mount("/nav_backgrounds", StaticFiles(directory="/app/data/nav_backgrounds"), name="nav_backgrounds")
 
 # 包含 API 路由
 app.include_router(api_router, prefix="/api")
@@ -148,8 +150,8 @@ if os.path.exists("./static"):
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # 排除 API 和图标缓存路径，防止被 SPA 路由拦截
-        if full_path.startswith("api") or full_path.startswith("nav_icons"):
+        # 排除 API、图标和背景缓存路径
+        if full_path.startswith("api") or full_path.startswith("nav_icons") or full_path.startswith("nav_backgrounds"):
             return None
         
         # 检查是否是具体的文件请求（比如 /vite.svg）

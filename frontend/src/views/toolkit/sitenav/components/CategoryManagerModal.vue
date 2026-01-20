@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { 
   NModal, NSpace, NInput, NInputGroup, NButton, 
   NDivider, NIcon, NText, NPopconfirm, NScrollbar,
-  NUpload
+  NUpload, NSlider, NSelect
 } from 'naive-ui'
 import { 
   DragIndicatorOutlined as DragIcon,
@@ -12,22 +12,35 @@ import {
   CloudDownloadOutlined as ExportIcon,
   CloudUploadOutlined as ImportIcon,
   EditOutlined as EditIcon,
-  CheckOutlined as SaveIcon
+  CheckOutlined as SaveIcon,
+  ImageOutlined as ImageIcon
 } from '@vicons/material'
 import { Category } from '../useSiteNav'
 
 const props = defineProps<{
   show: boolean
   categories: Category[]
+  settings: {
+    background_url: string
+    background_opacity: number
+    background_blur: number
+    background_size: string
+  }
 }>()
 
-const emit = defineEmits(['update:show', 'add', 'delete', 'reorder', 'export', 'import', 'update'])
+const emit = defineEmits(['update:show', 'add', 'delete', 'reorder', 'export', 'import', 'update', 'uploadBg', 'updateSettings'])
 
 const newCatName = ref('')
 const editingId = ref<number | null>(null)
 const editingName = ref('')
 const dragItem = ref<number | null>(null)
 const dragOverItem = ref<number | null>(null)
+
+const sizeOptions = [
+  { label: '全部填充 (有裁剪)', value: 'cover' },
+  { label: '完整显示 (无裁剪)', value: 'contain' },
+  { label: '强制拉伸 (无黑边)', value: '100% 100%' }
+]
 
 const handleAdd = () => {
   if (!newCatName.value) return
@@ -49,6 +62,10 @@ const saveEdit = () => {
 
 const handleImport = (options: { file: { file: File } }) => {
   emit('import', options.file.file)
+}
+
+const handleUploadBg = (options: { file: { file: File } }) => {
+  emit('uploadBg', options.file.file)
 }
 
 const onDragStart = (id: number) => { dragItem.value = id }
@@ -74,10 +91,59 @@ const onDragEnd = () => {
     @update:show="val => emit('update:show', val)" 
     preset="card" 
     title="高级设置 - 站点导航" 
-    style="width: 450px"
+    style="width: 480px"
     class="category-manager-modal"
   >
     <n-space vertical size="large">
+      <!-- 背景外观设置 -->
+      <div class="settings-section">
+        <n-text depth="3" style="font-size: 12px; margin-bottom: 12px; display: block;">外观设置 (自定义背景)</n-text>
+        <n-space vertical size="large">
+          <n-space align="center">
+            <n-upload :show-file-list="false" @change="handleUploadBg" accept="image/*">
+              <n-button secondary size="small">
+                <template #icon><n-icon><ImageIcon /></n-icon></template>
+                更换背景图
+              </n-button>
+            </n-upload>
+            <n-button secondary size="small" type="error" quaternary @click="emit('updateSettings', { background_url: '' })" v-if="settings.background_url">
+              移除背景
+            </n-button>
+          </n-space>
+
+          <div v-if="settings.background_url">
+            <div class="setting-item">
+              <span class="label">背景缩放模式</span>
+              <n-select 
+                :value="settings.background_size" 
+                :options="sizeOptions" 
+                size="small"
+                @update:value="val => emit('updateSettings', { background_size: val })" 
+              />
+            </div>
+            <div class="setting-item">
+              <span class="label">背景透明度 ({{ Math.round(settings.background_opacity * 100) }}%)</span>
+              <n-slider 
+                :value="settings.background_opacity" 
+                :min="0" :max="1" :step="0.01" 
+                @update:value="val => emit('updateSettings', { background_opacity: val })" 
+              />
+            </div>
+            <div class="setting-item">
+              <span class="label">背景模糊度 ({{ settings.background_blur }}px)</span>
+              <n-slider 
+                :value="settings.background_blur" 
+                :min="0" :max="20" :step="1" 
+                @update:value="val => emit('updateSettings', { background_blur: val })" 
+              />
+            </div>
+          </div>
+        </n-space>
+      </div>
+
+      <n-divider style="margin: 8px 0" />
+
+      <!-- 备份与恢复 -->
       <div class="backup-section">
         <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">配置备份与恢复</n-text>
         <n-space>
@@ -96,6 +162,7 @@ const onDragEnd = () => {
 
       <n-divider style="margin: 8px 0" />
 
+      <!-- 分类添加 -->
       <div class="add-section">
         <n-text depth="3" style="font-size: 12px; margin-bottom: 8px; display: block;">添加新分类</n-text>
         <n-input-group>
@@ -109,7 +176,7 @@ const onDragEnd = () => {
 
       <n-divider title-placement="left" style="margin: 12px 0">已有分类 (可上下拖拽排序/点图标改名)</n-divider>
       
-      <n-scrollbar style="max-height: 350px; padding-right: 12px;">
+      <n-scrollbar style="max-height: 250px; padding-right: 12px;">
         <div class="category-list">
           <div 
             v-for="cat in categories" 
@@ -174,4 +241,14 @@ const onDragEnd = () => {
 .edit-btn:hover { opacity: 1 !important; }
 .is-dragging { opacity: 0.4; border-style: dashed; }
 .is-drag-over { border: 2px solid var(--primary-color); transform: scale(1.01); }
+
+.setting-item {
+  margin-bottom: 16px;
+}
+.setting-item .label {
+  font-size: 13px;
+  display: block;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
 </style>

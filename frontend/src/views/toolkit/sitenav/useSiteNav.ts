@@ -18,16 +18,57 @@ export interface SiteNav {
   order: number
 }
 
-// --- 全局状态积木 (单例模式) ---
+// --- 全局状态积木 ---
 const sites = ref<SiteNav[]>([])
 const categories = ref<Category[]>([])
+const navSettings = ref({
+  background_url: '',
+  background_opacity: 0.4,
+  background_blur: 5,
+  background_size: 'cover'
+})
 const loading = ref(false)
 
 export function useSiteNav() {
-  // 使用离散 API 保证在任何地方都能弹出消息
   const { message } = createDiscreteApi(['message'], {
     configProviderProps: { theme: darkTheme }
   })
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/navigation/settings')
+      navSettings.value = await response.json()
+    } catch (e) {}
+  }
+
+  const updateNavSettings = async (settings: any) => {
+    try {
+      await fetch('/api/navigation/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      navSettings.value = { ...navSettings.value, ...settings }
+    } catch (e) {
+      message.error('保存设置失败')
+    }
+  }
+
+  const uploadBackground = async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch('/api/navigation/upload-bg', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      navSettings.value.background_url = data.url
+      message.success('背景上传成功')
+    } catch (e) {
+      message.error('背景上传失败')
+    }
+  }
 
   const fetchCategories = async () => {
     try {
@@ -208,13 +249,17 @@ export function useSiteNav() {
   return {
     sites,
     categories,
+    navSettings,
     loading,
     fetchSites,
     fetchCategories,
+    fetchSettings,
     addCategory,
     updateCategory,
     deleteCategory,
     updateCategoryOrder,
+    updateNavSettings,
+    uploadBackground,
     addSite,
     updateSite,
     deleteSite,
