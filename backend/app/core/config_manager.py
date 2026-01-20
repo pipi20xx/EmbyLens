@@ -37,7 +37,8 @@ DEFAULT_CONFIG = {
         "exclude_emby": True
     },
     "docker_hosts": [],
-    "docker_container_settings": {}
+    "docker_container_settings": {},
+    "pgsql_hosts": []
 }
 
 def get_config() -> Dict[str, Any]:

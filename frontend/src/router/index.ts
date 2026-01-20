@@ -38,6 +38,11 @@ const router = createRouter({
           component: () => import('../views/toolkit/DockerManager.vue'),
         },
         {
+          path: 'toolkit/postgres-manager',
+          name: 'PostgresManager',
+          component: () => import('../views/toolkit/PostgresManager.vue'),
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('../views/Settings.vue'),

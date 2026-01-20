@@ -36,7 +36,8 @@ import {
   ScienceOutlined as LabIcon,
   ContactPageOutlined as ActorLabIcon,
   PeopleAltOutlined as ActorIcon,
-  SyncAltOutlined as WebhookIcon
+  SyncAltOutlined as WebhookIcon,
+  StorageOutlined as PostgresIcon
 } from '@vicons/material'
 
 // Views
@@ -55,6 +56,7 @@ import WebhookReceiverView from './views/toolkit/WebhookReceiver.vue'
 import DedupeView from './views/Dedupe.vue'
 import AutoTagsView from './views/toolkit/autotags/AutoTagsManager.vue'
 import DockerManagerView from './views/toolkit/DockerManager.vue'
+import PostgresManagerView from './views/toolkit/PostgresManager.vue'
 
 import LogConsole from './components/LogConsole.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
@@ -153,11 +155,12 @@ const menuOptions: MenuOption[] = [
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
+  { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
 ]
 
 const currentView = computed(() => {
   const views: Record<string, any> = {
-    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView
+    DashboardView, DedupeView, AutoTagsView, TypeManagerView, CleanupToolsView, LockManagerView, EmbyItemQueryView, TmdbReverseLookupView, TmdbIdSearchView, TmdbLabView, ActorLabView, ActorManagerView, WebhookReceiverView, SettingsView, DockerManagerView, PostgresManagerView
   }
   return views[currentViewKey.value] || DashboardView
 })
