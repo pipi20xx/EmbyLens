@@ -207,7 +207,7 @@ const themeOptions = [
                 <app-logo :size="28" :theme="currentThemeType" />
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
-                  <div class="version-tag">v1.0.5</div>
+                  <div class="version-tag">v1.0.6</div>
                 </div>
               </n-space>
             </div>
