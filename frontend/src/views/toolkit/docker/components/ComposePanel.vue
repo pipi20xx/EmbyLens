@@ -1,48 +1,22 @@
 <template>
   <div class="compose-panel">
     <n-space vertical size="medium">
-      <n-space justify="end" v-if="hostId">
-        <n-button-group>
+      <n-space justify="space-between" v-if="hostId">
+        <n-space>
           <n-button type="primary" @click="handleCreateProject">新建项目</n-button>
+        </n-space>
+        <n-button-group>
           <n-button type="success" secondary @click="handleBulkAction('up')">全部启动/更新</n-button>
           <n-button type="error" secondary @click="handleBulkAction('down')">全部停止</n-button>
         </n-button-group>
       </n-space>
       
-      <n-grid :cols="3" :x-gap="12" :y-gap="12">
-        <n-gi v-for="p in projects" :key="p.name">
-          <n-card :title="p.name" size="small" hoverable>
-            <template #header-extra>
-              <n-space align="center">
-                <n-tag :type="p.type === 'scanned' ? 'success' : 'warning'" size="small">
-                  {{ p.type === 'scanned' ? '已记忆' : '探测到' }}
-                </n-tag>
-                <n-button v-if="p.type === 'detected'" size="tiny" circle quaternary @click="pinProject(p)" title="永久记忆此项目路径">
-                  <template #icon><n-icon><push-pin-icon /></n-icon></template>
-                </n-button>
-                <n-tag :type="p.status?.includes('running') ? 'success' : 'default'" size="small">
-                  {{ formatStatus(p.status) }}
-                </n-tag>
-                <n-button size="tiny" circle quaternary @click="$emit('browse-path', p.path)" title="浏览目录">
-                  <template #icon><n-icon><folder-icon /></n-icon></template>
-                </n-button>
-                <n-button size="tiny" tertiary @click="editProject(p)">编辑</n-button>
-                <n-button size="tiny" type="error" ghost @click="deleteProject(p)">删除</n-button>
-              </n-space>
-            </template>
-            <n-space vertical>
-              <n-ellipsis style="max-width: 100%">
-                <n-text depth="3" style="font-size: 11px">{{ p.config_file || p.path }}</n-text>
-              </n-ellipsis>
-              <n-space justify="space-around">
-                <n-button size="small" type="primary" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'up')">启动/更新</n-button>
-                <n-button size="small" type="warning" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'pull')">拉取</n-button>
-                <n-button size="small" type="error" secondary :loading="loadingActions[p.name]" @click="runComposeAction(p, 'down')">停止</n-button>
-              </n-space>
-            </n-space>
-          </n-card>
-        </n-gi>
-      </n-grid>
+      <n-data-table
+        :columns="columns"
+        :data="projects"
+        :loading="loading"
+        :pagination="{ pageSize: 15 }"
+      />
     </n-space>
 
     <!-- Compose 编辑/新建弹窗 -->
@@ -98,15 +72,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, h } from 'vue'
-import { NSpace, NButton, NGrid, NGi, NCard, NTag, NIcon, NText, NEllipsis, NModal, NForm, NFormItem, NInput, NInputGroup, NCheckbox, useMessage, useDialog } from 'naive-ui'
-import { PushPinOutlined as PushPinIcon, FolderOutlined as FolderIcon } from '@vicons/material'
+import { ref, watch, computed, h } from 'vue'
+import { 
+  NSpace, NButton, NButtonGroup, NDataTable, NTag, NIcon, NText, NEllipsis, 
+  NModal, NForm, NFormItem, NInput, NInputGroup, NCheckbox, useMessage, useDialog 
+} from 'naive-ui'
+import { 
+  PushPinOutlined as PushPinIcon, 
+  FolderOutlined as FolderIcon,
+  EditOutlined as EditIcon,
+  DeleteOutlined as DeleteIcon,
+  PlayCircleOutlined as StartIcon,
+  StopCircleOutlined as StopIcon,
+  CloudDownloadOutlined as PullIcon
+} from '@vicons/material'
 import axios from 'axios'
+import type { DataTableColumns } from 'naive-ui'
 
 const props = defineProps({
   hostId: { type: String, default: null },
   hosts: { type: Array, default: [] },
-  // 新增：外部传入的被选中路径，用于文件浏览器回调
   pickedPath: { type: String, default: '' }
 })
 
@@ -115,7 +100,10 @@ const emit = defineEmits(['refresh-containers', 'refresh-hosts', 'browse-path', 
 const message = useMessage()
 const dialog = useDialog()
 const projects = ref<any[]>([])
+const loading = ref(false)
 const loadingActions = ref<Record<string, boolean>>({})
+
+// ... (keep the rest of existing ref declarations) ...
 const showComposeModal = ref(false)
 const showCommandResult = ref(false)
 const commandResult = ref({ stdout: '', stderr: '' })
@@ -134,7 +122,6 @@ const statusMap: Record<string, string> = {
 
 const formatStatus = (status: string) => {
   if (!status) return '未知'
-  // 处理 running(1) 或 exited(0) 这种格式
   const match = status.match(/^([a-z]+)\(?(\d*)\)?$/i)
   if (match) {
     const key = match[1].toLowerCase()
@@ -144,6 +131,109 @@ const formatStatus = (status: string) => {
   }
   return status
 }
+
+const fetchProjects = async () => {
+  if (!props.hostId) return
+  loading.value = true
+  try {
+    const res = await axios.get(`/api/docker/compose/${props.hostId}/projects`)
+    projects.value = (res.data || []).sort((a: any, b: any) => a.name.localeCompare(b.name))
+  } finally {
+    loading.value = false
+  }
+}
+
+// 表格列定义
+const columns: DataTableColumns<any> = [
+  {
+    title: '项目名称',
+    key: 'name',
+    width: 180,
+    render(row) {
+      return h(NSpace, { align: 'center', size: 'small' }, {
+        default: () => [
+          h('span', { style: 'font-weight: bold; color: var(--text-color)' }, row.name),
+          row.type === 'detected' ? h(NButton, {
+            size: 'tiny', circle: true, quaternary: true,
+            onClick: () => pinProject(row)
+          }, { default: () => h(NIcon, null, { default: () => h(PushPinIcon) }) }) : null
+        ]
+      })
+    }
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render(row) {
+      const isRunning = row.status?.includes('running')
+      return h(NTag, {
+        type: isRunning ? 'success' : 'default',
+        size: 'small',
+        round: true
+      }, { default: () => formatStatus(row.status) })
+    }
+  },
+  {
+    title: '类型',
+    key: 'type',
+    width: 90,
+    render(row) {
+      return h(NTag, {
+        type: row.type === 'scanned' ? 'info' : 'warning',
+        size: 'small',
+        quaternary: true
+      }, { default: () => row.type === 'scanned' ? '已记忆' : '探测到' })
+    }
+  },
+  {
+    title: '配置文件路径',
+    key: 'path',
+    render(row) {
+      return h(NSpace, { align: 'center', size: 'small' }, {
+        default: () => [
+          h(NEllipsis, { style: 'max-width: 300px; font-size: 12px; color: var(--text-color); opacity: 0.6' }, { default: () => row.config_file || row.path }),
+          h(NButton, {
+            size: 'tiny', quaternary: true, circle: true,
+            onClick: () => emit('browse-path', row.path)
+          }, { default: () => h(NIcon, null, { default: () => h(FolderIcon) }) })
+        ]
+      })
+    }
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 420,
+    render(row) {
+      const isLoading = loadingActions.value[row.name]
+      return h(NSpace, { size: 'small' }, {
+        default: () => [
+          h(NButton, { size: 'tiny', type: 'primary', secondary: true, loading: isLoading, onClick: () => runComposeAction(row, 'up') }, { 
+            icon: () => h(NIcon, null, { default: () => h(StartIcon) }),
+            default: () => '启动/更新' 
+          }),
+          h(NButton, { size: 'tiny', type: 'warning', secondary: true, loading: isLoading, onClick: () => runComposeAction(row, 'pull') }, { 
+            icon: () => h(NIcon, null, { default: () => h(PullIcon) }),
+            default: () => '拉取' 
+          }),
+          h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: isLoading, onClick: () => runComposeAction(row, 'down') }, { 
+            icon: () => h(NIcon, null, { default: () => h(StopIcon) }),
+            default: () => '停止' 
+          }),
+          h(NButton, { size: 'tiny', secondary: true, onClick: () => editProject(row) }, { 
+            icon: () => h(NIcon, null, { default: () => h(EditIcon) }),
+            default: () => '编辑' 
+          }),
+          h(NButton, { size: 'tiny', type: 'error', secondary: true, onClick: () => deleteProject(row) }, { 
+            icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
+            default: () => '删除' 
+          })
+        ]
+      })
+    }
+  }
+]
 
 // 路径记忆逻辑
 const baseSavePath = ref('/opt/docker-compose')
@@ -159,12 +249,6 @@ const finalSavePath = computed(() => {
   const name = currentProject.value.name.trim() || 'project_name'
   return `${base}/${name}/docker-compose.yml`
 })
-
-const fetchProjects = async () => {
-  if (!props.hostId) return
-  const res = await axios.get(`/api/docker/compose/${props.hostId}/projects`)
-  projects.value = (res.data || []).sort((a: any, b: any) => a.name.localeCompare(b.name))
-}
 
 watch(() => props.hostId, () => {
   fetchProjects()

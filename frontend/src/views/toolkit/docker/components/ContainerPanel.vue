@@ -31,7 +31,14 @@
 <script setup lang="ts">
 import { ref, watch, h } from 'vue'
 import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog } from 'naive-ui'
-import { EditOutlined as EditIcon } from '@vicons/material'
+import { 
+  EditOutlined as EditIcon,
+  PlayCircleOutlined as StartIcon,
+  StopCircleOutlined as StopIcon,
+  RefreshOutlined as RecreateIcon,
+  DeleteOutlined as DeleteIcon,
+  TerminalOutlined as LogIcon
+} from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
 
@@ -90,6 +97,16 @@ const handleAction = async (id: string, action: string) => {
   }
 }
 
+const handleDelete = (row: any) => {
+  dialog.error({
+    title: '确认删除容器',
+    content: `确定要彻底删除容器 "${row.name}" 吗？此操作不可撤销。`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    onPositiveClick: () => handleAction(row.id, 'remove')
+  })
+}
+
 const showLogs = async (id: string, name: string) => {
   const res = await axios.get(`/api/docker/${props.hostId}/containers/${id}/logs?tail=200`)
   containerLogs.value = res.data.logs
@@ -110,9 +127,9 @@ const saveCustomPort = async () => {
 
 const columns: DataTableColumns<any> = [
   { title: '名称', key: 'name', width: 150 },
-  { title: '状态', key: 'status', width: 80, render(row) {
+  { title: '状态', key: 'status', width: 100, render(row) {
       const text = statusMap[row.status] || row.status
-      return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small' }, { default: () => text })
+      return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small', round: true }, { default: () => text })
     }
   },
   { title: '端口映射', key: 'ports', render(row) {
@@ -138,13 +155,26 @@ const columns: DataTableColumns<any> = [
     }
   },
   { title: '镜像', key: 'image', ellipsis: true },
-  { title: '操作', key: 'actions', width: 200, render(row) {
+  { title: '操作', key: 'actions', width: 320, render(row) {
+      const isRunning = row.status === 'running'
       return h(NSpace, { size: 'small' }, {
         default: () => [
-          h(NButton, { size: 'tiny', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, row.status === 'running' ? 'stop' : 'start') }, { default: () => row.status === 'running' ? '停止' : '启动' }),
-          h(NButton, { size: 'tiny', type: 'warning', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { default: () => '更新' }),
-          h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'remove') }, { default: () => '删除' }),
-          h(NButton, { size: 'tiny', onClick: () => showLogs(row.id, row.name) }, { default: () => '日志' })
+          h(NButton, { size: 'tiny', type: isRunning ? 'error' : 'primary', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, isRunning ? 'stop' : 'start') }, { 
+            icon: () => h(NIcon, null, { default: () => h(isRunning ? StopIcon : StartIcon) }),
+            default: () => isRunning ? '停止' : '启动' 
+          }),
+          h(NButton, { size: 'tiny', type: 'warning', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { 
+            icon: () => h(NIcon, null, { default: () => h(RecreateIcon) }),
+            default: () => '更新' 
+          }),
+          h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleDelete(row) }, { 
+            icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
+            default: () => '删除' 
+          }),
+          h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => showLogs(row.id, row.name) }, { 
+            icon: () => h(NIcon, null, { default: () => h(LogIcon) }),
+            default: () => '日志' 
+          })
         ]
       })
     }
