@@ -15,7 +15,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 *   **审计流水**：记录最近的维护操作，确保系统变动可追溯。
 
 ### 🐳 Docker 深度运维管理 (Docker Manager)
-*   **多机纳管**：支持管理本机 Docker 以及通过 **SSH**管理多台远程服务器。
+*   **多机纳管**：支持 **SSH**管理多台远程服务器。
 *   **容器生命周期**：支持容器启动、停止、重启、删除及实时日志查看；状态显示已全面中文本地化。
 *   **智能更新 (Update)**：一键拉取最新镜像并自动重构容器。
 *   **Compose 管理**：内置管理器，支持 YAML 在线编辑、目录扫描、项目记忆及按名称固定排序。
@@ -128,7 +128,6 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
           - "6565:6565"
         volumes:
           - ./data:/app/data
-          - /var/run/docker.sock:/var/run/docker.sock # 映射 Socket 以管理本机容器
         environment:
           - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
           - TZ=Asia/Shanghai
@@ -146,7 +145,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
 ### 🛠️ 初始配置步骤
 1.  **环境集成**：前往“系统设置”，填入 Emby URL 和 API Key。
 2.  **刷新索引**：进入对应工具（如重复项清理），点击“从 Emby 同步”。
-3.  **Docker 管理**：进入“Docker 容器管理”，即可看到本机容器；支持通过 SSH 添加远程服务器。
+3.  **Docker 管理**：支持通过 SSH 添加远程服务器。
 
 ---
 
