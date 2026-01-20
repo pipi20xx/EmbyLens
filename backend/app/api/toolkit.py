@@ -85,7 +85,7 @@ async def _get_full_item(service: EmbyService, user_id: str, item_id: str) -> Op
     resp = await service._request("GET", endpoint, params=params)
     return resp.json() if resp and resp.status_code == 200 else None
 
-# --- 1:1 复刻实装 ---
+# --- 工具箱实装 ---
 
 @router.post("/mapper", response_model=MetadataManagerResponse)
 async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(get_db)):
@@ -162,7 +162,7 @@ async def genre_adder(request: GenreAdderRequest, db: AsyncSession = Depends(get
                 logger.info(f"┃  ┣ 🎯 新增到项目: {full_item.get('Name')}")
     return MetadataManagerResponse(message="添加完成", processed_count=processed, dry_run_active=request.dry_run)
 
-# ... 其余 Remover, Locker 等逻辑保持 1:1 复刻 ...
+# ... 其余 Remover, Locker 等逻辑 ...
 @router.post("/remover", response_model=MetadataManagerResponse)
 async def genre_remover(request: GenreRemoverRequest, db: AsyncSession = Depends(get_db)):
     service, user_id = await get_emby_context(db)

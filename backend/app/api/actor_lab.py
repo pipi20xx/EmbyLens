@@ -16,7 +16,7 @@ async def get_tmdb_key():
     return key
 
 def get_origin_name_smart(data: Dict[str, Any]) -> str:
-    """复刻脚本中的智能原名推断逻辑"""
+    """智能原名推断逻辑"""
     place = data.get('place_of_birth', '') or ''
     akas = data.get('also_known_as', [])
     default_name = data.get('name', '未知')

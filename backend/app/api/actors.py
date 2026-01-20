@@ -36,7 +36,7 @@ async def fetch_tmdb_data(tmdb_key: str, path: str, params: Dict = None):
 
 @router.get("/search-emby", summary="从 Emby 库内搜索演员")
 async def search_actor_in_emby(query: str = Query(...), db: AsyncSession = Depends(get_db)):
-    """1:1 复刻演员查找逻辑"""
+    """演员查找逻辑"""
     service, _ = await get_emby_context()
     start_time = time.time()
     

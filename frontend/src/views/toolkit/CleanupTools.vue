@@ -2,8 +2,8 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="error">媒体净化清理 (1:1 源码级复刻)</n-text></n-h2>
-        <n-text depth="3">遵循 emby-box 逻辑：支持指定媒体库与媒体类型，执行演职员移除或剧集类型重置。</n-text>
+        <n-h2 prefix="bar" align-text><n-text type="primary">媒体净化清理</n-text></n-h2>
+        <n-text depth="3">支持指定媒体库与媒体类型，执行演职员移除或剧集类型重置。</n-text>
       </div>
 
       <!-- 1. 全局配置 (lib_names & dry_run) -->
@@ -30,7 +30,7 @@
       <!-- 2. 原子工具卡片 -->
       <n-grid :cols="2" :x-gap="12">
         <n-gi>
-          <n-card title="演职员信息清空 (People Remover)" size="small">
+          <n-card title="演职员信息清空" size="small">
             <n-space vertical>
               <n-text depth="3" style="font-size: 12px">操作媒体类型：</n-text>
               <n-checkbox-group v-model:value="peopleItemTypes">

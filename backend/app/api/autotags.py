@@ -14,10 +14,10 @@ import json
 
 router = APIRouter()
 
-# --- 全量复刻：Webhook 队列与后台处理 ---
+# --- Webhook 队列与后台处理 ---
 webhook_queue = asyncio.Queue()
 
-# --- 1:1 复刻原项目的国家/语言映射表 ---
+# --- 国家/语言映射表 ---
 LANG_TO_COUNTRY = {
     "en": "美国", "zh": "中国大陆", "ja": "日本", "ko": "韩国", "fr": "法国", "de": "德国",
     "es": "西班牙", "it": "意大利", "hi": "印度", "ar": "沙特阿拉伯", "pt": "巴西", "ru": "俄罗斯",
@@ -68,7 +68,7 @@ async def fetch_tmdb_details(tmdb_key: str, tmdb_id: str, media_type: str):
             logger.error(f"┃  ┃  ❌ TMDB 请求失败: {str(e)}")
             return None
 
-# --- Webhook 处理核心逻辑 (1:1 结构复刻) ---
+# --- Webhook 处理核心逻辑 ---
 
 async def process_webhook_item(payload: Dict):
     """处理来自 Webhook 的单个项目"""
@@ -159,7 +159,7 @@ async def webhook_worker():
         finally:
             webhook_queue.task_done()
 
-# --- 任务执行流 (1:1 结构复刻) ---
+# --- 任务执行流 ---
 
 async def run_autotag_task_isolated(request: TagActionRequest):
     helper, config = await get_helper()

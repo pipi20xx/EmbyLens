@@ -2,8 +2,8 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="primary">类型与标签管理 (1:1 源码复刻)</n-text></n-h2>
-        <n-text depth="3">提供类型映射、一键移除及批量新增功能。严格对齐 emby-box 的 GenreItems 深度处理逻辑。</n-text>
+        <n-h2 prefix="bar" align-text><n-text type="primary">类型与标签管理</n-text></n-h2>
+        <n-text depth="3">提供类型映射、一键移除及批量新增功能。支持 GenreItems 深度处理逻辑。</n-text>
       </div>
 
       <!-- 1. 通用执行参数 -->

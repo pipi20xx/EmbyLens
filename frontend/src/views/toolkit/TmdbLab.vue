@@ -2,7 +2,7 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB 实验室 (全信息版)</n-text></n-h2>
+        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB 实验室</n-text></n-h2>
         <n-text depth="3">直接从 TMDB 官方抓取元数据。支持递归抓取季、集信息，并提供结构化预览与原始数据导出。</n-text>
       </div>
 

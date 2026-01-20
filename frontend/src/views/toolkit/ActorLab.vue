@@ -2,7 +2,7 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB 演员实验室 (Actor Lab)</n-text></n-h2>
+        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB 演员实验室</n-text></n-h2>
         <n-text depth="3">基于 TMDB 数据的智能探测工具。能够根据出生地自动匹配母语姓名，并生成全量别名池。</n-text>
       </div>
 

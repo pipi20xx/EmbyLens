@@ -2,7 +2,7 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="info">元数据锁定管理 (1:1 源码复刻版)</n-text></n-h2>
+        <n-h2 prefix="bar" align-text><n-text type="primary">元数据锁定管理</n-text></n-h2>
         <n-text depth="3">严格区分 Emby 的“主锁 (LockData)”与“小锁 (LockedFields)”维度的操作逻辑。</n-text>
       </div>
 
@@ -15,7 +15,7 @@
               multiple 
               filterable 
               :options="libOptions"
-              placeholder="请选择要操作的媒体库" 
+              placeholder="自动拉取媒体库列表中..." 
             />
           </n-form-item>
           <n-form-item label="执行模式">

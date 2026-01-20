@@ -2,7 +2,7 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB ID 深度搜索 (全信息版)</n-text></n-h2>
+        <n-h2 prefix="bar" align-text><n-text type="primary">TMDB ID 深度搜索</n-text></n-h2>
         <n-text depth="3">根据 TMDB ID <b>在您的 Emby 库中</b>递归检索匹配的项目及其所有季、集的完整元数据详情。</n-text>
       </div>
 

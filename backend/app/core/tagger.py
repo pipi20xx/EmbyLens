@@ -9,7 +9,7 @@ class Tagger:
         self.rules = rules
 
     def _parse_years(self, year_input: Any) -> List[int]:
-        """1:1 复刻原版年份范围解析逻辑"""
+        """年份范围解析逻辑"""
         if not year_input: return []
         if isinstance(year_input, list): return [int(y) for y in year_input if str(y).isdigit()]
         
@@ -27,7 +27,7 @@ class Tagger:
 
     def match_rule(self, item_props: Dict[str, Any], rule: Dict[str, Any]) -> bool:
         """
-        1:1 源码级复刻匹配算法逻辑。
+        匹配算法逻辑。
         """
         conditions = rule.get("conditions", {})
         item_type_limit = rule.get("item_type", "all")

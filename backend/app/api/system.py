@@ -17,7 +17,7 @@ async def fetch_log_content(date: str):
 
 @router.get("/logs/raw", response_class=PlainTextResponse)
 async def fetch_raw_log(type: str = Query("monitor")):
-    """复刻样板：返回当前最新的原始文本日志 (倒序，最新在上)"""
+    """日志接口：返回当前最新的原始文本日志 (倒序，最新在上)"""
     current_date = datetime.now().strftime("%Y-%m-%d")
     content = get_log_content(current_date)
     # 按行分割，反转，再合并

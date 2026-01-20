@@ -31,7 +31,7 @@ class EmbyService:
         return get_async_client(timeout=30.0, headers=self.headers, use_proxy=use_proxy)
 
     async def _request(self, method: str, endpoint: str, params: Dict = None, json_data: Dict = None):
-        """1:1 复刻 emby-box 的底层请求逻辑"""
+        """遵循 Emby 底层请求逻辑"""
         url = f"{self.base_url}{endpoint}"
         
         # 核心：必须在 URL 参数里带上 api_key

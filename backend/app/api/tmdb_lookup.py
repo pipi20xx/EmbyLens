@@ -24,7 +24,7 @@ async def reverse_lookup_tmdb(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    1:1 源码复刻 + 深度日志集成
+    深度日志集成
     """
     start_time = time.time()
     logger.info(f"🚀 启动 [剧集 TMDB 反查] 任务 (单集 ID: {episode_id})")

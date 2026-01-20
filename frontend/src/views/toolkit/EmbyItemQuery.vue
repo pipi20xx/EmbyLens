@@ -2,7 +2,7 @@
   <div class="toolkit-container">
     <n-space vertical size="large">
       <div class="page-header">
-        <n-h2 prefix="bar" align-text><n-text type="primary">项目元数据查询 (Item Info)</n-text></n-h2>
+        <n-h2 prefix="bar" align-text><n-text type="primary">项目元数据查询</n-text></n-h2>
         <n-text depth="3">输入项目的 Emby ID，实时抓取该项目的全量元数据 JSON 包，用于调试和审计。</n-text>
       </div>
 
