@@ -48,13 +48,20 @@
       </div>
     </n-layout-content>
   </n-layout>
+
+  <DataValueViewerModal
+    v-model:show="showViewer"
+    :title="viewerTitle"
+    :value="viewerValue"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, h } from 'vue'
-import { NLayout, NLayoutSider, NLayoutContent, NMenu, NDataTable, NEmpty, NSpace, NIcon, NText, NTag, NButton, NSelect, useMessage } from 'naive-ui'
+import { NLayout, NLayoutSider, NLayoutContent, NMenu, NDataTable, NEmpty, NSpace, NIcon, NText, NTag, NButton, NSelect, NEllipsis, useMessage } from 'naive-ui'
 import { TableChartOutlined as TableIcon, RefreshOutlined as RefreshIcon } from '@vicons/material'
 import axios from 'axios'
+import DataValueViewerModal from './DataValueViewerModal.vue'
 
 const props = defineProps<{ host: any }>()
 const message = useMessage()
@@ -66,6 +73,16 @@ const tableList = ref<string[]>([])
 const tableData = ref<any[]>([])
 const columns = ref<any[]>([])
 const loading = ref(false)
+
+const showViewer = ref(false)
+const viewerTitle = ref('')
+const viewerValue = ref<any>(null)
+
+const openViewer = (title: string, val: any) => {
+  viewerTitle.value = title
+  viewerValue.value = val
+  showViewer.value = true
+}
 
 // 计算属性：将主机配置与当前选中的库合并
 const activeConfig = computed(() => {
@@ -147,7 +164,35 @@ const fetchTableData = async () => {
       title: col.name,
       key: col.name,
       width: 150,
-      ellipsis: { tooltip: true }
+      render(row: any) {
+        const val = row[col.name]
+        if (val === null) return h(NText, { depth: 3, style: 'font-style: italic' }, { default: () => 'NULL' })
+
+        const isObject = typeof val === 'object'
+        const isLongText = typeof val === 'string' && val.length > 80
+
+        if (isObject || isLongText) {
+          return h(
+            NButton,
+            {
+              size: 'tiny',
+              type: 'primary',
+              secondary: true,
+              block: true,
+              onClick: () => openViewer(col.name, val)
+            },
+            { 
+              default: () => isObject ? '查看 JSON' : '查看长文本'
+            }
+          )
+        }
+
+        return h(
+          NEllipsis,
+          { style: 'cursor: pointer;', onClick: () => openViewer(col.name, val) },
+          { default: () => String(val) }
+        )
+      }
     }))
     tableData.value = res.data.rows
     pagination.itemCount = res.data.total

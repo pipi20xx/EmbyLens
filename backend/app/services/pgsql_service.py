@@ -41,6 +41,8 @@ class PostgresService:
             return str(obj)
         if isinstance(obj, bytes):
             return obj.decode('utf-8', errors='replace')
+        if isinstance(obj, (dict, list)):
+            return obj
         return str(obj)
 
     @classmethod
