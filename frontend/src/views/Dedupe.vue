@@ -1,12 +1,16 @@
 <template>
   <div class="dedupe-layout">
     <n-space vertical size="large">
-      <n-card embedded :bordered="false" size="small">
+      <div class="page-header">
+        <n-h2 prefix="bar" align-text><n-text type="primary">Emby 媒体管理与去重</n-text></n-h2>
+        <n-text depth="3">扫描、分析并清理您的媒体库重复项，支持基于文件名与元数据的智能匹配。</n-text>
+      </div>
+
+      <n-card embedded :bordered="false" size="small" style="margin-bottom: 8px">
         <n-space justify="space-between" align="center">
           <n-space align="center" :size="20">
-            <n-h2 style="margin: 0"><n-text type="primary">Emby 媒体管理与去重</n-text></n-h2>
             <n-input-group>
-              <n-input v-model:value="searchName" placeholder="高级搜索: 名称:xxx / ID..." style="width: 280px" @keypress.enter="loadItems" />
+              <n-input v-model:value="searchName" placeholder="搜索名称或 ID..." style="width: 280px" @keypress.enter="loadItems" />
               <n-button type="primary" @click="loadItems">
                 <template #icon><n-icon><SearchIcon /></n-icon></template>
               </n-button>

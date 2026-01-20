@@ -47,7 +47,7 @@ const currentView = computed(() => {
           />
 
           <n-layout-content :content-style="{
-            padding: '16px',
+            padding: '24px',
             minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',

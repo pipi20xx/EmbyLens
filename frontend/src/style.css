@@ -1,5 +1,7 @@
 :root {
   color-scheme: dark;
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "Fira Code", "JetBrains Mono", monospace;
 }
 
 html, body, #app {
@@ -7,37 +9,95 @@ html, body, #app {
   padding: 0;
   height: 100%;
   width: 100%;
-  background-color: #101014;
-  color: #fff;
+  background-color: var(--app-bg-color, #101014);
+  color: var(--text-color, #fff);
   overflow: hidden;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0.015em;
 }
 
-.n-layout-sider {
-  background-color: #18181c !important;
+/* 统一行高与文本渲染 */
+p, div, span, label {
+  line-height: 1.6;
 }
 
-.n-menu .n-menu-item-content--selected {
-  background-color: rgba(112, 93, 242, 0.15) !important;
+/* 统一代码字体 */
+code, pre, .n-code {
+  font-family: var(--font-mono) !important;
 }
 
-.n-menu .n-menu-item-content--selected .n-menu-item-content__icon {
-  color: #705df2 !important;
+/* 页面头部间距规范 */
+.page-header {
+  margin-bottom: 24px;
+  padding: 4px 0;
 }
+
+.page-header .n-h2 {
+  margin: 0 0 8px 0 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.page-header .n-text--depth-3 {
+  font-size: 14px;
+}
+
+/* 卡片样式强化 */
 .n-card {
-  border: 1px solid rgba(112, 93, 242, 0.2) !important;
-  background-color: rgba(24, 24, 28, 0.8) !important;
-  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-color: var(--border-color) !important;
+}
+
+.n-card--hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.4) !important;
+  border-color: var(--primary-color) !important;
+}
+
+/* 表单项间距优化 */
+.n-form-item {
+  margin-bottom: 16px;
+}
+
+.n-form-item .n-form-item-label {
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text-color);
+  opacity: 0.9;
+}
+
+/* 列表容器间距 */
+.toolkit-container {
+  padding: 4px;
 }
 
 /* 滚动条美化 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #705df2;
+  background: var(--primary-color);
+}
+
+/* 侧边栏样式覆盖 */
+.n-layout-sider {
+  background-color: var(--sidebar-bg-color) !important;
+}
+
+.n-menu .n-menu-item-content--selected {
+  background-color: var(--primary-border-color) !important;
+}
+
+.n-menu .n-menu-item-content--selected .n-menu-item-content__icon {
+  color: var(--primary-color) !important;
 }

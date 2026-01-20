@@ -1,36 +1,92 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { GlobalThemeOverrides } from 'naive-ui'
 
-export type ThemeType = 'modern' | 'purple'
+export type ThemeType = 'modern' | 'purple' | 'oceanic' | 'crimson'
 
 const purpleOverrides: GlobalThemeOverrides = {
   common: {
-    primaryColor: '#bb86fc',
-    primaryColorHover: '#d1a8ff',
-    primaryColorPressed: '#995df0',
-    borderRadius: '10px',
-    cardColor: '#120818',
-    modalColor: '#180a20',
-    bodyColor: '#0b040f',
-    textColorBase: '#e0e0e0'
+    primaryColor: '#a370f7',
+    primaryColorHover: '#b794f4',
+    primaryColorPressed: '#805ad5',
+    borderRadius: '8px',
+    cardColor: '#1a1021',
+    modalColor: '#241630',
+    bodyColor: '#0f0913',
+    textColorBase: '#e2e2e9',
+    dividerColor: 'rgba(163, 112, 247, 0.15)'
   },
-  Card: { borderRadius: '14px' },
-  Button: { borderRadiusMedium: '10px' }
+  Card: {
+    borderRadius: '12px',
+    borderColor: 'rgba(163, 112, 247, 0.2)'
+  },
+  Button: {
+    borderRadiusMedium: '8px',
+    fontWeight: '500'
+  }
 }
 
 const modernOverrides: GlobalThemeOverrides = {
   common: {
-    primaryColor: '#705df2',
-    primaryColorHover: '#8a7af5',
-    primaryColorPressed: '#5946d1',
+    primaryColor: '#6366f1',
+    primaryColorHover: '#818cf8',
+    primaryColorPressed: '#4f46e5',
     borderRadius: '6px',
-    cardColor: '#1e1e24',
-    bodyColor: '#101014',
-    modalColor: '#25252b',
-    textColorBase: '#ffffff'
+    cardColor: '#18181b',
+    bodyColor: '#0e0e11',
+    modalColor: '#202023',
+    textColorBase: '#f4f4f5',
+    dividerColor: 'rgba(255, 255, 255, 0.08)'
   },
-  Card: { borderRadius: '10px' },
-  Button: { borderRadiusMedium: '6px' }
+  Card: {
+    borderRadius: '10px',
+    borderColor: 'rgba(255, 255, 255, 0.08)'
+  },
+  Button: {
+    borderRadiusMedium: '6px',
+    fontWeight: '500'
+  }
+}
+
+const oceanicOverrides: GlobalThemeOverrides = {
+  common: {
+    primaryColor: '#2dd4bf',
+    primaryColorHover: '#5eead4',
+    primaryColorPressed: '#14b8a6',
+    borderRadius: '8px',
+    cardColor: '#0f172a',
+    bodyColor: '#020617',
+    modalColor: '#1e293b',
+    textColorBase: '#f1f5f9',
+    dividerColor: 'rgba(45, 212, 191, 0.12)'
+  },
+  Card: {
+    borderRadius: '12px',
+    borderColor: 'rgba(45, 212, 191, 0.15)'
+  },
+  Button: {
+    borderRadiusMedium: '8px'
+  }
+}
+
+const crimsonOverrides: GlobalThemeOverrides = {
+  common: {
+    primaryColor: '#fb7185',
+    primaryColorHover: '#fda4af',
+    primaryColorPressed: '#f43f5e',
+    borderRadius: '8px',
+    cardColor: '#181212',
+    bodyColor: '#0a0808',
+    modalColor: '#1c1616',
+    textColorBase: '#fceef0',
+    dividerColor: 'rgba(251, 113, 133, 0.12)'
+  },
+  Card: {
+    borderRadius: '12px',
+    borderColor: 'rgba(251, 113, 133, 0.15)'
+  },
+  Button: {
+    borderRadiusMedium: '8px'
+  }
 }
 
 export function useTheme() {
@@ -47,19 +103,38 @@ export function useTheme() {
     root.style.setProperty('--card-bg-color', common.cardColor!)
     root.style.setProperty('--modal-bg-color', common.modalColor || common.cardColor!)
     root.style.setProperty('--text-color', common.textColorBase!)
-    root.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.09)')
-    root.style.setProperty('--primary-border-color', `${common.primaryColor}4D`) // 30% opacity
+    root.style.setProperty('--border-color', common.dividerColor!)
+    
+    // 动态侧边栏背景
+    let sidebarBg = '#121215'
+    if (currentThemeType.value === 'purple') sidebarBg = '#140c1a'
+    if (currentThemeType.value === 'oceanic') sidebarBg = '#0b1120'
+    if (currentThemeType.value === 'crimson') sidebarBg = '#120d0d'
+    root.style.setProperty('--sidebar-bg-color', sidebarBg)
+    
+    root.style.setProperty('--primary-border-color', `${common.primaryColor}33`) // 20% opacity
   }
 
   const themeOverrides = computed(() => {
-    const overrides = currentThemeType.value === 'purple' ? purpleOverrides : modernOverrides
+    const map = {
+      purple: purpleOverrides,
+      modern: modernOverrides,
+      oceanic: oceanicOverrides,
+      crimson: crimsonOverrides
+    }
+    const overrides = map[currentThemeType.value] || purpleOverrides
     if (typeof document !== 'undefined') { syncThemeVariables(overrides) }
     return overrides
   })
 
   onMounted(() => {
-    const initialTheme = currentThemeType.value === 'purple' ? purpleOverrides : modernOverrides
-    syncThemeVariables(initialTheme)
+    const map = {
+      purple: purpleOverrides,
+      modern: modernOverrides,
+      oceanic: oceanicOverrides,
+      crimson: crimsonOverrides
+    }
+    syncThemeVariables(map[currentThemeType.value] || purpleOverrides)
   })
 
   return {
@@ -67,7 +142,9 @@ export function useTheme() {
     themeOverrides,
     themeOptions: [
       { label: '暗夜紫韵 (Purple)', key: 'purple' },
-      { label: '现代极客 (Modern)', key: 'modern' }
+      { label: '现代极客 (Modern)', key: 'modern' },
+      { label: '深海翠羽 (Oceanic)', key: 'oceanic' },
+      { label: '赤红余烬 (Crimson)', key: 'crimson' }
     ]
   }
 }
