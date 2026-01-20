@@ -121,3 +121,34 @@ def reorder_sites(ordered_ids: List[int]):
     data["sites"] = new_sites
     save_nav_data(data)
     return True
+
+def cleanup_orphaned_icons():
+    """清理没有被任何站点引用的图标文件"""
+    data = get_nav_data()
+    # 1. 收集所有正在使用的图标文件名
+    used_icons = set()
+    for site in data.get("sites", []):
+        icon_path = site.get("icon")
+        if icon_path and icon_path.startswith("/nav_icons/"):
+            # 提取文件名，例如: /nav_icons/abc.png -> abc.png
+            filename = os.path.basename(icon_path)
+            used_icons.add(filename)
+    
+    # 2. 扫描物理目录
+    icon_dir = "/app/data/nav_icons"
+    if not os.path.exists(icon_dir):
+        return
+    
+    cleaned_count = 0
+    for filename in os.listdir(icon_dir):
+        # 如果文件不在引用名单中，则删除
+        if filename not in used_icons:
+            try:
+                os.remove(os.path.join(icon_dir, filename))
+                cleaned_count += 1
+            except Exception:
+                pass
+    
+    if cleaned_count > 0:
+        print(f"[Cleanup] Removed {cleaned_count} orphaned icons.")
+    return cleaned_count
