@@ -1,18 +1,16 @@
 <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="embylens_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="lens_grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#705df2;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#bb86fc;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- 背景圆形轻微底色 -->
-  <circle cx="100" cy="100" r="90" fill="url(#embylens_grad)" fill-opacity="0.05" />
-  <!-- 镜头外圈 -->
-  <circle cx="100" cy="100" r="85" fill="none" stroke="url(#embylens_grad)" stroke-width="10" />
-  <!-- 内部光圈 -->
-  <circle cx="100" cy="100" r="60" fill="none" stroke="url(#embylens_grad)" stroke-width="2" stroke-dasharray="8 4" opacity="0.5" />
-  <!-- 核心播放按钮 (Emby 风格) -->
-  <path d="M85 70 L85 130 L135 100 Z" fill="url(#embylens_grad)" stroke="url(#embylens_grad)" stroke-width="5" stroke-linejoin="round" />
-  <!-- 镜面反光 -->
-  <path d="M140 60 A60 60 0 0 1 160 100" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.4" />
+  <!-- 主圆环 (镜头外框) -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="url(#lens_grad)" stroke-width="15" />
+  <!-- 内圆环 (光圈) -->
+  <circle cx="100" cy="100" r="55" fill="none" stroke="url(#lens_grad)" stroke-width="6" stroke-dasharray="20 10" opacity="0.6" />
+  <!-- 中心瞳孔 -->
+  <circle cx="100" cy="100" r="25" fill="url(#lens_grad)" />
+  <!-- 顶部的弧形反光 (增加质感) -->
+  <path d="M60 60 A60 60 0 0 1 140 60" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" opacity="0.3" />
 </svg>

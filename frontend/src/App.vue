@@ -37,7 +37,8 @@ import {
   ContactPageOutlined as ActorLabIcon,
   PeopleAltOutlined as ActorIcon,
   SyncAltOutlined as WebhookIcon,
-  StorageOutlined as PostgresIcon
+  StorageOutlined as PostgresIcon,
+  CloseOutlined as CloseIcon
 } from '@vicons/material'
 
 // Views
@@ -59,6 +60,7 @@ import DockerManagerView from './views/toolkit/DockerManager.vue'
 import PostgresManagerView from './views/toolkit/PostgresManager.vue'
 
 import LogConsole from './components/LogConsole.vue'
+import AppLogo from './components/AppLogo.vue'
 import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
 
 // 自定义 Docker 图标组件
@@ -192,7 +194,7 @@ const themeOptions = [
           >
             <div class="logo-container">
               <n-space align="center" :size="10">
-                <n-icon size="24" :color="currentThemeType === 'purple' ? '#bb86fc' : '#705df2'"><LensIcon /></n-icon>
+                <app-logo :size="28" :theme="currentThemeType" />
                 <div v-if="!collapsed" class="logo-info">
                   <div class="logo-text">EmbyLens</div>
                   <div class="version-tag">v1.0.5</div>
@@ -236,12 +238,14 @@ const themeOptions = [
 
         <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
           <n-card
-            style="width: 96vw; height: 96vh; display: flex; flex-direction: column;"
+            style="width: 96vw; height: 96vh;"
             content-style="padding: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden;"
             :bordered="false"
             size="small"
           >
-            <LogConsole />
+            <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+              <LogConsole @close="isLogConsoleOpen = false" />
+            </div>
           </n-card>
         </n-modal>
 

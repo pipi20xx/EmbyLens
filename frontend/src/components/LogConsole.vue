@@ -19,6 +19,8 @@ const props = defineProps({
   // 组件放置在 NModal 里
 })
 
+const emit = defineEmits(['close'])
+
 // ... logic ...
 
 const openFullLog = () => {
@@ -193,6 +195,10 @@ onUnmounted(() => {
         <n-button size="tiny" @click="clearConsole" secondary>
           <template #icon><n-icon><ClearIcon /></n-icon></template>
           清空
+        </n-button>
+        <n-button size="tiny" @click="emit('close')" type="error" ghost>
+          <template #icon><n-icon><CloseIcon /></n-icon></template>
+          关闭
         </n-button>
       </n-space>
     </div>

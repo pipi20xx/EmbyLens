@@ -117,19 +117,52 @@ class DockerService:
                 attrs = container.attrs
                 image_tag = attrs['Config']['Image']
                 name = attrs['Name'].lstrip('/')
-                self.client.images.pull(image_tag)
-                container.stop()
-                container.remove()
+                
+                # 先拉取新镜像，减少停机时间
+                try:
+                    self.client.images.pull(image_tag)
+                except Exception as e:
+                    logger.warning(f"Failed to pull image {image_tag}, using local: {e}")
+
+                # 提取完整配置
+                config = attrs.get('Config', {})
+                host_config = attrs.get('HostConfig', {})
+                
+                # 转换端口映射格式 (docker-py run 需要格式: { 'container_port/proto': 'host_port' })
+                port_bindings = host_config.get('PortBindings') or {}
+                ports = {}
+                if port_bindings:
+                    for container_port, host_ports in port_bindings.items():
+                        if host_ports:
+                            ports[container_port] = host_ports[0].get('HostPort')
+
                 create_kwargs = {
                     "image": image_tag,
                     "name": name,
                     "detach": True,
-                    "environment": attrs['Config'].get('Env', []),
-                    "volumes": attrs.get('HostConfig', {}).get('Binds', []),
-                    "ports": {k: v[0]['HostPort'] if v else None for k, v in attrs.get('HostConfig', {}).get('PortBindings', {}).items()},
-                    "restart_policy": attrs.get('HostConfig', {}).get('RestartPolicy', {}),
-                    "network_mode": attrs.get('HostConfig', {}).get('NetworkMode', 'bridge')
+                    "environment": config.get('Env', []),
+                    "volumes": host_config.get('Binds', []),
+                    "ports": ports,
+                    "restart_policy": host_config.get('RestartPolicy', {}),
+                    "network_mode": host_config.get('NetworkMode', 'bridge'),
+                    "command": config.get('Cmd'),
+                    "entrypoint": config.get('Entrypoint'),
+                    "working_dir": config.get('WorkingDir'),
+                    "user": config.get('User'),
+                    "hostname": config.get('Hostname'),
+                    "mac_address": config.get('MacAddress'),
+                    "labels": config.get('Labels')
                 }
+                
+                # 特殊处理：如果原容器有特权，新容器也要有
+                if host_config.get('Privileged'):
+                    create_kwargs["privileged"] = True
+
+                # 停止并删除
+                container.stop()
+                container.remove()
+                
+                # 创建并启动新容器
                 self.client.containers.run(**create_kwargs)
             return True
         except Exception as e:

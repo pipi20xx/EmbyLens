@@ -118,6 +118,15 @@ async def websocket_endpoint(websocket: WebSocket):
 # 包含 API 路由
 app.include_router(api_router, prefix="/api")
 
+# --- 快捷图标路由 (解决第三方工具抓取失败问题) ---
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon():
+    icon_path = os.path.join("./static", "favicon.svg")
+    if os.path.exists(icon_path):
+        return FileResponse(icon_path, media_type="image/svg+xml")
+    return None
+
 # 托管静态文件 (前端)
 if os.path.exists("./static"):
     # 静态资源目录 (JS, CSS, Images)
