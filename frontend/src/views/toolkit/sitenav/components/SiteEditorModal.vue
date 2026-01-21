@@ -2,9 +2,13 @@
 import { ref } from 'vue'
 import { 
   NModal, NForm, NFormItem, NInput, NInputNumber, 
-  NSelect, NButton, NSpace, NInputGroup, NIcon, NAvatar
+  NSelect, NButton, NSpace, NInputGroup, NIcon, NAvatar, NUpload, useMessage
 } from 'naive-ui'
-import { AutoFixHighOutlined as MagicIcon, LanguageOutlined as WebIcon } from '@vicons/material'
+import { 
+  AutoFixHighOutlined as MagicIcon, 
+  LanguageOutlined as WebIcon,
+  FileUploadOutlined as UploadIcon
+} from '@vicons/material'
 import { SiteNav, Category } from '../useSiteNav'
 
 const props = defineProps<{
@@ -15,6 +19,19 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:show', 'save', 'fetchIcon'])
+const message = useMessage()
+
+const handleUploadFinish = ({ event }: { event: any }) => {
+  try {
+    const res = JSON.parse(event.target.response)
+    if (res.icon && props.editingSite) {
+      props.editingSite.icon = res.icon
+      message.success('图标上传成功')
+    }
+  } catch (e) {
+    message.error('解析上传结果失败')
+  }
+}
 
 const isEmoji = (str: string) => {
   if (!str) return false
@@ -45,7 +62,24 @@ const isEmoji = (str: string) => {
 
       <n-form-item label="图标地址">
         <n-space vertical style="width: 100%">
-          <n-input v-model:value="editingSite.icon" placeholder="URL 或 Emoji" />
+          <n-input-group>
+            <n-input v-model:value="editingSite.icon" placeholder="URL 或 Emoji" />
+            <n-button type="primary" secondary :loading="fetchingIcon" @click="emit('fetchIcon')">
+              <template #icon><n-icon><MagicIcon /></n-icon></template>
+            </n-button>
+          </n-input-group>
+          
+          <n-upload
+            action="/api/navigation/upload-icon"
+            :show-file-list="false"
+            @finish="handleUploadFinish"
+          >
+            <n-button block type="info" secondary dashed size="small">
+              <template #icon><n-icon><UploadIcon /></n-icon></template>
+              上传本地图标 (PNG/JPG/SVG/ICO)
+            </n-button>
+          </n-upload>
+
           <div class="mini-preview">
             <template v-if="editingSite.icon">
               <div v-if="isEmoji(editingSite.icon)" class="preview-emoji">{{ editingSite.icon }}</div>

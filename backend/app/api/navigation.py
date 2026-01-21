@@ -43,7 +43,7 @@ async def upload_background(file: UploadFile = File(...)):
     if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
         raise HTTPException(status_code=400, detail="只支持图片格式")
     
-    # 清理旧背景 (可选，保持目录整洁)
+    # 清理旧背景
     if os.path.exists(BG_DIR):
         for old_file in os.listdir(BG_DIR):
             try: os.remove(os.path.join(BG_DIR, old_file))
@@ -58,6 +58,20 @@ async def upload_background(file: UploadFile = File(...)):
     url = f"/nav_backgrounds/{filename}"
     nav_service.update_settings({"background_url": url})
     return {"url": url}
+
+@router.post("/upload-icon")
+async def upload_icon(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.ico']:
+        raise HTTPException(status_code=400, detail="不支持的图片格式")
+    
+    filename = f"custom_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(ICON_DIR, filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(await file.read())
+    
+    return {"icon": f"/nav_icons/{filename}"}
 
 # ==========================================
 # 辅助工具函数
@@ -111,7 +125,7 @@ async def update_category(cat_id: int, category: CategoryCreate):
 @router.delete("/categories/{cat_id}")
 async def delete_category(cat_id: int):
     nav_service.delete_category(cat_id)
-    nav_service.cleanup_orphaned_icons() # 分类删除可能导致站点变为未分类，触发清理
+    nav_service.cleanup_orphaned_icons() 
     return {"message": "Deleted"}
 
 @router.post("/categories/reorder")
@@ -134,13 +148,13 @@ async def create_site(site: SiteNavCreate):
 @router.put("/{site_id}")
 async def update_site(site_id: int, site: SiteNavUpdate):
     nav_service.update_site(site_id, site.dict(exclude_unset=True))
-    nav_service.cleanup_orphaned_icons() # 更新图标后清理旧文件
+    nav_service.cleanup_orphaned_icons() 
     return {"message": "Updated"}
 
 @router.delete("/{site_id}")
 async def delete_site(site_id: int):
     nav_service.delete_site(site_id)
-    nav_service.cleanup_orphaned_icons() # 删除站点后清理图标
+    nav_service.cleanup_orphaned_icons() 
     return {"message": "Deleted"}
 
 @router.post("/reorder")
@@ -204,7 +218,7 @@ async def import_navigation(file: UploadFile = File(...)):
             # 2. 覆盖配置
             shutil.copy2(os.path.join(temp_dir, "navigation.json"), nav_service.NAV_FILE)
             
-        nav_service.cleanup_orphaned_icons() # 导入后执行全量清理
+        nav_service.cleanup_orphaned_icons() 
         return {"message": "全量恢复成功"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -235,8 +249,8 @@ async def fetch_icon(url: str = Query(...)):
                 links = re.findall(r'<link\s+[^>]*>', html, re.I)
                 potential_icons = []
                 for link in links:
-                    if re.search(r'rel=[\"\"](.*?icon.*?)[\"\"]', link, re.I):
-                        href_match = re.search(r'href=[\"\"](.*?)[\"\"]', link, re.I)
+                    if re.search(r'rel=[\""](.*?icon.*?)[\""]', link, re.I):
+                        href_match = re.search(r'href=[\""](.*?)[\""]', link, re.I)
                         if href_match: potential_icons.append(href_match.group(1))
                 
                 if potential_icons:
@@ -249,7 +263,7 @@ async def fetch_icon(url: str = Query(...)):
                     remote_icon_url = urljoin(url, best)
                 else:
                     # 搜寻 img logo
-                    img_match = re.search(r'<img[^>]*src=[\"\"]([^\"\"]*(?:logo|icon)[^\"\"]*)[\"\"]', html, re.I)
+                    img_match = re.search(r'<img[^>]*src=[\""]([^\""]*(?:logo|icon)[^\""]*)[\""]', html, re.I)
                     if img_match: remote_icon_url = urljoin(url, img_match.group(1))
 
         # 兜底 favicon.ico
