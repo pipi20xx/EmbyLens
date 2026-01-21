@@ -44,6 +44,9 @@ async def audit_middleware(request: Request, call_next):
         "/api/system/logs", 
         "/api/stats/summary", 
         "/api/status",
+        "/api/auth/status",
+        "/api/system/config",
+        "/api/system/version", # 新增排除
         "/api/system/audit/logs",
         "/api/docker",
         "/api/pgsql",

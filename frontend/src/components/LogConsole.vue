@@ -65,7 +65,7 @@ const fetchHistoryLog = async (date: string) => {
   try {
     const res = await axios.get(`/api/system/logs/content/${date}`)
     const lines = res.data.content.split('\n').filter((l: string) => l.trim())
-    // 历史日志也按倒序排（最新在上）
+    // 历史日志按倒序排（最新在上）
     lines.reverse()
     consoleLogs.value = lines.map((line: string, index: number) => ({
       id: index,

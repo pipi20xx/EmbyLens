@@ -95,6 +95,30 @@
               </n-grid>
             </n-card>
 
+            <n-card title="系统安全与控制" segmented size="small">
+              <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
+                <n-gi v-for="tool in systemTools" :key="tool.key">
+                  <n-card 
+                    embedded 
+                    size="small" 
+                    hoverable 
+                    class="tool-card"
+                    @click="navigateTo(tool.key)"
+                  >
+                    <n-space align="center">
+                      <n-icon size="24" color="var(--primary-color)">
+                        <component :is="tool.icon" />
+                      </n-icon>
+                      <div>
+                        <div style="font-weight: bold; font-size: 0.95rem">{{ tool.label }}</div>
+                        <n-text depth="3" style="font-size: 0.8rem">{{ tool.desc }}</n-text>
+                      </div>
+                    </n-space>
+                  </n-card>
+                </n-gi>
+              </n-grid>
+            </n-card>
+
             <n-card title="其他工具快捷入口" segmented size="small">
               <n-grid :x-gap="8" :y-gap="8" :cols="2" item-responsive>
                 <n-gi v-for="tool in otherTools" :key="tool.key">
@@ -241,7 +265,9 @@ import {
   SyncAltRound as WebhookIcon,
   StorageRound as PostgresIcon,
   CameraRound as LensIcon,
-  DnsRound as DockerIcon
+  DnsRound as DockerIcon,
+  AdminPanelSettingsRound as SecurityIcon,
+  PersonOutlineRound as ProfileIcon
 } from '@vicons/material'
 import { currentViewKey } from '../store/navigationStore'
 
@@ -334,6 +360,21 @@ const metadataTools = [
     key: 'ActorLabView', 
     icon: markRaw(ActorLabIcon), 
     desc: '演员资料深度抓取与探针' 
+  }
+]
+
+const systemTools = [
+  { 
+    label: '账号安全管理', 
+    key: 'AccountManagerView', 
+    icon: markRaw(ProfileIcon), 
+    desc: '管理登录验证、密码及 2FA' 
+  },
+  { 
+    label: '外部控制体系', 
+    key: 'ExternalControlView', 
+    icon: markRaw(SecurityIcon), 
+    desc: '管理 API Token 与审计日志' 
   }
 ]
 
