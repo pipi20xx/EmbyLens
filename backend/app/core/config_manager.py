@@ -39,7 +39,8 @@ DEFAULT_CONFIG = {
     },
     "docker_hosts": [],
     "docker_container_settings": {},
-    "pgsql_hosts": []
+    "pgsql_hosts": [],
+    "backup_tasks": []
 }
 
 def get_config() -> Dict[str, Any]:

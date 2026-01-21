@@ -75,7 +75,7 @@ const handleThemeSelect = (val: string) => {
         <app-logo :size="28" :theme="themeType" />
         <div v-if="!collapsed" class="logo-info">
           <div class="logo-text">EmbyLens</div>
-          <div class="version-tag">v2.0.0</div>
+          <div class="version-tag">v2.0.1</div>
         </div>
       </n-space>
     </div>

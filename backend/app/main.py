@@ -23,7 +23,7 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 app = FastAPI(
     title="EmbyLens API",
     description="EmbyLens Management Toolkit API",
-    version="2.0.0",
+    version="2.0.1",
     docs_url=None,   # 禁用原生 /docs
     redoc_url=None   # 禁用原生 /redoc
 )
@@ -81,6 +81,10 @@ async def startup_event():
     # 自动创建数据库表
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # 启动备份任务调度器
+    from app.services.backup_service import BackupService
+    asyncio.create_task(BackupService.start_scheduler())
     
     # 初始化默认管理员
     from app.db.session import AsyncSessionLocal

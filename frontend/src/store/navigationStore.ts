@@ -35,6 +35,7 @@ const defaultSettings: MenuSetting[] = [
   { key: 'AutoTagsView', visible: true },
   { key: 'DockerManagerView', visible: true },
   { key: 'PostgresManagerView', visible: true },
+  { key: 'BackupManagerView', visible: true },
   { key: 'SiteNavView', visible: true },
   { key: 'ExternalControlView', visible: true },
   { key: 'AccountManagerView', visible: true }

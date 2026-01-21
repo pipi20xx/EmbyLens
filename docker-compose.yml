@@ -10,6 +10,7 @@ services:
       - "6565:6565"
     volumes:
       - ./data:/app/data
+      - /vol1/1000/NVME:/vol1/1000/NVME
     user: root
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db

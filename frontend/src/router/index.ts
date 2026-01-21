@@ -77,6 +77,11 @@ const router = createRouter({
       component: () => import('../views/toolkit/PostgresManager.vue'),
     },
     {
+      path: '/toolkit/backup-manager',
+      name: 'BackupManager',
+      component: () => import('../views/toolkit/BackupManager.vue'),
+    },
+    {
       path: '/toolkit/site-nav',
       name: 'SiteNav',
       component: () => import('../views/toolkit/sitenav/SiteManager.vue'),

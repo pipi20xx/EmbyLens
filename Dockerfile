@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     docker.io \
     docker-compose \
     postgresql-client \
+    p7zip-full \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
