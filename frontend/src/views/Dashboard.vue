@@ -127,22 +127,30 @@
             <n-list size="small">
               <n-list-item>
                 <n-space justify="space-between">
-                  <n-text depth="3">前端版本</n-text>
+                  <n-text depth="3">当前版本</n-text>
                   <n-space :size="4" align="center">
                     <n-tag size="small" type="primary" quaternary>{{ versionInfo.current }}</n-tag>
-                    <n-tooltip v-if="versionInfo.has_update" trigger="hover">
-                      <template #trigger>
-                        <n-badge dot type="error" />
-                      </template>
-                      发现新版本: {{ versionInfo.latest }}
-                    </n-tooltip>
+                    <n-tag v-if="!versionInfo.has_update" size="small" type="success" quaternary>最新</n-tag>
+                    <n-tag v-else size="small" type="error" quaternary>有更新</n-tag>
                   </n-space>
                 </n-space>
               </n-list-item>
-              <n-list-item v-if="versionInfo.has_update">
+              <n-list-item>
                 <n-space justify="space-between" align="center">
-                  <n-text depth="3">最新版本</n-text>
-                  <n-text style="font-size: 12px" type="error">{{ versionInfo.latest }}</n-text>
+                  <n-text depth="3">远端镜像 (DockerHub)</n-text>
+                  <n-space :size="8" align="center">
+                    <n-text style="font-size: 13px; font-family: monospace">{{ versionInfo.latest }}</n-text>
+                    <n-button 
+                      v-if="versionInfo.docker_hub"
+                      text 
+                      tag="a" 
+                      :href="versionInfo.docker_hub" 
+                      target="_blank" 
+                      type="primary"
+                    >
+                      <n-icon size="16"><DockerIcon /></n-icon>
+                    </n-button>
+                  </n-space>
                 </n-space>
               </n-list-item>
               <n-list-item>
@@ -155,7 +163,7 @@
               </n-list-item>
               <n-list-item>
                 <n-space justify="space-between">
-                  <n-text depth="3">项目链接</n-text>
+                  <n-text depth="3">项目源码</n-text>
                   <n-button 
                     text 
                     tag="a" 
@@ -164,20 +172,20 @@
                     type="primary"
                     style="font-size: 13px"
                   >
-                    GitHub 源码仓库
+                    GitHub 仓库
                   </n-button>
                 </n-space>
               </n-list-item>
               <n-list-item>
                 <n-space justify="space-between">
-                  <n-text depth="3">当前环境</n-text>
+                  <n-text depth="3">运行环境</n-text>
                   <n-tag size="small" type="info" quaternary>Production</n-tag>
                 </n-space>
               </n-list-item>
             </n-list>
             <template #footer>
               <n-button block size="small" tertiary type="primary" @click="navigateTo('SettingsView')">
-                配置中心
+                进入配置中心
               </n-button>
             </template>
           </n-card>
@@ -245,9 +253,10 @@ const stats = ref({
 })
 
 const versionInfo = ref({
-  current: 'v1.0.8',
-  latest: 'v1.0.8',
-  has_update: false
+  current: 'v1.0.9',
+  latest: 'v1.0.9',
+  has_update: false,
+  docker_hub: ''
 })
 
 const embyTools = [

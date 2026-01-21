@@ -69,25 +69,60 @@
             </template>
             <n-form label-placement="top" size="medium">
               <n-grid :cols="2" :x-gap="24" item-responsive responsive="screen">
-                <n-form-item-gi span="2 m:1" label="启用代理">
+                <n-form-item-gi span="2 m:1">
+                  <template #label>
+                    <n-space align="center" :size="4">
+                      <span>启用代理</span>
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-icon size="16" depth="3" style="cursor: help"><info-outlined /></n-icon>
+                        </template>
+                        开启后，后端发起的外部网络请求将通过代理转发。
+                      </n-tooltip>
+                    </n-space>
+                  </template>
                   <n-switch v-model:value="serverForm.proxy.enabled">
                     <template #checked>已开启代理</template>
                     <template #unchecked>已关闭代理</template>
                   </n-switch>
                 </n-form-item-gi>
-                <n-form-item-gi span="2 m:1" label="排除 Emby 服务器">
+                <n-form-item-gi span="2 m:1">
+                  <template #label>
+                    <n-space align="center" :size="4">
+                      <span>排除 Emby 服务器</span>
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-icon size="16" depth="3" style="cursor: help"><info-outlined /></n-icon>
+                        </template>
+                        建议开启。开启后访问本地 Emby 将不经过代理，避免大流量传输导致速度变慢或代理流量浪费。
+                      </n-tooltip>
+                    </n-space>
+                  </template>
                   <n-switch v-model:value="serverForm.proxy.exclude_emby">
-                    <template #checked>Emby 直连 (不走代理)</template>
-                    <template #unchecked>Emby 强制走代理</template>
+                    <template #checked>本地直连 (推荐)</template>
+                    <template #unchecked>强制走代理</template>
                   </n-switch>
                 </n-form-item-gi>
-                <n-form-item-gi span="2" label="代理服务器地址">
+                <n-form-item-gi span="2" label="代理服务器地址 (Proxy URL)">
                   <n-input v-model:value="serverForm.proxy.url" placeholder="例如: http://127.0.0.1:7890" :disabled="!serverForm.proxy.enabled" />
+                  <template #feedback>
+                    支持 HTTP、SOCKS5 协议，例如：http://user:pass@1.2.3.4:7890
+                  </template>
                 </n-form-item-gi>
               </n-grid>
             </n-form>
-            <n-alert type="warning" size="small" style="margin-top: 12px">
-              开启代理后，所有第三方服务 (如 TMDB) 的请求都将通过指定的代理服务器转发。
+            
+            <n-blockquote style="margin-top: 12px; font-size: 13px">
+              <n-text depth="3">
+                <strong>代理生效范围：</strong><br/>
+                1. <strong>TMDB / Bangumi：</strong> 所有元数据搜索、信息抓取和海报同步。<br/>
+                2. <strong>演员实验室：</strong> 外部头像获取和第三方信息检索。<br/>
+                3. <strong>系统更新：</strong> 检查新版本和下载外部配置文件。
+              </n-text>
+            </n-blockquote>
+
+            <n-alert type="info" size="small" style="margin-top: 12px">
+              提示：如果您的服务器位于网络受限环境，配置正确的代理是保证元数据识别成功率的关键。
             </n-alert>
           </n-card>
 
@@ -125,12 +160,13 @@ import {
   useMessage, NScrollbar, NSpace, NH2, NText, NCard, NTag, NIcon, 
   NForm, NGrid, NFormItemGi, NInput, NInputNumber, 
   NSelect, NThing, NSwitch, NDivider, NRadioGroup, NRadio, NCode, NAlert,
-  NButton, NFormItem
+  NButton, NFormItem, NTooltip, NBlockquote
 } from 'naive-ui'
 import { 
   DnsOutlined as ServerIcon,
   ApiOutlined as ApiIcon,
-  LanguageOutlined as ProxyIcon
+  LanguageOutlined as ProxyIcon,
+  InfoOutlined
 } from '@vicons/material'
 import axios from 'axios'
 
