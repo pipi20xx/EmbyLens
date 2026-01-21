@@ -20,14 +20,16 @@ async def test_connection(config: Dict[str, Any]):
 
 @router.post("/save")
 async def save_server_config(config: Dict[str, Any]):
-    """保存配置到 config.json"""
-    # 保持 session_token 不被覆盖（如果前端没传的话）
+    """保存配置到 config.json (执行合并操作，防止数据丢失)"""
     current = get_config()
-    if "session_token" not in config and "session_token" in current:
-        config["session_token"] = current["session_token"]
     
-    save_config(config)
-    return config
+    # 核心字段合并逻辑：只更新提交上来的字段
+    # 这确保了 Docker 主机、PGSQL 主机、自动标签规则等不在设置页面维护的数据不会被冲掉
+    for key, value in config.items():
+        current[key] = value
+    
+    save_config(current)
+    return current
 
 @router.get("/current")
 async def get_current_config():
