@@ -78,9 +78,9 @@ async def audit_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup_event():
-    # 自动创建数据库表
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # 自动创建数据库表并执行自愈修复
+    from app.utils.db_repair import init_db_with_repair
+    await init_db_with_repair(engine)
     
     # 启动备份任务调度器
     from app.services.backup_service import BackupService

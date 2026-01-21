@@ -7,7 +7,14 @@
         </n-form-item-gi>
         
         <n-form-item-gi label="备份模式">
-          <n-select v-model:value="task.mode" :options="modeOptions" />
+          <n-space vertical :size="4" style="width: 100%">
+            <n-select v-model:value="task.mode" :options="modeOptions" />
+            <n-text depth="3" style="font-size: 12px; line-height: 1.4">
+              <span v-if="task.mode === '7z'">🗜️ <b>7z 压缩</b>：最高压缩比，支持密码加密和文件名加密。适合节省空间的长期存档。</span>
+              <span v-if="task.mode === 'tar'">📦 <b>Tar 打包</b>：Linux 原生打包格式，速度快，完美保持文件权限。适合快速迁移。</span>
+              <span v-if="task.mode === 'sync'">🔄 <b>Sync 同步</b>：直接同步原始文件（不打包），无需解压即可直接查看，支持增量更新。</span>
+            </n-text>
+          </n-space>
         </n-form-item-gi>
         
         <n-form-item-gi label="存储介质">
@@ -117,10 +124,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { 
   NModal, NForm, NFormItemGi, NInput, NSelect, NInputGroup, NButton, NSlider, 
-  NText, NDynamicInput, NSpace, NGrid, NDivider, NSwitch, NTimePicker, NInputNumber 
+  NText, NDynamicInput, NSpace, NGrid, NDivider, NSwitch, NTimePicker, NInputNumber, NTag 
 } from 'naive-ui'
 
 const props = defineProps<{
@@ -165,16 +172,20 @@ const presetPatterns = [
 ]
 
 const handleTogglePattern = (pattern: string, checked: boolean) => {
+  // 使用解构赋值确保触发响应式更新
+  const patterns = [...props.task.ignore_patterns]
   if (checked) {
-    if (!props.task.ignore_patterns.includes(pattern)) {
-      props.task.ignore_patterns.push(pattern)
+    if (!patterns.includes(pattern)) {
+      patterns.push(pattern)
     }
   } else {
-    const index = props.task.ignore_patterns.indexOf(pattern)
+    const index = patterns.indexOf(pattern)
     if (index > -1) {
-      props.task.ignore_patterns.splice(index, 1)
+      patterns.splice(index, 1)
     }
   }
+  // 回写给 props 的 task 对象
+  props.task.ignore_patterns = patterns
 }
 
 // 监听任务数据变化，反向初始化简单模式
@@ -182,10 +193,9 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     if (props.task.schedule_type === 'cron') {
       const cron = props.task.schedule_value || ''
-      // 尝试匹配每天执行的 cron: "0 3 * * *"
       const dailyMatch = cron.match(/^(\d+)\s+(\d+)\s+\*\s+\*\s+\*$/)
       if (dailyMatch) {
-        simpleScheduleMode.ref = 'daily'
+        simpleScheduleMode.value = 'daily'
         const m = dailyMatch[1].padStart(2, '0')
         const h = dailyMatch[2].padStart(2, '0')
         dailyTime.value = `${h}:${m}`
@@ -210,7 +220,6 @@ watch(() => props.show, (newVal) => {
 })
 
 const handleSave = () => {
-  // 根据简单模式构造最终的 schedule_type 和 schedule_value
   if (simpleScheduleMode.value === 'daily') {
     const [h, m] = dailyTime.value.split(':').map(x => parseInt(x))
     props.task.schedule_type = 'cron'
@@ -218,10 +227,7 @@ const handleSave = () => {
   } else if (simpleScheduleMode.value === 'interval') {
     props.task.schedule_type = 'interval'
     props.task.schedule_value = String(intervalValue.value * intervalUnit.value)
-  } else {
-    props.task.schedule_type = 'cron'
   }
-  
   emit('save')
 }
 </script>

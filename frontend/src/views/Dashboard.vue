@@ -264,6 +264,7 @@ import {
   PeopleAltRound as ActorIcon,
   SyncAltRound as WebhookIcon,
   StorageRound as PostgresIcon,
+  BackupTableRound as BackupIcon,
   CameraRound as LensIcon,
   DnsRound as DockerIcon,
   AdminPanelSettingsRound as SecurityIcon,
@@ -279,8 +280,8 @@ const stats = ref({
 })
 
 const versionInfo = ref({
-  current: 'v2.0.0',
-  latest: 'v2.0.0',
+  current: 'v2.0.1',
+  latest: 'v2.0.1',
   has_update: false,
   docker_hub: ''
 })
@@ -390,6 +391,12 @@ const otherTools = [
     key: 'PostgresManagerView', 
     icon: markRaw(PostgresIcon), 
     desc: '数据库实例、备份与还原管理' 
+  },
+  { 
+    label: '数据备份管理', 
+    key: 'BackupManagerView', 
+    icon: markRaw(BackupIcon), 
+    desc: '多模式、跨介质的数据备份方案' 
   },
   { 
     label: '站点导航页', 

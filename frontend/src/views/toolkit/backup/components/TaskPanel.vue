@@ -28,6 +28,30 @@ const dialog = useDialog()
 const tasks = ref([])
 const loading = ref(false)
 
+const formatSchedule = (row: any) => {
+  if (!row.enabled) return '-'
+  
+  if (row.schedule_type === 'interval') {
+    const min = parseInt(row.schedule_value)
+    if (min % 1440 === 0) return `每隔 ${min / 1440} 天`
+    if (min % 60 === 0) return `每隔 ${min / 60} 小时`
+    return `每隔 ${min} 分钟`
+  }
+  
+  if (row.schedule_type === 'cron') {
+    const cron = row.schedule_value || ''
+    // 匹配每天: "m h * * *"
+    const dailyMatch = cron.match(/^(\d+)\s+(\d+)\s+\*\s+\*\s+\*$/)
+    if (dailyMatch) {
+      const m = dailyMatch[1].padStart(2, '0')
+      const h = dailyMatch[2].padStart(2, '0')
+      return `每天 ${h}:${m}`
+    }
+    return cron // 复杂的 cron 保持原样
+  }
+  return row.schedule_value
+}
+
 const columns = [
   { title: '任务名称', key: 'name' },
   { 
@@ -56,7 +80,7 @@ const columns = [
           round: true
         }, { default: () => row.enabled ? '自动计划中' : '仅手动' }),
         h(NText, { depth: 3, style: 'font-size: 11px; padding-left: 4px;' }, { 
-          default: () => row.enabled ? row.schedule_value : '-' 
+          default: () => formatSchedule(row) 
         })
       ]
     })

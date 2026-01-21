@@ -29,7 +29,8 @@ const historyColumns = [
     key: 'status',
     render: (row) => {
       const type = row.status === 'success' ? 'success' : (row.status === 'running' ? 'info' : 'error')
-      return h(NTag, { type, size: 'small', bordered: false }, { default: () => row.status })
+      const labels = { success: '成功', running: '进行中', failed: '失败' }
+      return h(NTag, { type, size: 'small', bordered: false }, { default: () => labels[row.status] || row.status })
     }
   },
   { title: '大小', key: 'size', render: (row) => `${row.size.toFixed(2)} MB` },
