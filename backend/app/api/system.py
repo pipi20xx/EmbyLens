@@ -11,7 +11,7 @@ from datetime import datetime
 
 router = APIRouter()
 
-CURRENT_VERSION = "v1.0.8"
+CURRENT_VERSION = "v1.0.9"
 DOCKER_IMAGE = "pipi20xx/embylens"
 
 @router.get("/version")

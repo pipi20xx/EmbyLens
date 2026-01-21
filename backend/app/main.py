@@ -15,8 +15,8 @@ os.makedirs("/app/data/nav_icons", exist_ok=True)
 
 app = FastAPI(
     title="EmbyLens API",
-    description="Emby 媒体库管理与去重工具后端",
-    version="1.0.8"
+    description="EmbyLens Management Toolkit API",
+    version="1.0.9"
 )
 
 # 全局性能审计中间件

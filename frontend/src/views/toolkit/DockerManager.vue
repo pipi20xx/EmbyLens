@@ -56,6 +56,9 @@
               @request-pick-path="handleRequestPickPath"
             />
           </n-tab-pane>
+          <n-tab-pane name="system" tab="环境检测">
+            <system-info-panel :host-id="selectedHostId" />
+          </n-tab-pane>
           <n-tab-pane name="maintenance" tab="配置">
             <maintenance-panel :host-id="selectedHostId" />
           </n-tab-pane>
@@ -85,6 +88,7 @@ import axios from 'axios'
 import ContainerPanel from './docker/components/ContainerPanel.vue'
 import ComposePanel from './docker/components/ComposePanel.vue'
 import MaintenancePanel from './docker/components/MaintenancePanel.vue'
+import SystemInfoPanel from './docker/components/SystemInfoPanel.vue'
 import HostManagerModal from './docker/components/HostManagerModal.vue'
 import FileBrowserModal from './docker/components/FileBrowserModal.vue'
 

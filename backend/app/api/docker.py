@@ -234,6 +234,78 @@ async def prune_cache(host_id: str):
     res = service.exec_command("docker builder prune -f")
     return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
 
+@router.get("/{host_id}/system-info")
+async def get_system_info(host_id: str):
+    """检测远程主机的 Docker 环境信息"""
+    service = get_docker_service(host_id)
+    
+    # 检测 Docker 版本
+    docker_ver = service.exec_command("docker version --format '{{.Server.Version}}' 2>/dev/null || docker -v")
+    # 检测 Docker Compose 版本
+    compose_ver = service.exec_command("docker compose version --short 2>/dev/null || docker-compose version --short 2>/dev/null || docker-compose -v")
+    # 检测 操作系统信息
+    os_info = service.exec_command("uname -snrmo")
+    # 检测 Docker 服务状态
+    service_status = service.exec_command("systemctl is-active docker 2>/dev/null || echo 'unknown'")
+
+    return {
+        "docker": docker_ver["stdout"].strip() if docker_ver["success"] else "未安装",
+        "compose": compose_ver["stdout"].strip() if compose_ver["success"] else "未安装",
+        "os": os_info["stdout"].strip() if os_info["success"] else "未知",
+        "status": service_status["stdout"].strip()
+    }
+
+@router.post("/{host_id}/install-env")
+async def install_docker_env(host_id: str, use_mirror: bool = Body(True, embed=True), proxy: Optional[str] = Body(None, embed=True)):
+    """一键安装 Docker 和 Docker Compose"""
+    service = get_docker_service(host_id)
+    
+    # 构造代理前缀
+    proxy_prefix = f"export http_proxy={proxy} && export https_proxy={proxy} && " if proxy else ""
+    
+    # 使用 Docker 官方安装脚本
+    mirror_cmd = " --mirror Aliyun" if use_mirror else ""
+    install_cmd = f"curl -fsSL https://get.docker.com | sh -s --{mirror_cmd}"
+    
+    setup_cmd = (
+        f"{proxy_prefix}"
+        f"{install_cmd} && "
+        "systemctl enable docker && systemctl start docker"
+    )
+    
+    logger.info(f"🛠️ [Docker] 开始在主机 {host_id} 上安装环境...")
+    res = service.exec_command(setup_cmd)
+    
+    if res["success"]:
+        logger.info(f"✨ [Docker] 主机 {host_id} 环境安装完成")
+    else:
+        logger.error(f"❌ [Docker] 主机 {host_id} 环境安装失败: {res['stderr']}")
+        
+    return {
+        "success": res["success"],
+        "stdout": res["stdout"],
+        "stderr": res["stderr"]
+    }
+
+@router.post("/{host_id}/service-action")
+async def docker_service_action(host_id: str, action: str = Body(..., embed=True)):
+    """控制 Docker 核心服务 (start, stop, restart)"""
+    service = get_docker_service(host_id)
+    
+    # 构造 systemctl 命令
+    if action not in ["start", "stop", "restart"]:
+        raise HTTPException(status_code=400, detail="Invalid action")
+        
+    cmd = f"systemctl {action} docker"
+    logger.info(f"⚙️ [Docker] 正在对主机 {host_id} 执行服务操作: {action}")
+    res = service.exec_command(cmd)
+    
+    return {
+        "success": res["success"],
+        "stdout": res["stdout"],
+        "stderr": res["stderr"]
+    }
+
 import json
 import os
 
