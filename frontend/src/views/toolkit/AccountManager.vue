@@ -12,10 +12,10 @@
             </n-text>
           </div>
 
-          <n-grid :cols="2" :x-gap="24">
+          <n-grid x-gap="24" y-gap="24" cols="1 s:1 m:2 l:2" responsive="screen">
             <!-- 0. 全局登录开关 (新增) -->
-            <n-gi :span="2">
-              <n-card title="系统访问安全" size="small" :bordered="false" style="margin-bottom: 24px;">
+            <n-gi span="1 s:1 m:2 l:2">
+              <n-card title="系统访问安全" size="small" :bordered="false">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <n-thing title="强制登录验证" description="开启后，访问系统必须先通过账号密码登录。关闭则直接进入仪表盘。" />
                   <n-switch v-model:value="authInfo.ui_auth_enabled" @update:value="toggleGlobalAuth" size="large">
@@ -28,7 +28,7 @@
 
             <!-- 1. 密码修改 -->
             <n-gi>
-              <n-card title="修改管理员密码" size="small" :bordered="false">
+              <n-card title="修改管理员密码" size="small" :bordered="false" style="height: 100%">
                 <n-form size="medium">
                   <n-form-item label="旧密码">
                     <n-input v-model:value="pwdForm.old_password" type="password" show-password-on="mousedown" placeholder="请输入当前密码" />
@@ -45,7 +45,7 @@
 
             <!-- 2. 2FA 设置 -->
             <n-gi>
-              <n-card title="双重验证 (2FA)" size="small" :bordered="false">
+              <n-card title="双重验证 (2FA)" size="small" :bordered="false" style="height: 100%">
                 <n-space vertical size="large">
                   <n-alert 
                     :type="authInfo.is_otp_enabled ? 'success' : 'warning'" 
@@ -187,10 +187,14 @@ onMounted(() => {
 <style scoped>
 .account-container {
   height: 100%;
-  padding: 24px;
+  padding: 16px;
+}
+@media (min-width: 768px) {
+  .account-container {
+    padding: 24px;
+  }
 }
 .account-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
 }
 </style>
