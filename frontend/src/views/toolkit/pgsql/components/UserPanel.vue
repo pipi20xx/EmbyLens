@@ -39,7 +39,7 @@
     </n-modal>
 
     <!-- 编辑模态框 -->
-    <n-modal v-model:show="showEditModal" preset="card" :title="`修改角色属性: ${editingUser?.username}`" style="width: 550px">
+    <n-modal v-model:show="showEditModal" preset="card" :title="`编辑数据库用户: ${editingUser?.username}`" style="width: 550px">
       <n-form label-placement="left" label-width="120">
         <n-form-item label="重置密码">
           <n-input v-model:value="editForm.password" type="password" placeholder="留空则不修改" />
@@ -130,7 +130,7 @@ const columns = [
     width: 150,
     render: (row: any) => h(NSpace, {}, {
       default: () => [
-        h(NButton, { size: 'small', secondary: true, type: 'info', onClick: () => openEditModal(row) }, { default: () => '属性' }),
+        h(NButton, { size: 'small', secondary: true, type: 'info', onClick: () => openEditModal(row) }, { default: () => '编辑' }),
         h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDrop(row.username) }, { default: () => '删除' })
       ]
     })

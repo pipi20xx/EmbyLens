@@ -61,6 +61,19 @@ async def add_host(host: PostgresConfig, name: str):
     save_config(config)
     return new_host
 
+@router.put("/hosts/{host_id}", response_model=PostgresHost)
+async def update_host(host_id: str, host: PostgresConfig, name: str):
+    config = get_config()
+    hosts = config.get("pgsql_hosts", [])
+    for i, h in enumerate(hosts):
+        if h["id"] == host_id:
+            updated_host = PostgresHost(**host.model_dump(), id=host_id, name=name)
+            hosts[i] = updated_host.model_dump()
+            config["pgsql_hosts"] = hosts
+            save_config(config)
+            return updated_host
+    raise HTTPException(status_code=404, detail="Host not found")
+
 @router.delete("/hosts/{host_id}")
 async def delete_host(host_id: str):
     config = get_config()

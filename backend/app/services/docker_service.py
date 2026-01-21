@@ -300,3 +300,30 @@ class DockerService:
             finally:
                 ssh.close()
         return False
+
+    def get_container_socket(self, container_id: str, command: str = "/bin/bash"):
+        """获取容器的交互式 Socket"""
+        if not self.client:
+            return None
+        
+        try:
+            # 使用 APIClient 以获得对底层 socket 的访问权限
+            api_client = self.client.api
+            exec_instance = api_client.exec_create(
+                container_id, 
+                cmd=command, 
+                stdin=True, 
+                stdout=True, 
+                stderr=True, 
+                tty=True
+            )
+            
+            # 返回 socket 供 WebSocket 使用
+            sock = api_client.exec_start(exec_instance['Id'], detach=False, tty=True, stream=True, socket=True)
+            return sock
+        except Exception as e:
+            logger.error(f"Failed to create exec socket: {e}")
+            if command == "/bin/bash":
+                # 尝试退回到 /bin/sh
+                return self.get_container_socket(container_id, "/bin/sh")
+            return None

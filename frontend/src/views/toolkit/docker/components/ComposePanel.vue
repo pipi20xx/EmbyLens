@@ -41,20 +41,21 @@
           </n-form-item>
         </template>
 
-        <n-form-item label="YAML 内容">
+        <n-form-item label="YAML 内容" :feedback="yamlError" :validation-status="yamlError ? 'error' : undefined">
           <n-input
             v-model:value="currentProject.content"
             type="textarea"
             placeholder="在此输入 docker-compose.yml 内容"
             :autosize="{ minRows: 12, maxRows: 20 }"
             style="font-family: monospace"
+            @input="handleYamlInput"
           />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
           <n-button @click="showComposeModal = false">取消</n-button>
-          <n-button type="primary" @click="saveProject">保存项目</n-button>
+          <n-button type="primary" @click="saveProject" :disabled="!!yamlError">保存项目</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -88,6 +89,7 @@ import {
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
+import yaml from 'js-yaml'
 
 const props = defineProps({
   hostId: { type: String, default: null },
@@ -109,6 +111,40 @@ const showCommandResult = ref(false)
 const commandResult = ref({ stdout: '', stderr: '' })
 const currentProject = ref({ name: '', content: '', path: '' })
 const isEditingProject = ref(false)
+const yamlError = ref<string | null>(null)
+
+const translateYamlError = (e: any) => {
+  const reason = e.reason || ''
+  const map: Record<string, string> = {
+    'can not read a block mapping entry; a multiline key may not be an implicit key': '无法读取块映射条目；可能是缩进错误或缺少冒号',
+    'bad indentation of a mapping entry': '映射条目缩进错误',
+    'duplicated mapping key': '存在重复的键名',
+    'end of the stream or a document separator is expected': '期望流结束或文档分隔符，请检查缩进',
+    'incomplete explicit mapping pair': '不完整的显式映射对',
+    'unknown tag': '未知的标签',
+    'missed comma between flow collection entries': '流集合条目之间缺少逗号',
+  }
+  
+  let msg = map[reason] || reason || 'YAML 格式错误'
+  if (e.mark) {
+    msg += ` (行 ${e.mark.line + 1}, 列 ${e.mark.column + 1})`
+  }
+  return msg
+}
+
+const handleYamlInput = (value: string) => {
+  if (!value) {
+    yamlError.value = null
+    return
+  }
+  
+  try {
+    yaml.load(value)
+    yamlError.value = null
+  } catch (e: any) {
+    yamlError.value = translateYamlError(e)
+  }
+}
 
 // 状态本地化
 const statusMap: Record<string, string> = {
@@ -292,8 +328,10 @@ const handleCreateProject = () => {
     path: '' 
   }
   isEditingProject.value = false
+  yamlError.value = null
   loadLastPath()
   showComposeModal.value = true 
+  handleYamlInput(currentProject.value.content)
 }
 
 const pickBasePath = () => {
@@ -306,7 +344,9 @@ const editProject = async (p: any) => {
   })
   currentProject.value = { ...res.data, path: p.config_file || p.path }
   isEditingProject.value = true
+  yamlError.value = null
   showComposeModal.value = true 
+  handleYamlInput(currentProject.value.content)
 }
 
 const saveProject = async () => { 

@@ -25,7 +25,7 @@
     </n-modal>
 
     <!-- 编辑模态框 -->
-    <n-modal v-model:show="showEditModal" preset="card" :title="`管理数据库: ${editingDb?.name}`" style="width: 500px">
+    <n-modal v-model:show="showEditModal" preset="card" :title="`编辑数据库: ${editingDb?.name}`" style="width: 500px">
       <n-form label-placement="left" label-width="100">
         <n-form-item label="所有者">
           <n-select v-model:value="editForm.owner" :options="userOptions" placeholder="选择新所有者" />
@@ -99,7 +99,7 @@ const columns = [
           secondary: true,
           type: 'info',
           onClick: () => openEditModal(row)
-        }, { default: () => '属性' }),
+        }, { default: () => '编辑' }),
         h(NButton, {
           size: 'small',
           type: 'error',

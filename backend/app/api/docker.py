@@ -21,6 +21,91 @@ class DockerHostConfig(BaseModel):
     base_url: Optional[str] = None
     compose_scan_paths: Optional[str] = "" # 新增：逗号分隔的扫描路径
 
+from fastapi import APIRouter, HTTPException, Depends, Body, WebSocket, WebSocketDisconnect
+from websockets.exceptions import ConnectionClosed
+from typing import List, Dict, Any, Optional
+import asyncio
+import select
+
+# ... (keep existing imports)
+
+@router.websocket("/{host_id}/containers/{container_id}/exec")
+async def container_exec(websocket: WebSocket, host_id: str, container_id: str, command: str = "/bin/bash"):
+    await websocket.accept()
+    
+    try:
+        service = get_docker_service(host_id)
+        # 获取 Docker 交互式 Socket
+        sock = service.get_container_socket(container_id, command)
+        if not sock:
+            await websocket.send_text("\r\n❌ 无法连接到容器终端 (可能不支持 " + command + ")\r\n")
+            await websocket.close()
+            return
+
+        # 设置非阻塞模式 (兼容标准 socket 和 paramiko Channel)
+        try:
+            if hasattr(sock, 'setblocking'):
+                sock.setblocking(False)
+            elif hasattr(sock, 'settimeout'):
+                sock.settimeout(0.0)
+        except:
+            pass
+
+        async def socket_to_ws():
+            try:
+                while True:
+                    await asyncio.sleep(0.02) # 稍微降低频率，防止 CPU 占用过高
+                    
+                    # 检查是否有数据可读
+                    has_data = False
+                    if hasattr(sock, 'recv_ready'): # Paramiko Channel
+                        has_data = sock.recv_ready()
+                    else: # Standard socket
+                        r, _, _ = select.select([sock], [], [], 0.01)
+                        has_data = bool(r)
+
+                    if has_data:
+                        data = sock.recv(4096)
+                        if not data:
+                            break
+                        await websocket.send_bytes(data)
+            except Exception as e:
+                logger.error(f"Socket to WS error: {e}")
+            finally:
+                try:
+                    await websocket.close()
+                except:
+                    pass
+
+        read_task = asyncio.create_task(socket_to_ws())
+
+        try:
+            while True:
+                # 接收前端输入
+                data = await websocket.receive_text()
+                # 写入 Docker Socket
+                if hasattr(sock, 'sendall'):
+                    sock.sendall(data.encode())
+                else:
+                    sock.send(data.encode())
+        except (WebSocketDisconnect, ConnectionClosed):
+            pass
+        except Exception as e:
+            logger.error(f"WS to Socket error: {e}")
+        finally:
+            read_task.cancel()
+            try:
+                sock.close()
+            except:
+                pass
+            
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
+
 @router.get("/hosts")
 async def get_hosts():
     config = get_config()

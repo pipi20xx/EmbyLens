@@ -2,15 +2,15 @@
   <n-modal :show="show" @update:show="$emit('update:show', $event)" preset="card" title="管理 PostgreSQL 主机" style="width: 650px">
     <n-space vertical size="large">
       <n-space justify="space-between">
-        <n-button type="primary" @click="showAdd = true">添加新主机</n-button>
+        <n-button type="primary" @click="handleAdd">添加新主机</n-button>
         <n-button @click="fetchHosts">刷新</n-button>
       </n-space>
       
       <n-data-table :columns="columns" :data="hosts" />
     </n-space>
 
-    <!-- 嵌套添加主机模态框 -->
-    <n-modal v-model:show="showAdd" preset="card" title="配置数据库主机" style="width: 500px">
+    <!-- 嵌套添加/编辑主机模态框 -->
+    <n-modal v-model:show="showAdd" preset="card" :title="editingHostId ? '编辑数据库主机' : '配置数据库主机'" style="width: 500px">
       <n-form :model="form" label-placement="left" label-width="100">
         <n-form-item label="显示名称">
           <n-input v-model:value="form.name" placeholder="例如: 生产环境库" />
@@ -41,7 +41,7 @@
         <n-space justify="end">
           <n-button @click="showAdd = false">取消</n-button>
           <n-button type="warning" @click="handleTest" :loading="testing">测试连接</n-button>
-          <n-button type="primary" @click="handleSave">保存主机</n-button>
+          <n-button type="primary" @click="handleSave">{{ editingHostId ? '保存修改' : '保存主机' }}</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -62,6 +62,7 @@ const dialog = useDialog()
 const hosts = ref<any[]>([])
 const showAdd = ref(false)
 const testing = ref(false)
+const editingHostId = ref<string | null>(null)
 
 const form = reactive({
   name: '',
@@ -72,6 +73,16 @@ const form = reactive({
   database: 'postgres'
 })
 
+const resetForm = () => {
+  form.name = ''
+  form.host = 'localhost'
+  form.port = 5432
+  form.username = 'postgres'
+  form.password = ''
+  form.database = 'postgres'
+  editingHostId.value = null
+}
+
 const columns = [
   { title: '名称', key: 'name' },
   { title: '地址', key: 'host', render: (row: any) => `${row.host}:${row.port}` },
@@ -79,9 +90,22 @@ const columns = [
     title: '操作', 
     key: 'actions', 
     render: (row: any) => h(
-      NButton, 
-      { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row.id) }, 
-      { default: () => '移除' }
+      NSpace,
+      {},
+      {
+        default: () => [
+          h(
+            NButton, 
+            { size: 'small', type: 'primary', ghost: true, onClick: () => handleEdit(row) }, 
+            { default: () => '编辑' }
+          ),
+          h(
+            NButton, 
+            { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row.id) }, 
+            { default: () => '移除' }
+          )
+        ]
+      }
     ) 
   }
 ]
@@ -89,6 +113,22 @@ const columns = [
 const fetchHosts = async () => {
   const res = await axios.get('/api/pgsql/hosts')
   hosts.value = res.data
+}
+
+const handleAdd = () => {
+  resetForm()
+  showAdd.value = true
+}
+
+const handleEdit = (row: any) => {
+  editingHostId.value = row.id
+  form.name = row.name
+  form.host = row.host
+  form.port = row.port
+  form.username = row.username
+  form.password = row.password
+  form.database = row.database
+  showAdd.value = true
 }
 
 const handleTest = async () => {
@@ -104,8 +144,13 @@ const handleTest = async () => {
 const handleSave = async () => {
   if (!form.name) return message.warning('请输入名称')
   try {
-    await axios.post('/api/pgsql/hosts', form, { params: { name: form.name } })
-    message.success('已添加')
+    if (editingHostId.value) {
+      await axios.put(`/api/pgsql/hosts/${editingHostId.value}`, form, { params: { name: form.name } })
+      message.success('已更新')
+    } else {
+      await axios.post('/api/pgsql/hosts', form, { params: { name: form.name } })
+      message.success('已添加')
+    }
     showAdd.value = false
     fetchHosts()
     emit('refresh')

@@ -25,22 +25,33 @@
         </n-space>
       </n-space>
     </n-modal>
+
+    <!-- 终端弹窗 -->
+    <terminal-modal
+      v-model:show="showTerminalModal"
+      :host-id="hostId || ''"
+      :container-id="currentContainer.id"
+      :container-name="currentContainer.name"
+      :command="currentContainer.shell"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, h } from 'vue'
-import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog } from 'naive-ui'
+import { ref, watch, h, reactive } from 'vue'
+import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton } from 'naive-ui'
 import { 
   EditOutlined as EditIcon,
   PlayCircleOutlined as StartIcon,
   StopCircleOutlined as StopIcon,
   RefreshOutlined as RecreateIcon,
   DeleteOutlined as DeleteIcon,
-  TerminalOutlined as LogIcon
+  TerminalOutlined as LogIcon,
+  CodeOutlined as TerminalIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
+import TerminalModal from './TerminalModal.vue'
 
 const props = defineProps<{
   hostId: string | null
@@ -56,6 +67,8 @@ const containerSettings = ref<Record<string, any>>({})
 const containerLogs = ref('')
 const showLogsModal = ref(false)
 const showCustomPortModal = ref(false)
+const showTerminalModal = ref(false)
+const currentContainer = ref({ id: '', name: '', shell: '/bin/bash' })
 const customPortForm = ref({ name: '', port: '' })
 
 // 状态本地化
@@ -113,6 +126,47 @@ const showLogs = async (id: string, name: string) => {
   showLogsModal.value = true
 }
 
+const openTerminal = (row: any) => {
+  if (row.status !== 'running') {
+    message.warning('只有运行中的容器可以进入终端')
+    return
+  }
+  
+  const selectedShell = ref('/bin/bash')
+  const shellOptions = [
+    { label: 'bash', value: '/bin/bash' },
+    { label: 'sh', value: '/bin/sh' },
+    { label: 'ash', value: '/bin/ash' }
+  ]
+
+  dialog.info({
+    title: '选择终端 Shell',
+    content: () => h('div', { style: 'margin-top: 10px' }, [
+      h(NRadioGroup, {
+        value: selectedShell.value,
+        'onUpdate:value': (val: string) => selectedShell.value = val,
+        name: 'shell-type'
+      }, {
+        default: () => shellOptions.map(opt => h(NRadioButton, {
+          key: opt.value,
+          value: opt.value,
+          label: opt.label
+        }))
+      })
+    ]),
+    positiveText: '进入终端',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      currentContainer.value = { 
+        id: row.full_id || row.id, 
+        name: row.name, 
+        shell: selectedShell.value 
+      }
+      showTerminalModal.value = true
+    }
+  })
+}
+
 const openCustomPortModal = (name: string) => {
   customPortForm.value = { name, port: containerSettings.value[name]?.custom_port || '' }
   showCustomPortModal.value = true
@@ -155,7 +209,7 @@ const columns: DataTableColumns<any> = [
     }
   },
   { title: '镜像', key: 'image', ellipsis: true },
-  { title: '操作', key: 'actions', width: 320, render(row) {
+  { title: '操作', key: 'actions', width: 380, render(row) {
       const isRunning = row.status === 'running'
       return h(NSpace, { size: 'small' }, {
         default: () => [
@@ -174,6 +228,10 @@ const columns: DataTableColumns<any> = [
           h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => showLogs(row.id, row.name) }, { 
             icon: () => h(NIcon, null, { default: () => h(LogIcon) }),
             default: () => '日志' 
+          }),
+          h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => openTerminal(row) }, { 
+            icon: () => h(NIcon, null, { default: () => h(TerminalIcon) }),
+            default: () => '终端' 
           })
         ]
       })

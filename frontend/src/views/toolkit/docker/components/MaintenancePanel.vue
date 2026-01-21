@@ -8,6 +8,10 @@
               <n-icon><warning-icon /></n-icon> 需要 Root 权限的 SSH 账户
             </n-text>
           </template>
+
+          <n-alert type="info" size="small" style="margin-bottom: 16px" :show-icon="true">
+            该配置将直接修改远程主机的 <n-text code>/etc/docker/daemon.json</n-text> 文件。保存前建议确保了解配置项的含义。
+          </n-alert>
           
           <n-form label-placement="top" :disabled="loading.daemon">
             <n-grid :cols="2" :x-gap="24">
@@ -155,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, h } from 'vue'
 import { NGrid, NGi, NCard, NSpace, NText, NCheckbox, NSwitch, NButton, NModal, NForm, NFormItem, NInput, NInputNumber, NAlert, NIcon, useMessage, useDialog, NTag } from 'naive-ui'
 import { WarningAmberOutlined as WarningIcon } from '@vicons/material'
 import axios from 'axios'
@@ -272,9 +276,12 @@ const handleSaveDaemonConfig = async () => {
 
   dialog.warning({
     title: '确认保存并应用',
-    content: daemonForm.value.shouldRestart 
-      ? '保存配置后将立即重启远程 Docker 服务，这会导致所有运行中的容器短暂中断。确定继续吗？' 
-      : '配置将保存并备份，但需要手动重启 Docker 服务后才能生效。',
+    content: () => h('div', null, [
+      h('p', null, daemonForm.value.shouldRestart 
+        ? '保存配置后将立即重启远程 Docker 服务，这会导致所有运行中的容器短暂中断。' 
+        : '配置将保存并备份，但需要手动重启 Docker 服务后才能生效。'),
+      h('p', { style: 'margin-top: 8px; color: #f0a020; font-weight: bold;' }, '注意：此操作将修改远程主机的 /etc/docker/daemon.json 文件。')
+    ]),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
