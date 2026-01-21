@@ -176,7 +176,6 @@ Lens 的每一项功能都以独立工具的形式存在，你可以通过侧边
         image: pipi20xx/lens:latest
         container_name: lens
         network_mode: bridge
-        user: root # 确保有权限操作 Docker Socket
         ports:
           - "6565:6565"
         volumes:

@@ -56,7 +56,7 @@ async def get_subject(subject_id: int):
     token = await get_bangumi_config()
     
     url = f"https://api.bgm.tv/v0/subjects/{subject_id}"
-    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/YourRepo/Lens)"}
+    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/pipi20xx/Lens)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -114,7 +114,7 @@ async def get_episodes(
     if type is not None:
         params["type"] = type
         
-    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/YourRepo/Lens)"}
+    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/pipi20xx/Lens)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
