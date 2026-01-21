@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -23,7 +23,7 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 app = FastAPI(
     title="Lens API",
     description="Lens Management Toolkit API",
-    version="2.0.2",
+    version="2.0.3",
     docs_url=None,   # 禁用原生 /docs
     redoc_url=None   # 禁用原生 /redoc
 )
@@ -193,7 +193,7 @@ if os.path.exists("./static"):
     async def serve_frontend(full_path: str):
         # 排除 API、图标和背景缓存路径
         if full_path.startswith("api") or full_path.startswith("nav_icons") or full_path.startswith("nav_backgrounds"):
-            return None
+            raise HTTPException(status_code=404)
         
         # 检查是否是具体的文件请求（比如 /vite.svg）
         file_path = os.path.join("./static", full_path)

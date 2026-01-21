@@ -41,7 +41,7 @@ async def search_tmdb(
             response = await client.get(url, params=params)
             if response.status_code != 200:
                 logger.error(f"❌ TMDB 搜索失败: {response.text}")
-                return {"error": "TMDB API 返回错误", "details": response.json()}
+                raise HTTPException(status_code=502, detail=f"TMDB API 返回错误: {response.text}")
             
             data = response.json()
             audit_log("TMDB 搜索完成", (time.time() - start_time) * 1000, [
@@ -88,7 +88,7 @@ async def fetch_tmdb_details(
             response = await client.get(base_url, params=params)
             if response.status_code != 200:
                 logger.error(f"❌ TMDB 抓取失败: {response.text}")
-                return {"error": "TMDB API 返回错误", "details": response.json()}
+                raise HTTPException(status_code=502, detail=f"TMDB API 返回错误: {response.text}")
             
             data = response.json()
 
