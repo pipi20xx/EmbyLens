@@ -4,56 +4,74 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import router as api_router
 from app.utils.logger import logger, log_queue, audit_log
-from app.db.session import engine, Base
-from app.models import * # 确保所有模型都被 Base 注册
+from sqlalchemy import select
+from app.db.session import engine, Base, get_db
+from app.models import * 
+from app.models.user import User
+from app.utils.auth import get_password_hash
+from app.utils.audit import add_audit_log, mask_sensitive_data
+from app.services.config_service import ConfigService
 import asyncio
 import os
 import time
+import json
 
 # 确保数据目录存在
 os.makedirs("/app/data/nav_icons", exist_ok=True)
+os.makedirs("/app/data/logs/audit", exist_ok=True)
 
 app = FastAPI(
     title="EmbyLens API",
     description="EmbyLens Management Toolkit API",
-    version="1.0.9"
+    version="2.0.0",
+    docs_url=None,   # 禁用原生 /docs
+    redoc_url=None   # 禁用原生 /redoc
 )
 
-# 全局性能审计中间件
+# 全局审计与性能监控中间件
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def audit_middleware(request: Request, call_next):
     start_time = time.time()
+    
+    # 注意：在中间件中 await request.body() 会导致下游处理器无法读取请求体从而挂起或报错。
+    # 为了保证乐高式模块的稳定性，我们在此暂时不捕获 POST Payload，仅记录元数据。
+    
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
     
-    # 排除高频且无意义的系统级审计，防止日志循环刷屏
+    # 排除审计路径
     exclude_paths = [
         "/api/system/logs", 
         "/api/stats/summary", 
         "/api/status",
-        "/api/bangumi_lab", # 屏蔽 Bangumi 实验室审计日志
-        "/api/docker", # 彻底排除所有 Docker 相关接口的审计日志
-        "/api/pgsql",  # 彻底排除所有 PostgreSQL 相关接口的审计日志
-        "/api/navigation" # 排除导航模块审计日志
+        "/api/system/audit/logs",
+        "/api/docker",
+        "/api/pgsql",
+        "/api/navigation",
+        "/ws/"
     ]
     
     should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)
 
     if should_audit:
+        # 记录到 JSON 审计日志
+        asyncio.create_task(add_audit_log(
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            client_ip=request.client.host if request.client else "unknown",
+            process_time=process_time,
+            query_params=str(request.query_params),
+            payload=None # 暂时置空以确保稳定性
+        ))
+        
+        # 记录到控制台性能审计
         audit_log(f"API {request.method} {request.url.path}", process_time, [
             f"Status: {response.status_code}",
             f"Client: {request.client.host if request.client else 'unknown'}"
         ])
+        
     return response
-
-# 配置 CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.on_event("startup")
 async def startup_event():
@@ -61,27 +79,42 @@ async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # 强制禁用 SSH 主机密钥检查，解决 Docker SSH 连接 known_hosts 问题
-    try:
-        ssh_config_dir = os.path.expanduser("~/.ssh")
-        os.makedirs(ssh_config_dir, exist_ok=True)
-        config_path = os.path.join(ssh_config_dir, "config")
-        with open(config_path, "w") as f:
-            f.write("Host *\n    StrictHostKeyChecking no\n    UserKnownHostsFile /dev/null\n")
-        os.chmod(config_path, 0o600)
-    except Exception as e:
-        logger.error(f"Failed to setup SSH config: {e}")
+    # 初始化默认管理员
+    from app.db.session import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(User).where(User.username == "admin"))
+        if not result.scalars().first():
+            admin_user = User(
+                username="admin",
+                hashed_password=get_password_hash("admin123"),
+                is_active=True
+            )
+            db.add(admin_user)
+            await db.commit()
+            logger.info("默认管理员账户已创建 (admin/admin123)")
+
+    # 初始化系统默认配置 (优先从 config.json 加载)
+    from app.core.config_manager import get_config
+    current_json_config = get_config()
     
-    # 启动自动标签 Webhook 消费 Worker
-    from app.api.autotags import webhook_worker
-    asyncio.create_task(webhook_worker())
-    
-    audit_log("系统启动", 120, [
-        "数据库表结构已初始化",
-        "持久化目录: /app/data",
-        "日志系统就绪",
-        "端口: 6565"
-    ])
+    default_configs = [
+        {"key": "ui_auth_enabled", "value": "true", "description": "是否开启前端页面登录校验"},
+        {"key": "audit_enabled", "value": "true", "description": "是否开启全局 API 审计日志"},
+        {"key": "api_token", "value": "", "description": "外部 API 调用 Token"}
+    ]
+    for cfg in default_configs:
+        # 强制同步核心配置项：如果 config.json 里有，以 config.json 为准覆盖数据库
+        if cfg["key"] in current_json_config and current_json_config[cfg["key"]]:
+            val = current_json_config[cfg["key"]]
+            await ConfigService.set(cfg["key"], val, cfg["description"])
+        else:
+            # 否则仅在数据库缺失时初始化
+            current_val = await ConfigService.get(cfg["key"])
+            if current_val is None:
+                await ConfigService.set(cfg["key"], cfg["value"], cfg["description"])
+
+    # 强制禁用 SSH 主机密钥检查
+
 
 @app.on_event("shutdown")
 async def shutdown_event():

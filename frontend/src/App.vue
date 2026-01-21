@@ -14,14 +14,29 @@ import {
 
 import SideBar from './components/SideBar.vue'
 import LogConsole from './components/LogConsole.vue'
-import { currentViewKey, isLogConsoleOpen } from './store/navigationStore'
+import LoginView from './views/Login.vue'
+import { currentViewKey, isLogConsoleOpen, isLoggedIn, uiAuthEnabled } from './store/navigationStore'
 import { useTheme } from './hooks/useTheme'
 import { viewMap } from './config/views'
+import axios from 'axios'
 
 // --- Theme System ---
 const { currentThemeType, themeOverrides, themeOptions } = useTheme()
 
-onMounted(() => {
+onMounted(async () => {
+  // --- 认证状态同步 ---
+  try {
+    const res = await axios.get('/api/auth/status')
+    // 兼容处理字符串和布尔值
+    const enabled = res.data.ui_auth_enabled === true || res.data.ui_auth_enabled === 'true'
+    uiAuthEnabled.value = enabled
+    if (!enabled) {
+      isLoggedIn.value = true
+    }
+  } catch (err) {
+    console.error('Failed to sync auth status', err)
+  }
+
   // --- 路径入口检测 ---
   // 如果访问路径是 /home，强制进入站点导航页，忽略记忆
   if (window.location.pathname === '/home') {
@@ -40,40 +55,44 @@ const currentView = computed(() => {
     <n-global-style />
     <n-dialog-provider>
       <n-message-provider>
-        <n-layout has-sider position="absolute">
-          <SideBar 
-            v-model:themeType="currentThemeType" 
-            :themeOptions="themeOptions" 
-          />
+        <template v-if="isLoggedIn">
+          <n-layout has-sider position="absolute">
+            <SideBar 
+              v-model:themeType="currentThemeType" 
+              :themeOptions="themeOptions" 
+            />
 
-          <n-layout-content :content-style="{
-            padding: 'var(--space-lg)',
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)',
-            transition: 'padding 0.3s ease'
-          }">
-            <div class="view-wrapper">
-              <transition name="fade" mode="out-in">
-                <component :is="currentView" :key="currentViewKey" />
-              </transition>
-            </div>
-          </n-layout-content>
-        </n-layout>
+            <n-layout-content :content-style="{
+              padding: 'var(--space-lg)',
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)',
+              transition: 'padding 0.3s ease'
+            }">
+              <div class="view-wrapper">
+                <transition name="fade" mode="out-in">
+                  <component :is="currentView" :key="currentViewKey" />
+                </transition>
+              </div>
+            </n-layout-content>
+          </n-layout>
 
-        <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
-          <n-card
-            style="width: 90vw; max-width: 1400px; height: 85vh;"
-            content-style="padding: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden;"
-            :bordered="false"
-            size="small"
-          >
-            <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
-              <LogConsole @close="isLogConsoleOpen = false" />
-            </div>
-          </n-card>
-        </n-modal>
+          <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
+            <n-card
+              style="width: 90vw; max-width: 1400px; height: 85vh;"
+              content-style="padding: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden;"
+              :bordered="false"
+              size="small"
+            >
+              <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+                <LogConsole @close="isLogConsoleOpen = false" />
+              </div>
+            </n-card>
+          </n-modal>
+        </template>
+        
+        <LoginView v-else />
 
       </n-message-provider>
     </n-dialog-provider>

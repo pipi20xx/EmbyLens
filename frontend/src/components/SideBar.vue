@@ -13,9 +13,13 @@ import {
 import { menuOptions as originalOptions, SettingIcon, ConsoleIcon, ThemeIcon } from '../config/menu'
 import AppLogo from './AppLogo.vue'
 import MenuManagerModal from './MenuManagerModal.vue'
-import { currentViewKey, isLogConsoleOpen, menuSettings } from '../store/navigationStore'
+import { currentViewKey, isLogConsoleOpen, menuSettings, isLoggedIn, logout, uiAuthEnabled } from '../store/navigationStore'
 import { ThemeType } from '../hooks/useTheme'
-import { DragHandleOutlined as MenuManageIcon } from '@vicons/material'
+import { 
+  DragHandleOutlined as MenuManageIcon,
+  ExitToAppOutlined as LogoutIcon 
+} from '@vicons/material'
+import { useRouter } from 'vue-router'
 
 const props = defineProps<{
   themeType: ThemeType
@@ -23,9 +27,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:themeType'])
+const router = useRouter()
 
 const collapsed = ref(localStorage.getItem('embylens_sidebar_collapsed') === 'true')
 const showMenuManager = ref(false)
+
+const handleLogout = () => {
+  logout()
+  router.push('/login')
+}
 
 // 根据设置动态计算菜单项
 const filteredMenuOptions = computed(() => {
@@ -65,7 +75,7 @@ const handleThemeSelect = (val: string) => {
         <app-logo :size="28" :theme="themeType" />
         <div v-if="!collapsed" class="logo-info">
           <div class="logo-text">EmbyLens</div>
-          <div class="version-tag">v1.0.9</div>
+          <div class="version-tag">v2.0.0</div>
         </div>
       </n-space>
     </div>
@@ -104,6 +114,16 @@ const handleThemeSelect = (val: string) => {
         </n-button>
         <n-button circle secondary size="small" type="info" @click="isLogConsoleOpen = true">
           <template #icon><n-icon><ConsoleIcon /></n-icon></template>
+        </n-button>
+        <n-button 
+          v-if="isLoggedIn && uiAuthEnabled"
+          circle 
+          secondary 
+          size="small" 
+          type="error" 
+          @click="handleLogout"
+        >
+          <template #icon><n-icon><LogoutIcon /></n-icon></template>
         </n-button>
       </n-space>
     </div>

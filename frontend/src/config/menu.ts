@@ -18,7 +18,9 @@ import {
   ContactPageOutlined as ActorLabIcon,
   PeopleAltOutlined as ActorIcon,
   SyncAltOutlined as WebhookIcon,
-  StorageOutlined as PostgresIcon
+  StorageOutlined as PostgresIcon,
+  AdminPanelSettingsOutlined as SecurityIcon,
+  PersonOutlined as ProfileIcon
 } from '@vicons/material'
 
 // 自定义 Docker 图标组件
@@ -51,6 +53,8 @@ export const menuOptions: MenuOption[] = [
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
+  { label: '账号安全管理', key: 'AccountManagerView', icon: renderIcon(ProfileIcon) },
+  { label: '外部控制体系', key: 'ExternalControlView', icon: renderIcon(SecurityIcon) },
   { label: '站点导航页', key: 'SiteNavView', icon: renderIcon(LensIcon) },
 ]
 

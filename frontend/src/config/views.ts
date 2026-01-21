@@ -18,5 +18,7 @@ export const viewMap: Record<string, any> = {
   AutoTagsView: defineAsyncComponent(() => import('../views/toolkit/autotags/AutoTagsManager.vue')),
   DockerManagerView: defineAsyncComponent(() => import('../views/toolkit/DockerManager.vue')),
   PostgresManagerView: defineAsyncComponent(() => import('../views/toolkit/PostgresManager.vue')),
+  ExternalControlView: defineAsyncComponent(() => import('../views/toolkit/ExternalControl.vue')),
+  AccountManagerView: defineAsyncComponent(() => import('../views/toolkit/AccountManager.vue')),
   SiteNavView: defineAsyncComponent(() => import('../views/toolkit/sitenav/SiteNav.vue'))
 }
