@@ -43,7 +43,7 @@ class QueueHandler(logging.Handler):
             pass
 
 def setup_logger():
-    logger = logging.getLogger("EmbyLens")
+    logger = logging.getLogger("Lens")
     logger.setLevel(logging.INFO)
     
     # 防止重复添加 Handler (工业级加固)

@@ -4,7 +4,7 @@
       <!-- 页面标题区 -->
       <div class="page-header">
         <n-h2 prefix="bar" align-text><n-text type="primary">管理仪表盘</n-text></n-h2>
-        <n-text depth="3">欢迎使用 EmbyLens，在此查看系统概览与执行核心任务。</n-text>
+        <n-text depth="3">欢迎使用 Lens，在此查看系统概览与执行核心任务。</n-text>
       </div>
 
       <!-- 核心统计卡片 -->
@@ -191,7 +191,7 @@
                   <n-button 
                     text 
                     tag="a" 
-                    href="https://github.com/pipi20xx/EmbyLens" 
+                    href="https://github.com/pipi20xx/Lens" 
                     target="_blank" 
                     type="primary"
                     style="font-size: 13px"

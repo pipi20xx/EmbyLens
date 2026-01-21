@@ -92,12 +92,12 @@ const libOptions = ref([])
 const currentEndpoint = ref('')
 
 const common = reactive({
-  lib_names: JSON.parse(localStorage.getItem('embylens_toolkit_common') || '{"lib_names":[]}').lib_names,
+  lib_names: JSON.parse(localStorage.getItem('lens_toolkit_common') || '{"lib_names":[]}').lib_names,
   dry_run: true
 })
 
 watch(common, (val) => {
-  localStorage.setItem('embylens_toolkit_common', JSON.stringify(val))
+  localStorage.setItem('lens_toolkit_common', JSON.stringify(val))
 }, { deep: true })
 
 const fetchLibraries = async () => {

@@ -188,7 +188,7 @@ async def export_navigation():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return FileResponse(
             path=temp_zip, 
-            filename=f"embylens_nav_backup_{timestamp}.zip",
+            filename=f"lens_nav_backup_{timestamp}.zip",
             media_type="application/zip"
         )
     except Exception as e:

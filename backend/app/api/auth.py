@@ -84,7 +84,7 @@ async def setup_2fa(db: AsyncSession = Depends(get_db), token: str = Depends(oau
     secret = pyotp.random_base32()
     user.otp_secret = secret
     await db.commit()
-    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=username, issuer_name="EmbyLens")
+    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=username, issuer_name="Lens")
     img = qrcode.make(totp_uri)
     buf = io.BytesIO()
     img.save(buf, format='PNG')

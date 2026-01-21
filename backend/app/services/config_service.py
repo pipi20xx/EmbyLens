@@ -20,7 +20,7 @@ class ConfigService:
             config = result.scalars().first()
             val = config.value if config else None
             
-            # 如果数据库没有，尝试从 config.json 获取 (EmbyLens 规范)
+            # 如果数据库没有，尝试从 config.json 获取 (Lens 规范)
             if val is None:
                 try:
                     from app.core.config_manager import get_config
@@ -62,7 +62,7 @@ class ConfigService:
                 session.add(config)
             await session.commit()
 
-        # 2. 同步到 config.json (符合 EmbyLens 规范)
+        # 2. 同步到 config.json (符合 Lens 规范)
         try:
             from app.core.config_manager import get_config, save_config
             full_config = get_config()

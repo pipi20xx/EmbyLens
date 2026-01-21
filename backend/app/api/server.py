@@ -54,7 +54,7 @@ async def emby_login():
     try:
         auth_url = f"{url}/emby/Users/AuthenticateByName"
         device_id = str(uuid.uuid4())
-        auth_header = f'MediaBrowser Client="EmbyLens", Device="Server", DeviceId="{device_id}", Version="1.0.0"'
+        auth_header = f'MediaBrowser Client="Lens", Device="Server", DeviceId="{device_id}", Version="1.0.0"'
         
         proxy_cfg = config.get("proxy", {})
         use_proxy = not proxy_cfg.get("exclude_emby", True)

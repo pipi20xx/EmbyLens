@@ -126,9 +126,9 @@ const crimsonOverrides: GlobalThemeOverrides = {
 }
 
 export function useTheme() {
-  const currentThemeType = ref<ThemeType>((localStorage.getItem('embylens_theme_type') as ThemeType) || 'purple')
+  const currentThemeType = ref<ThemeType>((localStorage.getItem('lens_theme_type') as ThemeType) || 'purple')
 
-  watch(currentThemeType, (val) => localStorage.setItem('embylens_theme_type', val))
+  watch(currentThemeType, (val) => localStorage.setItem('lens_theme_type', val))
 
   const syncThemeVariables = (theme: GlobalThemeOverrides) => {
     const root = document.documentElement

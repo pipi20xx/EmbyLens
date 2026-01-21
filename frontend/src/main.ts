@@ -8,7 +8,7 @@ import './styles/global.css'
 
 // 配置 Axios 拦截器
 axios.interceptors.request.use(config => {
-  const token = localStorage.getItem('embylens_access_token')
+  const token = localStorage.getItem('lens_access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
 # 统一使用根目录 /data 持久化
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:////app/data/embylens.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:////app/data/lens.db")
 
 engine = create_async_engine(
     DATABASE_URL,

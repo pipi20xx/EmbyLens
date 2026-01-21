@@ -27,7 +27,7 @@ DEFAULT_CONFIG = {
     "autotag_rules": [],
     "webhook": {
         "enabled": True,
-        "secret_token": "embylens_default_token",
+        "secret_token": "lens_default_token",
         "automation_enabled": True,
         "delay_seconds": 10,
         "write_mode": "merge"

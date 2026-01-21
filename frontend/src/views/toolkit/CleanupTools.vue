@@ -81,7 +81,7 @@ const loading = ref(false)
 const libOptions = ref([])
 
 // 从 localStorage 恢复记忆
-const savedCommon = localStorage.getItem('embylens_cleanup_common')
+const savedCommon = localStorage.getItem('lens_cleanup_common')
 const common = reactive(savedCommon ? JSON.parse(savedCommon) : {
   lib_names: [],
   dry_run: true
@@ -89,7 +89,7 @@ const common = reactive(savedCommon ? JSON.parse(savedCommon) : {
 
 // 监听并记忆选择
 watch(common, (val) => {
-  localStorage.setItem('embylens_cleanup_common', JSON.stringify(val))
+  localStorage.setItem('lens_cleanup_common', JSON.stringify(val))
 }, { deep: true })
 
 const fetchLibraries = async () => {

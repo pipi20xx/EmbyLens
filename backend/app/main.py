@@ -21,8 +21,8 @@ os.makedirs("/app/data/nav_icons", exist_ok=True)
 os.makedirs("/app/data/logs/audit", exist_ok=True)
 
 app = FastAPI(
-    title="EmbyLens API",
-    description="EmbyLens Management Toolkit API",
+    title="Lens API",
+    description="Lens Management Toolkit API",
     version="2.0.1",
     docs_url=None,   # 禁用原生 /docs
     redoc_url=None   # 禁用原生 /redoc
@@ -206,7 +206,7 @@ if os.path.exists("./static"):
 else:
     @app.get("/")
     async def root():
-        return {"message": "EmbyLens API is running. Frontend static files not found."}
+        return {"message": "Lens API is running. Frontend static files not found."}
 
 if __name__ == "__main__":
     import uvicorn

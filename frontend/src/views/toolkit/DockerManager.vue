@@ -100,7 +100,7 @@ const selectedHostId = ref<string | null>(null)
 const activeTab = ref('containers')
 const refreshing = ref(false)
 
-const STORAGE_KEY = 'embylens_selected_docker_host'
+const STORAGE_KEY = 'lens_selected_docker_host'
 
 // 记忆选择的主机
 watch(selectedHostId, (val) => {

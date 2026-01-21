@@ -15,7 +15,7 @@ import secrets
 router = APIRouter()
 
 CURRENT_VERSION = "v2.0.0"
-DOCKER_IMAGE = "pipi20xx/embylens"
+DOCKER_IMAGE = "pipi20xx/lens"
 
 @router.get("/version")
 async def check_version():
@@ -96,7 +96,7 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
                         value: "{token}"
                     }}
                 }});
-                console.log("EmbyLens：API Token 已自动注入");
+                console.log("Lens：API Token 已自动注入");
             }}
         }}, 1000);
         """
@@ -167,7 +167,7 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
     from fastapi.openapi.docs import get_swagger_ui_html
     response = get_swagger_ui_html(
         openapi_url="/api/system/openapi.json", 
-        title="EmbyLens API Documentation"
+        title="Lens API Documentation"
     )
     
     html_content = response.body.decode("utf-8")
@@ -179,7 +179,7 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
 @router.get("/openapi.json", include_in_schema=False)
 async def get_open_api_endpoint(request: Request):
     from fastapi.openapi.utils import get_openapi
-    schema = get_openapi(title="EmbyLens API", version=CURRENT_VERSION, routes=request.app.routes)
+    schema = get_openapi(title="Lens API", version=CURRENT_VERSION, routes=request.app.routes)
     schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",

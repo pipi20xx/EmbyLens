@@ -7,7 +7,7 @@
     <n-card class="login-card" :bordered="false">
       <div class="login-header">
         <n-icon size="48" color="var(--n-primary-color)"><LockIcon /></n-icon>
-        <n-h2>EmbyLens</n-h2>
+        <n-h2>Lens</n-h2>
         <n-text depth="3">请输入管理员凭据以访问系统</n-text>
       </div>
 
@@ -108,7 +108,7 @@ const handleLogin = async () => {
     
     if (res.data.status === '2fa_required') {
       showOtp.value = true
-      localStorage.setItem('embylens_access_token', res.data.access_token)
+      localStorage.setItem('lens_access_token', res.data.access_token)
       message.info('请输入双重验证码')
     } else {
       loginSuccess(res.data.access_token, res.data.username)

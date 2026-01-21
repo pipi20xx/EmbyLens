@@ -273,7 +273,7 @@ const columns: DataTableColumns<any> = [
 
 // 路径记忆逻辑
 const baseSavePath = ref('/opt/docker-compose')
-const storageKey = computed(() => `embylens_last_path_${props.hostId}`)
+const storageKey = computed(() => `lens_last_path_${props.hostId}`)
 
 const loadLastPath = () => {
   const saved = localStorage.getItem(storageKey.value)

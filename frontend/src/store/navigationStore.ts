@@ -1,14 +1,14 @@
 import { ref, watch } from 'vue'
 
-const SAVE_KEY = 'embylens_current_view'
-const MENU_SETTINGS_KEY = 'embylens_menu_settings'
-const AUTH_SAVE_KEY = 'embylens_access_token'
+const SAVE_KEY = 'lens_current_view'
+const MENU_SETTINGS_KEY = 'lens_menu_settings'
+const AUTH_SAVE_KEY = 'lens_access_token'
 
 // 从本地存储恢复上次停留的页面，默认显示仪表盘
 export const currentViewKey = ref(localStorage.getItem(SAVE_KEY) || 'DashboardView')
 export const isLoggedIn = ref(!!localStorage.getItem(AUTH_SAVE_KEY))
 export const uiAuthEnabled = ref(true)
-export const username = ref(localStorage.getItem('embylens_username') || '')
+export const username = ref(localStorage.getItem('lens_username') || '')
 
 export const isLogConsoleOpen = ref(false)
 
@@ -73,14 +73,14 @@ watch(menuSettings, (val) => {
 
 export const loginSuccess = (token: string, user: string) => {
   localStorage.setItem(AUTH_SAVE_KEY, token)
-  localStorage.setItem('embylens_username', user)
+  localStorage.setItem('lens_username', user)
   isLoggedIn.value = true
   username.value = user
 }
 
 export const logout = () => {
   localStorage.removeItem(AUTH_SAVE_KEY)
-  localStorage.removeItem('embylens_username')
+  localStorage.removeItem('lens_username')
   isLoggedIn.value = false
   username.value = ''
 }

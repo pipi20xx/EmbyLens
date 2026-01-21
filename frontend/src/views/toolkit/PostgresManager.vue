@@ -74,7 +74,7 @@ const activeTab = ref('data')
 const refreshing = ref(false)
 const showHostModal = ref(false)
 
-const STORAGE_KEY = 'embylens_selected_pgsql_host'
+const STORAGE_KEY = 'lens_selected_pgsql_host'
 
 // 监听并记忆选择的主机
 watch(selectedHostId, (val) => {

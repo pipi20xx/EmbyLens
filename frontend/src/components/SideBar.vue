@@ -29,7 +29,7 @@ const props = defineProps<{
 const emit = defineEmits(['update:themeType'])
 const router = useRouter()
 
-const collapsed = ref(localStorage.getItem('embylens_sidebar_collapsed') === 'true')
+const collapsed = ref(localStorage.getItem('lens_sidebar_collapsed') === 'true')
 const showMenuManager = ref(false)
 
 const handleLogout = () => {
@@ -48,7 +48,7 @@ const filteredMenuOptions = computed(() => {
 })
 
 watch(collapsed, (val) => {
-  localStorage.setItem('embylens_sidebar_collapsed', String(val))
+  localStorage.setItem('lens_sidebar_collapsed', String(val))
 })
 
 const handleThemeSelect = (val: string) => {
@@ -74,7 +74,7 @@ const handleThemeSelect = (val: string) => {
       <n-space align="center" :size="10">
         <app-logo :size="28" :theme="themeType" />
         <div v-if="!collapsed" class="logo-info">
-          <div class="logo-text">EmbyLens</div>
+          <div class="logo-text">Lens</div>
           <div class="version-tag">v2.0.1</div>
         </div>
       </n-space>

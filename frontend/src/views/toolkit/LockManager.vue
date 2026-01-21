@@ -103,14 +103,14 @@ const libOptions = ref([])
 const selectedTypes = ref(['Movie', 'Series', 'Season', 'Episode'])
 const lastAction = ref('metadata_field_unlocker')
 
-const savedCommon = localStorage.getItem('embylens_lock_common')
+const savedCommon = localStorage.getItem('lens_lock_common')
 const common = reactive(savedCommon ? JSON.parse(savedCommon) : {
   lib_names: [],
   dry_run: true
 })
 
 watch(common, (val) => {
-  localStorage.setItem('embylens_lock_common', JSON.stringify(val))
+  localStorage.setItem('lens_lock_common', JSON.stringify(val))
 }, { deep: true })
 
 const fetchLibraries = async () => {

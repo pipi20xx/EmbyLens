@@ -1,14 +1,14 @@
-# EmbyLens
+# Lens
 
 **全能型 Emby 媒体库深度管理与自动化维护工具箱**
 
-EmbyLens 是一款专为私有云媒体服务器设计的综合管理平台。它集成了元数据净化、演员维护、智能去重、深度搜索及 Webhook 联动等多项原子化工具，旨在为 Emby 用户提供一个高效、透明且自动化的运维环境。
+Lens 是一款专为私有云媒体服务器设计的综合管理平台。它集成了元数据净化、演员维护、智能去重、深度搜索及 Webhook 联动等多项原子化工具，旨在为 Emby 用户提供一个高效、透明且自动化的运维环境。
 
 ---
 
 ## 🛠️ 核心功能矩阵 (基于原子化导航)
 
-EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过侧边栏快速切换：
+Lens 的每一项功能都以独立工具的形式存在，你可以通过侧边栏快速切换：
 
 ### 📊 管理仪表盘 (Dashboard)
 *   **概览统计**：直观展示媒体库的资源总量、库数量、系统运行状态。
@@ -172,9 +172,9 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
     ```yaml
     version: '3.8'
     services:
-      embylens:
-        image: pipi20xx/embylens:latest
-        container_name: embylens
+      lens:
+        image: pipi20xx/lens:latest
+        container_name: lens
         network_mode: bridge
         user: root # 确保有权限操作 Docker Socket
         ports:
@@ -182,7 +182,7 @@ EmbyLens 的每一项功能都以独立工具的形式存在，你可以通过�
         volumes:
           - ./data:/app/data
         environment:
-          - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
+          - DATABASE_URL=sqlite+aiosqlite:////app/data/lens.db
           - TZ=Asia/Shanghai
         restart: always
     ```

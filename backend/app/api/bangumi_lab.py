@@ -32,7 +32,7 @@ async def search_bangumi(
         "responseGroup": "medium"
     }
     
-    headers = {"User-Agent": "EmbyLens/1.0.0"}
+    headers = {"User-Agent": "Lens/1.0.0"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -56,7 +56,7 @@ async def get_subject(subject_id: int):
     token = await get_bangumi_config()
     
     url = f"https://api.bgm.tv/v0/subjects/{subject_id}"
-    headers = {"User-Agent": "EmbyLens/1.0.0 (https://github.com/YourRepo/EmbyLens)"}
+    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/YourRepo/Lens)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -79,7 +79,7 @@ async def get_characters(subject_id: int):
     token = await get_bangumi_config()
     
     url = f"https://api.bgm.tv/v0/subjects/{subject_id}/characters"
-    headers = {"User-Agent": "EmbyLens/1.0.0"}
+    headers = {"User-Agent": "Lens/1.0.0"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -114,7 +114,7 @@ async def get_episodes(
     if type is not None:
         params["type"] = type
         
-    headers = {"User-Agent": "EmbyLens/1.0.0 (https://github.com/YourRepo/EmbyLens)"}
+    headers = {"User-Agent": "Lens/1.0.0 (https://github.com/YourRepo/Lens)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 

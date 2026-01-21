@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  embylens:
+  lens:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: embylens
+    container_name: lens
     ports:
       - "6565:6565"
     volumes:
@@ -13,7 +13,7 @@ services:
       - /vol1/1000/NVME:/vol1/1000/NVME
     user: root
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/embylens.db
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/lens.db
       - TZ=Asia/Shanghai
     network_mode: bridge
     restart: always
