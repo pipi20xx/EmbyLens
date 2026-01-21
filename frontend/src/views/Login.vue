@@ -77,7 +77,7 @@ import {
   KeyOutlined as KeyIcon
 } from '@vicons/material'
 import axios from 'axios'
-import { loginSuccess } from '../store/navigationStore'
+import { loginSuccess, initMenuSettingsFromBackend } from '../store/navigationStore'
 
 const message = useMessage()
 const router = useRouter()
@@ -112,6 +112,8 @@ const handleLogin = async () => {
       message.info('请输入双重验证码')
     } else {
       loginSuccess(res.data.access_token, res.data.username)
+      // 初始化菜单设置
+      initMenuSettingsFromBackend()
       message.success(`欢迎回来, ${res.data.username}`)
       router.push('/')
     }

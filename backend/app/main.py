@@ -23,7 +23,7 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 app = FastAPI(
     title="Lens API",
     description="Lens Management Toolkit API",
-    version="2.0.1",
+    version="2.0.2",
     docs_url=None,   # 禁用原生 /docs
     redoc_url=None   # 禁用原生 /redoc
 )

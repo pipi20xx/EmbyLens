@@ -14,7 +14,7 @@ import secrets
 
 router = APIRouter()
 
-CURRENT_VERSION = "v2.0.0"
+CURRENT_VERSION = "v2.0.2"
 DOCKER_IMAGE = "pipi20xx/lens"
 
 @router.get("/version")

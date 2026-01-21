@@ -179,14 +179,6 @@
               </n-list-item>
               <n-list-item>
                 <n-space justify="space-between">
-                  <n-text depth="3">后端连接</n-text>
-                  <n-text style="font-family: monospace" :type="stats.status === 'connected' ? 'success' : 'error'">
-                    {{ stats.status === 'connected' ? '正常' : '异常' }}
-                  </n-text>
-                </n-space>
-              </n-list-item>
-              <n-list-item>
-                <n-space justify="space-between">
                   <n-text depth="3">项目源码</n-text>
                   <n-button 
                     text 
@@ -280,8 +272,8 @@ const stats = ref({
 })
 
 const versionInfo = ref({
-  current: 'v2.0.1',
-  latest: 'v2.0.1',
+  current: 'v2.0.2',
+  latest: 'v2.0.2',
   has_update: false,
   docker_hub: ''
 })

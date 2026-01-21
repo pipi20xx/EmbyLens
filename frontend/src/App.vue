@@ -15,7 +15,13 @@ import {
 import SideBar from './components/SideBar.vue'
 import LogConsole from './components/LogConsole.vue'
 import LoginView from './views/Login.vue'
-import { currentViewKey, isLogConsoleOpen, isLoggedIn, uiAuthEnabled } from './store/navigationStore'
+import { 
+  currentViewKey, 
+  isLogConsoleOpen, 
+  isLoggedIn, 
+  uiAuthEnabled,
+  initMenuSettingsFromBackend 
+} from './store/navigationStore'
 import { useTheme } from './hooks/useTheme'
 import { viewMap } from './config/views'
 import axios from 'axios'
@@ -35,6 +41,11 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Failed to sync auth status', err)
+  }
+
+  // --- 初始化菜单设置 ---
+  if (isLoggedIn.value) {
+    initMenuSettingsFromBackend()
   }
 
   // --- 路径入口检测 ---

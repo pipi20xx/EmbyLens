@@ -62,6 +62,48 @@ const loadMenuSettings = (): MenuSetting[] => {
 
 export const menuSettings = ref<MenuSetting[]>(loadMenuSettings())
 
+// --- 后端同步逻辑 ---
+
+// 保存设置到后端
+const saveMenuSettingsToBackend = async (settings: MenuSetting[]) => {
+  try {
+    const axios = (await import('axios')).default
+    await axios.post('/api/system/config', {
+      configs: [
+        {
+          key: 'menu_settings',
+          value: JSON.stringify(settings),
+          description: '菜单排序与可见性设置'
+        }
+      ]
+    })
+  } catch (err) {
+    console.error('Failed to sync menu settings to backend', err)
+  }
+}
+
+// 从后端初始化设置
+export const initMenuSettingsFromBackend = async () => {
+  try {
+    const axios = (await import('axios')).default
+    const res = await axios.get('/api/system/config')
+    const saved = res.data.menu_settings
+    if (saved) {
+      const parsed: MenuSetting[] = JSON.parse(saved)
+      // 合并逻辑：以原始 settings 为基础，补充缺失项
+      const merged = [...parsed]
+      defaultSettings.forEach(def => {
+        if (!merged.some(item => item.key === def.key)) {
+          merged.push(def)
+        }
+      })
+      menuSettings.value = merged
+    }
+  } catch (err) {
+    console.error('Failed to init menu settings from backend', err)
+  }
+}
+
 // 监听变化并自动持久化
 watch(currentViewKey, (val) => {
   localStorage.setItem(SAVE_KEY, val)
@@ -69,6 +111,10 @@ watch(currentViewKey, (val) => {
 
 watch(menuSettings, (val) => {
   localStorage.setItem(MENU_SETTINGS_KEY, JSON.stringify(val))
+  // 仅在已登录状态下同步到后端，避免未登录时的请求失败
+  if (isLoggedIn.value) {
+    saveMenuSettingsToBackend(val)
+  }
 }, { deep: true })
 
 export const loginSuccess = (token: string, user: string) => {
