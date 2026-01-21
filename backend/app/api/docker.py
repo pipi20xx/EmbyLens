@@ -354,13 +354,38 @@ async def save_daemon_config(host_id: str, data: DaemonUpdate):
     # 5. 重启 Docker (如果勾选)
     restart_res = None
     if restart:
-        # 使用 systemctl 重启，这是最标准的方式
         restart_res = service.exec_command("systemctl daemon-reload && systemctl restart docker")
 
     return {
         "message": "配置已保存并备份", 
         "restart_result": restart_res
     }
+
+@router.get("/{host_id}/daemon-config/raw")
+async def get_daemon_config_raw(host_id: str):
+    """获取原始 daemon.json 文本"""
+    service = get_docker_service(host_id)
+    content = service.read_file("/etc/docker/daemon.json")
+    return {"content": content or "{}"}
+
+@router.post("/{host_id}/daemon-config/raw")
+async def save_daemon_config_raw(host_id: str, data: Dict[str, Any] = Body(...)):
+    """保存原始 daemon.json 文本"""
+    host_id = host_id
+    content = data.get("content")
+    restart = data.get("restart", False)
+    
+    if not content:
+        raise HTTPException(status_code=400, detail="内容不能为空")
+        
+    # 校验 JSON 格式
+    try:
+        json_obj = json.loads(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"JSON 格式错误: {str(e)}")
+        
+    # 重用之前的保存逻辑 (会自动备份)
+    return await save_daemon_config(host_id, DaemonUpdate(config=json_obj, restart=restart))
 
 @router.get("/container-settings")
 async def get_container_settings():

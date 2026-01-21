@@ -4,9 +4,12 @@
       <n-gi :span="2">
         <n-card title="Docker Daemon 配置" size="small">
           <template #header-extra>
-            <n-text depth="3" type="warning" style="font-size: 12px">
-              <n-icon><warning-icon /></n-icon> 需要 Root 权限的 SSH 账户
-            </n-text>
+            <n-space align="center">
+              <n-button size="tiny" quaternary type="primary" @click="openRawEdit">直接编辑 JSON</n-button>
+              <n-text depth="3" type="warning" style="font-size: 12px">
+                <n-icon><warning-icon /></n-icon> 需要 Root 权限的 SSH 账户
+              </n-text>
+            </n-space>
           </template>
 
           <n-alert type="info" size="small" style="margin-bottom: 16px" :show-icon="true">
@@ -155,6 +158,38 @@
         </div>
       </template>
     </n-modal>
+
+    <!-- 原生 JSON 编辑弹窗 -->
+    <n-modal v-model:show="showRawModal" preset="card" title="直接编辑 daemon.json" style="width: 800px">
+      <n-space vertical size="large">
+        <n-alert type="warning" size="small">
+          警告：直接编辑 JSON 可能会导致 Docker 无法启动。系统将会在保存前验证 JSON 格式并自动创建备份。
+        </n-alert>
+        <n-input
+          v-model:value="rawJsonContent"
+          type="textarea"
+          placeholder="{ ... }"
+          :autosize="{ minRows: 15, maxRows: 25 }"
+          style="font-family: monospace"
+          @input="validateRawJson"
+        />
+        <n-text v-if="rawJsonError" type="error" style="font-size: 12px">{{ rawJsonError }}</n-text>
+        
+        <n-space align="center">
+          <n-checkbox v-model:checked="daemonForm.shouldRestart">
+            保存后重启 Docker 服务
+          </n-checkbox>
+        </n-space>
+      </n-space>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showRawModal = false">取消</n-button>
+          <n-button type="primary" :disabled="!!rawJsonError" @click="handleSaveRawJson" :loading="loading.daemon">
+            保存原始配置
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -164,14 +199,17 @@ import { NGrid, NGi, NCard, NSpace, NText, NCheckbox, NSwitch, NButton, NModal, 
 import { WarningAmberOutlined as WarningIcon } from '@vicons/material'
 import axios from 'axios'
 
-const props = defineProps<{
-  hostId: string | null
-}>()
+const props = defineProps({
+  hostId: String | null
+})
 
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref({ images: false, cache: false, daemon: false })
 const showResult = ref(false)
+const showRawModal = ref(false)
+const rawJsonContent = ref('')
+const rawJsonError = ref<string | null>(null)
 const resultOutput = ref('')
 
 const imageOptions = ref({
@@ -186,7 +224,6 @@ const daemonForm = ref({
   logFiles: 5,
   liveRestore: true,
   shouldRestart: false,
-  // 重构代理字段
   proxyEnabled: false,
   proxyHost: '',
   proxyPort: '',
@@ -204,14 +241,12 @@ const fetchDaemonConfig = async () => {
     const res = await axios.get(`/api/docker/${props.hostId}/daemon-config`)
     rawDaemonConfig.value = res.data
     
-    // 解析基础配置
     daemonForm.value.mirrors = (res.data['registry-mirrors'] || []).join('\n')
     daemonForm.value.insecure = (res.data['insecure-registries'] || []).join('\n')
     daemonForm.value.logSize = res.data['log-opts']?.['max-size'] || '100m'
     daemonForm.value.logFiles = parseInt(res.data['log-opts']?.['max-file'] || '5')
     daemonForm.value.liveRestore = res.data['live-restore'] ?? true
     
-    // 解析代理逻辑
     const proxies = res.data['proxies'] || {}
     const httpProxy = proxies['http-proxy'] || ''
     daemonForm.value.noProxy = proxies['no-proxy'] || 'localhost,127.0.0.1'
@@ -225,7 +260,6 @@ const fetchDaemonConfig = async () => {
         daemonForm.value.proxyUser = decodeURIComponent(url.username)
         daemonForm.value.proxyPass = decodeURIComponent(url.password)
       } catch (e) {
-        // 如果是非标格式，尝试简单提取
         daemonForm.value.proxyHost = httpProxy
       }
     } else {
@@ -240,10 +274,68 @@ const fetchDaemonConfig = async () => {
 
 watch(() => props.hostId, fetchDaemonConfig, { immediate: true })
 
+const openRawEdit = async () => {
+  if (!props.hostId) return
+  loading.value.daemon = true
+  try {
+    const res = await axios.get(`/api/docker/${props.hostId}/daemon-config/raw`)
+    rawJsonContent.value = res.data.content
+    rawJsonError.value = null
+    showRawModal.value = true
+  } catch (e) {
+    message.error('无法读取原始配置')
+  } finally {
+    loading.value.daemon = false
+  }
+}
+
+const validateRawJson = (val: string) => {
+  if (!val.trim()) {
+    rawJsonError.value = '内容不能为空'
+    return
+  }
+  try {
+    JSON.parse(val)
+    rawJsonError.value = null
+  } catch (e: any) {
+    rawJsonError.value = '无效的 JSON 格式'
+  }
+}
+
+const handleSaveRawJson = () => {
+  if (rawJsonError.value) return
+  
+  dialog.warning({
+    title: '确认保存原始配置',
+    content: () => h('div', null, [
+      h('p', null, daemonForm.value.shouldRestart 
+        ? '保存配置后将立即重启远程 Docker 服务，这会导致所有运行中的容器短暂中断。' 
+        : '配置将保存并备份，但需要手动重启 Docker 服务后才能生效。'),
+      h('p', { style: 'margin-top: 8px; color: #f0a020; font-weight: bold;' }, '注意：此操作将修改远程主机的 /etc/docker/daemon.json 文件。')
+    ]),
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      loading.value.daemon = true
+      try {
+        const res = await axios.post(`/api/docker/${props.hostId}/daemon-config/raw`, {
+          content: rawJsonContent.value,
+          restart: daemonForm.value.shouldRestart
+        })
+        message.success(res.data.message)
+        showRawModal.value = false
+        fetchDaemonConfig()
+      } catch (e: any) {
+        message.error(e.response?.data?.detail || '保存失败')
+      } finally {
+        loading.value.daemon = false
+      }
+    }
+  })
+}
+
 const handleSaveDaemonConfig = async () => {
   if (!props.hostId) return
-  
-  // 组装配置对象
   const newConfig = { ...rawDaemonConfig.value }
   newConfig['registry-mirrors'] = daemonForm.value.mirrors.split('\n').map(i => i.trim()).filter(i => i)
   newConfig['insecure-registries'] = daemonForm.value.insecure.split('\n').map(i => i.trim()).filter(i => i)
@@ -254,17 +346,14 @@ const handleSaveDaemonConfig = async () => {
   }
   newConfig['live-restore'] = daemonForm.value.liveRestore
   
-  // 合成代理配置
   if (daemonForm.value.proxyEnabled && daemonForm.value.proxyHost) {
     let auth = ''
     if (daemonForm.value.proxyUser) {
       auth = `${encodeURIComponent(daemonForm.value.proxyUser)}:${encodeURIComponent(daemonForm.value.proxyPass)}@`
     }
     const port = daemonForm.value.proxyPort ? `:${daemonForm.value.proxyPort}` : ''
-    // 统一协议前缀
     const host = daemonForm.value.proxyHost.includes('://') ? daemonForm.value.proxyHost.split('://')[1] : daemonForm.value.proxyHost
     const proxyUrl = `http://${auth}${host}${port}`
-    
     newConfig['proxies'] = {
       'http-proxy': proxyUrl,
       'https-proxy': proxyUrl,
@@ -298,7 +387,7 @@ const handleSaveDaemonConfig = async () => {
         }
         fetchDaemonConfig()
       } catch (e) {
-        message.error(e.response?.data?.detail || '保存失败，请检查权限')
+        message.error(e.response?.data?.detail || '保存失败')
       } finally {
         loading.value.daemon = false
       }
@@ -306,7 +395,7 @@ const handleSaveDaemonConfig = async () => {
   })
 }
 
-const handlePruneImages = () => {
+const handlePruneImages = async () => {
   if (!props.hostId) return
   if (!imageOptions.value.dangling && !imageOptions.value.all) {
     message.warning('请至少选择一个清理选项')
@@ -315,57 +404,42 @@ const handlePruneImages = () => {
 
   dialog.warning({
     title: '确认清理镜像',
-    content: '此操作将永久删除满足条件的本地镜像。如果删除了正在使用的镜像（在 all 模式下），下次启动时需要重新下载。',
+    content: '此操作将永久删除满足条件的本地镜像。',
     positiveText: '确认',
     negativeText: '取消',
-    onPositiveClick: () => {
-      // 立即触发异步逻辑而不返回 Promise，从而让弹窗立即关闭
-      executeImagePrune()
+    onPositiveClick: async () => {
+      loading.value.images = true
+      try {
+        const res = await axios.post(`/api/docker/${props.hostId}/prune-images`, {
+          dangling: imageOptions.value.dangling,
+          all_unused: imageOptions.value.all
+        })
+        resultOutput.value = res.data.stdout || '清理完成。'
+        showResult.value = true
+        message.success('镜像清理成功')
+      } catch (e) { message.error('清理失败') }
+      finally { loading.value.images = false }
     }
   })
 }
 
-const executeImagePrune = async () => {
-  loading.value.images = true
-  try {
-    const res = await axios.post(`/api/docker/${props.hostId}/prune-images`, {
-      dangling: imageOptions.value.dangling,
-      all_unused: imageOptions.value.all
-    })
-    resultOutput.value = res.data.stdout || '清理完成，未释放额外空间。'
-    showResult.value = true
-    message.success('镜像清理任务已执行')
-  } catch (e) {
-    message.error('清理失败')
-  } finally {
-    loading.value.images = false
-  }
-}
-
-const handlePruneCache = () => {
+const handlePruneCache = async () => {
   if (!props.hostId) return
   dialog.warning({
     title: '确认清理构建缓存',
-    content: '此操作将清理所有未使用的构建缓存，这可能会让下次镜像构建速度变慢。',
+    content: '此操作将清理所有未使用的构建缓存。',
     positiveText: '确认',
     negativeText: '取消',
-    onPositiveClick: () => {
-      executeCachePrune()
+    onPositiveClick: async () => {
+      loading.value.cache = true
+      try {
+        const res = await axios.post(`/api/docker/${props.hostId}/prune-cache`)
+        resultOutput.value = res.data.stdout || '清理完成。'
+        showResult.value = true
+        message.success('缓存清理成功')
+      } catch (e) { message.error('清理失败') }
+      finally { loading.value.cache = false }
     }
   })
-}
-
-const executeCachePrune = async () => {
-  loading.value.cache = true
-  try {
-    const res = await axios.post(`/api/docker/${props.hostId}/prune-cache`)
-    resultOutput.value = res.data.stdout || '清理完成。'
-    showResult.value = true
-    message.success('缓存清理任务已执行')
-  } catch (e) {
-    message.error('清理失败')
-  } finally {
-    loading.value.cache = false
-  }
 }
 </script>
