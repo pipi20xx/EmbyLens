@@ -293,8 +293,8 @@ const message = useMessage()
 const upgrading = ref(false)
 
 const versionInfo = ref({
-  current: 'v2.0.6',
-  latest: 'v2.0.6',
+  current: 'v2.0.7',
+  latest: 'v2.0.7',
   has_update: false,
   docker_hub: ''
 })
