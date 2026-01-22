@@ -158,12 +158,16 @@ async def upgrade_system(host_id: str = Query(None)):
         if not project_path:
             project_path = target_host.get("project_path") or "/vol1/1000/NVME/Lens"
             logger.warning(f"⚠️ [系统升级] 路径探测失败，使用回退路径: {project_path}")
+        else:
+            logger.info(f"📍 [系统升级] 探测到项目路径: {project_path}")
 
-        # 执行升级命令
+        # 确保日志目录存在
+        service.exec_command(f"mkdir -p {project_path}/data/logs")
+
+        # 执行升级命令：使用 nohup 确保后台运行，并修复字符串格式化
         upgrade_cmd = (
-            f"(cd {project_path} && "
-            "git pull && "
-            "docker compose up -d --build) > {project_path}/data/logs/upgrade.log 2>&1 &"
+            f"nohup sh -c 'cd {project_path} && git pull && docker compose up -d --build' "
+            f"> {project_path}/data/logs/upgrade.log 2>&1 &"
         )
         
         logger.info(f"🚀 [系统升级] 用户已授权，正在通过宿主机 {target_host.get('name')} 执行后台升级...")
