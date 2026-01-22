@@ -293,10 +293,9 @@ const message = useMessage()
 const upgrading = ref(false)
 
 const versionInfo = ref({
-  current: 'v2.0.7',
-  latest: 'v2.0.7',
-  has_update: false,
-  docker_hub: ''
+  current: 'v2.0.8',
+  latest: 'v2.0.8',
+  hasUpdate: false
 })
 
 const handleUpgrade = async () => {
