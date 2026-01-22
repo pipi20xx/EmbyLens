@@ -272,9 +272,8 @@ const stats = ref({
 })
 
 const versionInfo = ref({
-  current: 'v2.0.3',
-  latest: 'v2.0.3',
-  has_update: false,
+        current: 'v2.0.5',
+        latest: 'v2.0.5',  has_update: false,
   docker_hub: ''
 })
 
