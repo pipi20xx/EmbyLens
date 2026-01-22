@@ -20,6 +20,7 @@ import {
   SyncAltOutlined as WebhookIcon,
   StorageOutlined as PostgresIcon,
   BackupOutlined as BackupIcon,
+  NotificationsOutlined as NotificationIcon,
   AdminPanelSettingsOutlined as SecurityIcon,
   PersonOutlined as ProfileIcon
 } from '@vicons/material'
@@ -55,6 +56,7 @@ export const menuOptions: MenuOption[] = [
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
   { label: '数据备份管理', key: 'BackupManagerView', icon: renderIcon(BackupIcon) },
+  { label: '通知消息中心', key: 'NotificationManagerView', icon: renderIcon(NotificationIcon) },
   { label: '账号安全管理', key: 'AccountManagerView', icon: renderIcon(ProfileIcon) },
   { label: '外部控制体系', key: 'ExternalControlView', icon: renderIcon(SecurityIcon) },
   { label: '站点导航页', key: 'SiteNavView', icon: renderIcon(LensIcon) },

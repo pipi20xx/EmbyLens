@@ -114,6 +114,10 @@ async def startup_event():
     from app.services.backup_service import BackupService
     asyncio.create_task(BackupService.start_scheduler())
     
+    # 启动 Telegram Bot 交互监听
+    from app.services.telegram_bot_worker import TelegramBotWorker
+    asyncio.create_task(TelegramBotWorker.start_all())
+    
     # 初始化默认管理员
     from app.db.session import AsyncSessionLocal
     async with AsyncSessionLocal() as db:

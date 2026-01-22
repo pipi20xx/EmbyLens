@@ -36,6 +36,7 @@ const defaultSettings: MenuSetting[] = [
   { key: 'DockerManagerView', visible: true },
   { key: 'PostgresManagerView', visible: true },
   { key: 'BackupManagerView', visible: true },
+  { key: 'NotificationManagerView', visible: true },
   { key: 'SiteNavView', visible: true },
   { key: 'ExternalControlView', visible: true },
   { key: 'AccountManagerView', visible: true }

@@ -9,6 +9,7 @@ from app.utils.audit import add_audit_log
 from app.utils.time import get_local_time
 from app.schemas.auth import LoginRequest, PasswordChangeRequest, TokenResponse
 from app.services.config_service import ConfigService
+from app.services.notification_service import NotificationService
 from datetime import timedelta
 import asyncio
 import pyotp
@@ -57,6 +58,13 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     
     access_token = create_access_token(data={"sub": user.username})
     asyncio.create_task(add_audit_log("POST", "/api/auth/login", 200, client_ip, 0, payload=f"登录成功: {user.username}"))
+    
+    # 发送登录通知
+    asyncio.create_task(NotificationService.emit(
+        event="auth.login",
+        title="用户登录提醒",
+        message=f"用户: {user.username}\nIP: {client_ip}\n时间: {get_local_time()}"
+    ))
     
     return {"access_token": access_token, "token_type": "bearer", "username": user.username, "status": "success"}
 

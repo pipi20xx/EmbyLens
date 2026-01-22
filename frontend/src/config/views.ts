@@ -19,6 +19,7 @@ export const viewMap: Record<string, any> = {
   DockerManagerView: defineAsyncComponent(() => import('../views/toolkit/DockerManager.vue')),
   PostgresManagerView: defineAsyncComponent(() => import('../views/toolkit/PostgresManager.vue')),
   BackupManagerView: defineAsyncComponent(() => import('../views/toolkit/BackupManager.vue')),
+  NotificationManagerView: defineAsyncComponent(() => import('../views/toolkit/NotificationManager.vue')),
   ExternalControlView: defineAsyncComponent(() => import('../views/toolkit/ExternalControl.vue')),
   AccountManagerView: defineAsyncComponent(() => import('../views/toolkit/AccountManager.vue')),
   SiteNavView: defineAsyncComponent(() => import('../views/toolkit/sitenav/SiteNav.vue'))

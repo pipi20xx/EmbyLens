@@ -82,6 +82,11 @@ const router = createRouter({
       component: () => import('../views/toolkit/BackupManager.vue'),
     },
     {
+      path: '/toolkit/notification-manager',
+      name: 'NotificationManager',
+      component: () => import('../views/toolkit/NotificationManager.vue'),
+    },
+    {
       path: '/toolkit/site-nav',
       name: 'SiteNav',
       component: () => import('../views/toolkit/sitenav/SiteManager.vue'),

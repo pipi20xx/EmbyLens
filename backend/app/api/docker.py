@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from app.core.config_manager import get_config, save_config
 from app.services.docker_service import DockerService
+from app.services.notification_service import NotificationService
 from app.utils.logger import logger, audit_log
 import uuid
 import time
@@ -181,6 +182,17 @@ async def container_action(host_id: str, container_id: str, action: str = Body(.
     start_time = time.time()
     logger.info(f"🚀 [Docker] 收到容器操作请求: 动作={action}, 容器ID={container_id}, 主机={host_id}")
     service = get_docker_service(host_id)
+    
+    # 尝试获取容器名称，用于通知
+    container_name = container_id
+    try:
+        if service.client:
+            # 这里的 get 操作很快
+            c = service.client.containers.get(container_id)
+            container_name = c.name
+    except Exception:
+        pass
+
     success = service.container_action(container_id, action)
     
     if not success:
@@ -189,6 +201,28 @@ async def container_action(host_id: str, container_id: str, action: str = Body(.
     
     process_time = (time.time() - start_time) * 1000
     logger.info(f"✅ [Docker] 容器操作成功: {action} (耗时 {process_time:.1f}ms)")
+    
+    # 发送通知
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    host_name = next((h.get("name") for h in hosts if h.get("id") == host_id), "Unknown Host")
+    
+    # 操作名称中文化
+    action_map = {
+        "start": "启动 (Start)",
+        "stop": "停止 (Stop)",
+        "restart": "重启 (Restart)",
+        "remove": "删除 (Remove)",
+        "recreate": "重构 (Recreate)"
+    }
+    display_action = action_map.get(action, action)
+
+    asyncio.create_task(NotificationService.emit(
+        event="docker.container_action",
+        title="Docker 容器操作提醒",
+        message=f"主机: {host_name}\n容器名称: {container_name}\n容器 ID: {container_id[:12]}\n操作: {display_action}\n结果: 成功"
+    ))
+
     audit_log(f"Docker Action: {action}", process_time, [
         f"Host: {host_id}",
         f"Container: {container_id}"
@@ -281,6 +315,17 @@ async def install_docker_env(host_id: str, use_mirror: bool = Body(True, embed=T
         logger.info(f"✨ [Docker] 主机 {host_id} 环境安装完成")
     else:
         logger.error(f"❌ [Docker] 主机 {host_id} 环境安装失败: {res['stderr']}")
+    
+    # 发送通知
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    host_name = next((h.get("name") for h in hosts if h.get("id") == host_id), host_id)
+    
+    asyncio.create_task(NotificationService.emit(
+        event="docker.host_action",
+        title="Docker 环境安装结果",
+        message=f"主机: {host_name}\n状态: {'成功' if res['success'] else '失败'}\n{res['stderr'] if not res['success'] else ''}"
+    ))
         
     return {
         "success": res["success"],
@@ -301,6 +346,17 @@ async def docker_service_action(host_id: str, action: str = Body(..., embed=True
     logger.info(f"⚙️ [Docker] 正在对主机 {host_id} 执行服务操作: {action}")
     res = service.exec_command(cmd)
     
+    # 发送通知
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    host_name = next((h.get("name") for h in hosts if h.get("id") == host_id), host_id)
+    
+    asyncio.create_task(NotificationService.emit(
+        event="docker.host_action",
+        title="Docker 服务操作提醒",
+        message=f"主机: {host_name}\n操作: {action}\n结果: {'成功' if res['success'] else '失败'}"
+    ))
+
     return {
         "success": res["success"],
         "stdout": res["stdout"],

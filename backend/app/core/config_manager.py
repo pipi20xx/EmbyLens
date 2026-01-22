@@ -43,6 +43,10 @@ DEFAULT_CONFIG = {
     "docker_container_settings": {},
     "pgsql_hosts": [],
     "backup_tasks": [],
+    "notification_settings": {
+        "enabled": False,
+        "bots": []
+    },
     "menu_settings": []
 }
 

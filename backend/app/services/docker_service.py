@@ -1,6 +1,7 @@
 import docker
 import paramiko
 import os
+import time
 from typing import List, Dict, Any, Optional
 from app.utils.logger import logger
 from app.core.config_manager import get_config
@@ -113,16 +114,17 @@ class DockerService:
             elif action == "stop": container.stop()
             elif action == "restart": container.restart()
             elif action == "remove": container.remove(force=True)
-            elif action == "recreate":
+            elif action in ["recreate", "update"]:
                 attrs = container.attrs
                 image_tag = attrs['Config']['Image']
                 name = attrs['Name'].lstrip('/')
                 
-                # 先拉取新镜像，减少停机时间
+                # 无论 recreate 还是 update，都执行 pull（保持与网页版逻辑一致）
+                logger.info(f"📥 [Docker] 正在为容器 {name} 拉取最新镜像: {image_tag}")
                 try:
                     self.client.images.pull(image_tag)
                 except Exception as e:
-                    logger.warning(f"Failed to pull image {image_tag}, using local: {e}")
+                    logger.warning(f"⚠️ [Docker] 拉取镜像失败，将尝试使用本地镜像: {e}")
 
                 # 提取完整配置
                 config = attrs.get('Config', {})
@@ -135,6 +137,12 @@ class DockerService:
                     for container_port, host_ports in port_bindings.items():
                         if host_ports:
                             ports[container_port] = host_ports[0].get('HostPort')
+                
+                network_mode = host_config.get('NetworkMode', 'bridge')
+                
+                # 修复：如果网络模式是 host，则不能传递 ports 参数，否则报错
+                if network_mode == "host":
+                    ports = None
 
                 create_kwargs = {
                     "image": image_tag,
@@ -144,7 +152,7 @@ class DockerService:
                     "volumes": host_config.get('Binds', []),
                     "ports": ports,
                     "restart_policy": host_config.get('RestartPolicy', {}),
-                    "network_mode": host_config.get('NetworkMode', 'bridge'),
+                    "network_mode": network_mode,
                     "command": config.get('Cmd'),
                     "entrypoint": config.get('Entrypoint'),
                     "working_dir": config.get('WorkingDir'),
@@ -158,12 +166,36 @@ class DockerService:
                 if host_config.get('Privileged'):
                     create_kwargs["privileged"] = True
 
-                # 停止并删除
-                container.stop()
-                container.remove()
+                # 安全重构策略：先重命名旧容器，失败则回滚
+                old_name = container.name
+                bak_name = f"{old_name}_lens_bak_{int(time.time())}"
                 
-                # 创建并启动新容器
-                self.client.containers.run(**create_kwargs)
+                try:
+                    container.stop()
+                    container.rename(bak_name)
+                    
+                    # 创建并启动新容器
+                    self.client.containers.run(**create_kwargs)
+                    
+                    # 新容器启动成功，删除备份
+                    container.remove(force=True)
+                    logger.info(f"✨ [Docker] 容器 {old_name} 重构成功，已清理旧容器")
+                except Exception as run_err:
+                    logger.error(f"❌ [Docker] 新容器启动失败，尝试回滚: {run_err}")
+                    # 尝试恢复旧容器
+                    try:
+                        # 检查新容器是否已半途创建（如果创建了但没启动成功，也需要清理掉名称占位）
+                        try:
+                            failed_new = self.client.containers.get(old_name)
+                            failed_new.remove(force=True)
+                        except: pass
+                        
+                        container.rename(old_name)
+                        container.start()
+                        logger.info(f"⏪ [Docker] 已成功回滚至旧容器 {old_name}")
+                    except Exception as rollback_err:
+                        logger.error(f"🚨 [Docker] 回滚失败! 旧容器目前名称为 {bak_name}: {rollback_err}")
+                    raise run_err
             return True
         except Exception as e:
             logger.error(f"Error performing action {action} on container {container_id}: {e}")

@@ -147,6 +147,19 @@ Lens 的每一项功能都以独立工具的形式存在，你可以通过侧边
 ### 👤 演员信息维护 (Actor Manager)
 *   **肖像修正**：基于 TMDB 数据库，批量补全、修正或清理媒体库中的演员肖像与姓名。
 
+### 🔔 通知消息中心 (Notification Center)
+*   **多机器人纳管**：支持配置多个 Telegram Bot，实现通知渠道的物理隔离。
+*   **原子化事件订阅**：采用“乐高式”订阅机制，可为不同机器人分配不同的事件权限：
+    *   **安全审计**：用户登录提醒 (`auth.login`)。
+    *   **数据备份**：任务成功或失败的即时状态 (`backup.success`, `backup.failed`)。
+    *   **自动化打标**：Webhook 实时匹配成功及批量任务汇总 (`autotag.match`, `autotag.task_done`)。
+    *   **Docker 运维**：容器操作及主机环境维护提醒 (`docker.container_action`, `docker.host_action`)。
+*   **交互式移动控制台 (Interactive Bot)**：
+    *   **实时指令**：通过 `/hosts` 呼出交互菜单，直接在 Telegram 中管理多台主机的 Docker 容器。
+    *   **生命周期管理**：支持在对话框中一键执行容器的启动、停止、重启、更新 (Update) 及详情刷新。
+    *   **安全白名单**：内置 `Allowed User ID` 校验机制，仅允许授权的 Telegram 账号执行控制指令。
+*   **智能转义引擎**：自动适配 Telegram MarkdownV2 严格的转义规则，并支持在解析失败时自动降级为纯文本，确保消息触达率。
+
 ### 🔗 Webhook 接收器 (Webhook)
 *   **事件监听**：实时接收 Emby 事件通知，支持 library.new (新入库) 等事件的自动化触发。
 

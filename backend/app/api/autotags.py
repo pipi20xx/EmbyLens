@@ -6,6 +6,7 @@ from app.core.tagger import Tagger
 from app.utils.logger import logger, audit_log
 from .autotag_helper import AutotagEmbyHelper
 from app.utils.http_client import get_async_client
+from app.services.notification_service import NotificationService
 import httpx
 import time
 import uuid
@@ -156,7 +157,13 @@ async def process_webhook_item(payload: Dict):
     target_tags = tagger.generate_tags(props)
     if target_tags:
         logger.info(f"┃  ┃  🎯 [Webhook 匹配] 目标标签: {target_tags}")
-        await helper.update_item_metadata(item_id, target_tags, wh_cfg.get("write_mode", "merge"))
+        if await helper.update_item_metadata(item_id, target_tags, wh_cfg.get("write_mode", "merge")):
+            # 发送自动标签成功通知
+            await NotificationService.emit(
+                event="autotag.match",
+                title="[Webhook 自动化] 标签匹配成功",
+                message=f"项目: {item_name}\n类型: {item_type}\n匹配标签: {', '.join(target_tags)}"
+            )
     else:
         logger.info(f"┃  ┃  🟡 [Webhook 跳过] 无规则匹配: {item_name}")
 
@@ -245,6 +252,13 @@ async def run_autotag_task_isolated(request: TagActionRequest):
         if i % 5 == 0: await asyncio.sleep(0.1)
         
     logger.info(f"✅ [自动标签] 完成，更新: {updated}")
+    
+    # 发送任务完成通知
+    await NotificationService.emit(
+        event="autotag.task_done",
+        title="自动标签任务完成",
+        message=f"范围: {'仅收藏' if request.library_type == 'favorite' else '全库'}\n扫描总数: {len(all_items)}\n更新项目: {updated}"
+    )
 
 async def run_clear_task_isolated(tags_to_remove: Optional[List[str]] = None):
     helper, _ = await get_helper()
@@ -271,6 +285,13 @@ async def run_clear_task_isolated(tags_to_remove: Optional[List[str]] = None):
             logger.info(f"┃  🕒 清理进度: {i}/{len(all_items)}...")
             
     logger.info(f"✅ [标签清理] 结束，影响项目数: {cleared}")
+    
+    # 发送任务完成通知
+    await NotificationService.emit(
+        event="autotag.clear_done",
+        title="标签清理任务完成",
+        message=f"清理范围: {'全量' if tags_to_remove is None else ', '.join(tags_to_remove)}\n影响项目: {cleared}"
+    )
 
 # --- 路由接口 ---
 
