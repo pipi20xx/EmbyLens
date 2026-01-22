@@ -293,8 +293,8 @@ const message = useMessage()
 const upgrading = ref(false)
 
 const versionInfo = ref({
-  current: 'v2.0.8',
-  latest: 'v2.0.8',
+  current: 'v2.0.9',
+  latest: 'v2.0.9',
   hasUpdate: false
 })
 

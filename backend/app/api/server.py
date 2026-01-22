@@ -59,44 +59,50 @@ async def test_connection(config: Dict[str, Any]):
 
 @router.post("/save")
 async def save_server_config(config: Dict[str, Any]):
-    """保存配置 (支持新增或更新特定服务器)"""
+    """保存配置 (支持新增或更新特定服务器，或仅更新全局配置)"""
     full_config = get_config()
     
     # 提取 Emby 服务器相关的字段
     emby_fields = ["id", "name", "url", "api_key", "user_id", "username", "password", "session_token", "emby_id"]
     server_data = {k: v for k, v in config.items() if k in emby_fields}
     
-    # 尝试获取真实的 Emby ID (如果尚未配置或需要更新)
-    if server_data.get("url") and server_data.get("api_key"):
-        try:
-            service = EmbyService(server_data["url"], server_data["api_key"])
-            info = await service.test_connection()
-            if info:
-                server_data["emby_id"] = info.get("Id")
-        except:
-            pass
+    # 逻辑修正：只有当明确提供了服务器 ID，或者提供了核心连接信息（URL + API Key）时，才处理服务器列表
+    is_server_op = server_data.get("id") or (server_data.get("url") and server_data.get("api_key"))
     
-    # 如果有 ID，则是更新；否则是新增
-    if server_data.get("id"):
-        servers = full_config.get("emby_servers", [])
-        found = False
-        for i, s in enumerate(servers):
-            if s.get("id") == server_data["id"]:
-                servers[i].update(server_data)
-                found = True
-                break
-        if not found:
-            servers.append(server_data)
-    else:
-        server_data["id"] = str(uuid.uuid4())
-        if "emby_servers" not in full_config:
-            full_config["emby_servers"] = []
-        full_config["emby_servers"].append(server_data)
-        # 如果是第一个服务器，自动激活
-        if not full_config.get("active_server_id"):
-            full_config["active_server_id"] = server_data["id"]
+    if is_server_op:
+        # 尝试获取真实的 Emby ID
+        if server_data.get("url") and server_data.get("api_key"):
+            try:
+                service = EmbyService(server_data["url"], server_data["api_key"])
+                info = await service.test_connection()
+                if info:
+                    server_data["emby_id"] = info.get("Id")
+                    if not server_data.get("name"):
+                        server_data["name"] = info.get("ServerName")
+            except:
+                pass
+        
+        # 如果有 ID，则是更新；否则是新增
+        if server_data.get("id"):
+            servers = full_config.get("emby_servers", [])
+            found = False
+            for i, s in enumerate(servers):
+                if s.get("id") == server_data["id"]:
+                    servers[i].update(server_data)
+                    found = True
+                    break
+            if not found:
+                servers.append(server_data)
+        else:
+            server_data["id"] = str(uuid.uuid4())
+            if "emby_servers" not in full_config:
+                full_config["emby_servers"] = []
+            full_config["emby_servers"].append(server_data)
+            # 如果是第一个服务器，自动激活
+            if not full_config.get("active_server_id"):
+                full_config["active_server_id"] = server_data["id"]
 
-    # 更新非 Emby 服务器字段 (如代理、API Key 等)
+    # 更新非 Emby 服务器字段 (如代理、API Key 等全局配置)
     for key, value in config.items():
         if key not in emby_fields:
             full_config[key] = value
