@@ -4,7 +4,6 @@ from sqlalchemy import select
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
-from app.models.media import MediaItem, DedupeRule
 from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 import time
