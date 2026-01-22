@@ -8,6 +8,7 @@
             <div>
               <n-text strong>{{ host.name }}</n-text>
               <n-tag size="small" type="warning" style="margin-left: 8px">SSH 远程</n-tag>
+              <n-tag v-if="host.is_local" size="small" type="success" style="margin-left: 8px" quaternary>宿主机 (系统升级)</n-tag>
             </div>
             <n-space>
               <n-button size="small" @click="testConnection(host.id)">测试</n-button>
@@ -31,6 +32,12 @@
       <n-form-item label="SSH 端口"><n-input-number v-model:value="editHostForm.ssh_port" style="width: 100%" /></n-form-item>
       <n-form-item label="SSH 用户"><n-input v-model:value="editHostForm.ssh_user" /></n-form-item>
       <n-form-item label="SSH 密码"><n-input v-model:value="editHostForm.ssh_pass" type="password" show-password-on="mousedown" /></n-form-item>
+      <n-form-item label="宿主机标记">
+        <n-space align="center">
+          <n-switch v-model:value="editHostForm.is_local" />
+          <n-text depth="3" style="font-size: 12px">标记为此 Lens 容器所在的物理宿主机，用于执行一键升级</n-text>
+        </n-space>
+      </n-form-item>
       <n-form-item label="扫描路径"><n-input v-model:value="editHostForm.compose_scan_paths" type="textarea" placeholder="逗号分隔" /></n-form-item>
       <n-space justify="end">
         <n-button @click="showEditModal = false">取消</n-button>
@@ -42,7 +49,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { NModal, NSpace, NButton, NList, NListItem, NText, NTag, NForm, NFormItem, NInput, NInputNumber, NSelect, useMessage } from 'naive-ui'
+import { 
+  NModal, NSpace, NButton, NList, NListItem, NText, NTag, 
+  NForm, NFormItem, NInput, NInputNumber, NSelect, NSwitch, useMessage 
+} from 'naive-ui'
 import axios from 'axios'
 
 const props = defineProps<{
@@ -63,8 +73,13 @@ watch(() => show.value, (val) => emit('update:show', val))
 const handleAddHost = () => { editHostForm.value = { type: 'ssh', ssh_port: 22, ssh_user: 'root' }; showEditModal.value = true }
 const handleEditHost = (h: any) => { editHostForm.value = { ...h }; showEditModal.value = true }
 const saveHost = async () => {
-  if (editHostForm.value.id) await axios.put(`/api/docker/hosts/${editHostForm.value.id}`, editHostForm.value)
-  else await axios.post('/api/docker/hosts', editHostForm.value)
+  if (editHostForm.value.id) {
+    await axios.put(`/api/docker/hosts/${editHostForm.value.id}`, editHostForm.value)
+    message.success('主机配置已更新')
+  } else {
+    await axios.post('/api/docker/hosts', editHostForm.value)
+    message.success('新主机已添加')
+  }
   showEditModal.value = false; emit('refresh')
 }
 const deleteHost = async (id: string) => { await axios.delete(`/api/docker/hosts/${id}`); emit('refresh') }

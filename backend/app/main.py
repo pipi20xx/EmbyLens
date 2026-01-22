@@ -22,10 +22,10 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 
 app = FastAPI(
     title="Lens API",
-    description="Lens Management Toolkit API",
-    version="2.0.5",
-    docs_url=None,   # 禁用原生 /docs
-    redoc_url=None   # 禁用原生 /redoc
+    description="Lens 媒体库管理系统后端 API",
+    version="2.0.6",
+    docs_url=None, 
+    redoc_url=None
 )
 
 # 全局审计与性能监控中间件

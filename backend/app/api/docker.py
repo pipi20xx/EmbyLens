@@ -18,6 +18,7 @@ class DockerHostConfig(BaseModel):
     ssh_user: Optional[str] = "root"
     ssh_pass: Optional[str] = None
     use_tls: Optional[bool] = False
+    is_local: Optional[bool] = False # 新增：标记为 Lens 宿主机
     base_url: Optional[str] = None
     compose_scan_paths: Optional[str] = "" # 新增：逗号分隔的扫描路径
 

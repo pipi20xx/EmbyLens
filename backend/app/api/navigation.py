@@ -12,6 +12,7 @@ import tempfile
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
 
+from app.utils.http_client import get_async_client
 from app.services import navigation_service as nav_service
 from app.schemas.navigation import (
     SiteNavCreate, SiteNavUpdate, SiteNavResponse,
@@ -144,7 +145,7 @@ async def download_and_cache_icon(url: str) -> Optional[str]:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers, verify=False) as client:
+        async with get_async_client(timeout=10.0, headers=headers, use_proxy=True) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
                 # 识别扩展名
@@ -302,7 +303,7 @@ async def fetch_icon(url: str = Query(...)):
 
     remote_icon_url = None
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers, verify=False) as client:
+        async with get_async_client(timeout=10.0, headers=headers, use_proxy=True) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
                 html = resp.text

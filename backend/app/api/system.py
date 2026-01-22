@@ -6,15 +6,18 @@ from app.db.session import get_db
 from app.models.config import SystemConfig
 from app.schemas.system import BatchConfigUpdate, AuditLogListResponse, AuditLogResponse
 from app.services.config_service import ConfigService
-from app.utils.logger import get_log_dates, get_log_content, LOG_DIR
+from app.utils.logger import get_log_dates, get_log_content, LOG_DIR, logger
 from app.utils.http_client import get_async_client
+from app.services.docker_service import DockerService
+from app.core.config_manager import get_config
 from datetime import datetime
 import os
 import secrets
+import asyncio
 
 router = APIRouter()
 
-CURRENT_VERSION = "v2.0.5"
+CURRENT_VERSION = "v2.0.6"
 DOCKER_IMAGE = "pipi20xx/lens"
 
 @router.get("/version")
@@ -63,6 +66,75 @@ async def check_version():
         "has_update": has_update,
         "docker_hub": f"https://hub.docker.com/r/{DOCKER_IMAGE}"
     }
+
+@router.post("/upgrade")
+async def upgrade_system(host_id: str = Query(None)):
+    """一键系统升级：执行在被标记为 is_local 的宿主机上"""
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    
+    target_host = None
+    
+    # 1. 寻找被用户手动标记为宿主机的节点
+    if host_id:
+        target_host = next((h for h in hosts if h.get("id") == host_id), None)
+    else:
+        # 寻找 is_local 为 True 的主机
+        target_host = next((h for h in hosts if h.get("is_local") is True), None)
+
+    if not target_host:
+        raise HTTPException(
+            status_code=400, 
+            detail="升级中断：未找到标记为“宿主机”的连接。请在“Docker 容器管理”中编辑你的宿主机连接，并开启“宿主机标记”开关。"
+        )
+
+    try:
+        service = DockerService(target_host)
+        
+        # 获取当前容器短 ID 用于探测路径
+        import socket
+        my_id = socket.gethostname()
+        
+        # 自动探测物理路径
+        inspect_cmd = f"docker inspect {my_id} --format '{{{{json .Mounts}}}}'"
+        res = service.exec_command(inspect_cmd)
+        
+        project_path = None
+        if res["success"]:
+            try:
+                import json
+                mounts = json.loads(res["stdout"])
+                for m in mounts:
+                    if m.get("Destination") == "/app/data":
+                        project_path = os.path.dirname(m.get("Source"))
+                        break
+            except: pass
+
+        if not project_path:
+            project_path = target_host.get("project_path") or "/vol1/1000/NVME/Lens"
+            logger.warning(f"⚠️ [系统升级] 路径探测失败，使用回退路径: {project_path}")
+
+        # 执行升级命令
+        upgrade_cmd = (
+            f"(cd {project_path} && "
+            "git pull && "
+            "docker compose up -d --build) > {project_path}/data/logs/upgrade.log 2>&1 &"
+        )
+        
+        logger.info(f"🚀 [系统升级] 用户已授权，正在通过宿主机 {target_host.get('name')} 执行后台升级...")
+        res = service.exec_command(upgrade_cmd)
+        
+        if res["success"]:
+            return {
+                "message": f"升级任务已在宿主机 {target_host.get('name')} 上启动！系统正在拉取代码并重新构建，请稍后刷新页面。",
+                "detected_path": project_path
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"升级脚本启动失败: {res['stderr']}")
+            
+    except Exception as e:
+        logger.error(f"❌ [系统升级] 发生异常: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/docs", include_in_schema=False)
 async def get_documentation(request: Request, theme: str = "purple", token: str = None):

@@ -199,10 +199,27 @@
                 </n-space>
               </n-list-item>
             </n-list>
+            
+            <n-alert v-if="versionInfo.has_update" type="warning" size="small" :bordered="false" style="margin-top: 12px">
+              发现新版本 {{ versionInfo.latest }}，建议立即升级以获取最新功能。
+            </n-alert>
+
             <template #footer>
-              <n-button block size="small" tertiary type="primary" @click="navigateTo('SettingsView')">
-                进入配置中心
-              </n-button>
+              <n-space vertical>
+                <n-button 
+                  v-if="versionInfo.has_update" 
+                  block 
+                  size="small" 
+                  type="warning" 
+                  :loading="upgrading"
+                  @click="handleUpgrade"
+                >
+                  {{ upgrading ? '升级脚本已启动...' : '立即升级系统' }}
+                </n-button>
+                <n-button block size="small" tertiary type="primary" @click="navigateTo('SettingsView')">
+                  进入配置中心
+                </n-button>
+              </n-space>
             </template>
           </n-card>
         </n-gi>
@@ -237,7 +254,8 @@
 import { ref, onMounted, markRaw } from 'vue'
 import { 
   NSpace, NGrid, NGi, NCard, NStatistic, NIcon, NText, 
-  NH2, NList, NListItem, NTag, NButton, NTooltip, NBadge
+  NH2, NList, NListItem, NTag, NButton, NTooltip, NBadge,
+  NAlert, useMessage
 } from 'naive-ui'
 import axios from 'axios'
 import {
@@ -271,11 +289,30 @@ const stats = ref({
   status: 'idle'
 })
 
+const message = useMessage()
+const upgrading = ref(false)
+
 const versionInfo = ref({
-        current: 'v2.0.5',
-        latest: 'v2.0.5',  has_update: false,
+  current: 'v2.0.6',
+  latest: 'v2.0.6',
+  has_update: false,
   docker_hub: ''
 })
+
+const handleUpgrade = async () => {
+  upgrading.value = true
+  try {
+    const res = await axios.post('/api/system/upgrade')
+    message.success(res.data.message, { duration: 10000 })
+    // 给系统留出时间进行构建和重启
+    setTimeout(() => {
+      window.location.reload()
+    }, 20000)
+  } catch (e: any) {
+    message.error(e.response?.data?.detail || '启动升级失败，请检查 Docker 主机 SSH 配置')
+    upgrading.value = false
+  }
+}
 
 const embyTools = [
   { 
