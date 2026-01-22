@@ -320,6 +320,29 @@ class DockerService:
             "has_update": has_update
         }
 
+    @staticmethod
+    async def start_scheduler():
+        """
+        启动自动更新调度器
+        """
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        
+        scheduler = AsyncIOScheduler()
+        
+        # 每天凌晨 3:00 执行
+        trigger = CronTrigger(hour=3, minute=0)
+        
+        scheduler.add_job(
+            DockerService.run_auto_update_task,
+            trigger,
+            id="docker_auto_update",
+            replace_existing=True
+        )
+        
+        scheduler.start()
+        logger.info("📅 [Docker] 自动更新调度器已启动，设定时间：每日 03:00")
+
     def test_connection(self) -> bool:
         if not self.client: return False
         try:

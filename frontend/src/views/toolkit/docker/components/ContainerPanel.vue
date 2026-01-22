@@ -19,16 +19,19 @@
       <pre class="logs-container">{{ containerLogs }}</pre>
     </n-modal>
     
-    <!-- 自定义端口弹窗 -->
-    <n-modal v-model:show="showCustomPortModal" preset="card" title="设置访问端口" style="width: 400px">
+    <!-- 容器设置弹窗 -->
+    <n-modal v-model:show="showSettingsModal" preset="card" title="容器设置" style="width: 400px">
       <n-space vertical>
-        <n-text depth="3">对于 Host 模式或未识别到的端口，在此设置手动跳转端口。</n-text>
         <n-form-item label="自定义访问端口">
-          <n-input v-model:value="customPortForm.port" placeholder="例如: 8096" />
+          <n-input v-model:value="settingsForm.custom_port" placeholder="Host 模式或未识别端口跳转" />
+        </n-form-item>
+        <n-form-item label="自动更新镜像">
+          <n-switch v-model:value="settingsForm.auto_update" />
+          <template #feedback>开启后，系统将每日凌晨 03:00 检查并自动升级该容器镜像。</template>
         </n-form-item>
         <n-space justify="end">
-          <n-button @click="showCustomPortModal = false">取消</n-button>
-          <n-button type="primary" @click="saveCustomPort">保存</n-button>
+          <n-button @click="showSettingsModal = false">取消</n-button>
+          <n-button type="primary" @click="saveSettings">保存</n-button>
         </n-space>
       </n-space>
     </n-modal>
@@ -46,7 +49,7 @@
 
 <script setup lang="ts">
 import { ref, watch, h, reactive } from 'vue'
-import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton } from 'naive-ui'
+import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton, NSwitch } from 'naive-ui'
 import { 
   EditOutlined as EditIcon,
   PlayCircleOutlined as StartIcon,
@@ -76,10 +79,10 @@ const loadingActions = ref<Record<string, boolean>>({})
 const containerSettings = ref<Record<string, any>>({})
 const containerLogs = ref('')
 const showLogsModal = ref(false)
-const showCustomPortModal = ref(false)
+const showSettingsModal = ref(false)
 const showTerminalModal = ref(false)
 const currentContainer = ref({ id: '', name: '', shell: '/bin/bash' })
-const customPortForm = ref({ name: '', port: '' })
+const settingsForm = ref({ name: '', custom_port: '', auto_update: false })
 
 // 状态本地化
 const statusMap: Record<string, string> = {
@@ -191,20 +194,37 @@ const openTerminal = (row: any) => {
   })
 }
 
-const openCustomPortModal = (name: string) => {
-  customPortForm.value = { name, port: containerSettings.value[name]?.custom_port || '' }
-  showCustomPortModal.value = true
+const openSettingsModal = (name: string) => {
+  const current = containerSettings.value[name] || {}
+  settingsForm.value = { 
+    name, 
+    custom_port: current.custom_port || '',
+    auto_update: current.auto_update || false
+  }
+  showSettingsModal.value = true
 }
 
-const saveCustomPort = async () => {
-  await axios.post(`/api/docker/container-settings/${customPortForm.value.name}`, { custom_port: customPortForm.value.port })
+const saveSettings = async () => {
+  await axios.post(`/api/docker/container-settings/${settingsForm.value.name}`, { 
+    custom_port: settingsForm.value.custom_port,
+    auto_update: settingsForm.value.auto_update
+  })
   message.success('设置已保存')
-  showCustomPortModal.value = false
+  showSettingsModal.value = false
   fetchContainers()
 }
 
 const columns: DataTableColumns<any> = [
-  { title: '名称', key: 'name', width: 150 },
+  { title: '名称', key: 'name', width: 150, render(row) {
+      const isAuto = containerSettings.value[row.name]?.auto_update
+      return h(NSpace, { size: 4, align: 'center' }, {
+        default: () => [
+          h(NText, null, { default: () => row.name }),
+          isAuto ? h(NTag, { size: 'tiny', type: 'info', quaternary: true }, { default: () => 'AUTO' }) : null
+        ]
+      })
+    }
+  },
   { title: '状态', key: 'status', width: 100, render(row) {
       const text = statusMap[row.status] || row.status
       return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small', round: true }, { default: () => text })
@@ -228,7 +248,7 @@ const columns: DataTableColumns<any> = [
       if (customPort) {
         tags.push(h(NButton, { size: 'tiny', type: 'warning', secondary: true, onClick: () => window.open(`http://${targetIp}:${customPort}`, '_blank') }, { default: () => `${customPort} (自定)` }))
       }
-      tags.push(h(NButton, { size: 'tiny', circle: true, quaternary: true, onClick: () => openCustomPortModal(row.name) }, { default: () => h(NIcon, null, { default: () => h(EditIcon) }) }))
+      tags.push(h(NButton, { size: 'tiny', circle: true, quaternary: true, onClick: () => openSettingsModal(row.name) }, { default: () => h(NIcon, null, { default: () => h(EditIcon) }) }))
       return h(NSpace, { size: [4, 4], align: 'center' }, { default: () => tags })
     }
   },

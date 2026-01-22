@@ -110,6 +110,10 @@ async def startup_event():
     from app.services.backup_service import BackupService
     asyncio.create_task(BackupService.start_scheduler())
     
+    # 启动 Docker 自动更新调度器
+    from app.services.docker_service import DockerService
+    asyncio.create_task(DockerService.start_scheduler())
+    
     # 启动 Telegram Bot 交互监听
     from app.services.telegram_bot_worker import TelegramBotWorker
     asyncio.create_task(TelegramBotWorker.start_all())
