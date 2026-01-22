@@ -33,8 +33,19 @@ app = FastAPI(
 async def audit_middleware(request: Request, call_next):
     start_time = time.time()
     
-    # 注意：在中间件中 await request.body() 会导致下游处理器无法读取请求体从而挂起或报错。
-    # 为了保证乐高式模块的稳定性，我们在此暂时不捕获 POST Payload，仅记录元数据。
+    # 捕获请求体 (仅针对非 GET 请求)
+    payload_str = None
+    if request.method != "GET" and request.url.path.startswith("/api"):
+        try:
+            body = await request.body()
+            if body:
+                payload_str = body.decode("utf-8")
+                # 重新包装 request 以允许下游继续读取 body
+                async def receive():
+                    return {"type": "http.request", "body": body}
+                request._receive = receive
+        except Exception:
+            pass
     
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
@@ -46,7 +57,7 @@ async def audit_middleware(request: Request, call_next):
         "/api/status",
         "/api/auth/status",
         "/api/system/config",
-        "/api/system/version", # 新增排除
+        "/api/system/version",
         "/api/system/audit/logs",
         "/api/docker",
         "/api/pgsql",
@@ -57,6 +68,16 @@ async def audit_middleware(request: Request, call_next):
     should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)
 
     if should_audit:
+        # 执行脱敏处理
+        masked_payload = payload_str
+        if payload_str:
+            try:
+                payload_json = json.loads(payload_str)
+                masked_json = await mask_sensitive_data(payload_json)
+                masked_payload = json.dumps(masked_json, ensure_ascii=False)
+            except:
+                pass
+
         # 记录到 JSON 审计日志
         asyncio.create_task(add_audit_log(
             method=request.method,
@@ -65,7 +86,7 @@ async def audit_middleware(request: Request, call_next):
             client_ip=request.client.host if request.client else "unknown",
             process_time=process_time,
             query_params=str(request.query_params),
-            payload=None # 暂时置空以确保稳定性
+            payload=masked_payload
         ))
         
         # 记录到控制台性能审计
