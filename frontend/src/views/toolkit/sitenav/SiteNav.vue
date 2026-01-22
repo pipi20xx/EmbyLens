@@ -298,11 +298,13 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
 
 .site-icon-wrapper {
-  width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
-  background: transparent; margin-right: 6px; flex-shrink: 0;
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.1); margin-right: 12px; flex-shrink: 0;
+  border-radius: 10px; overflow: hidden;
+  transition: all 0.3s ease;
 }
-.image-icon { width: 48px; height: 48px; object-fit: contain; }
-.emoji-icon { font-size: 36px; line-height: 1; }
+.image-icon { width: 100%; height: 100%; object-fit: cover; }
+.emoji-icon { font-size: 28px; line-height: 1; }
 
 .site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; }
 .site-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -109,14 +109,15 @@ const isEmoji = (str: string) => {
 
 <style scoped>
 .mini-preview {
-  height: 40px;
-  width: 40px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 8px;
+  height: 44px;
+  width: 44px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
-.preview-img { max-width: 80%; max-height: 80%; object-fit: contain; }
-.preview-emoji { font-size: 20px; }
+.preview-img { width: 100%; height: 100%; object-fit: cover; }
+.preview-emoji { font-size: 24px; }
 </style>
