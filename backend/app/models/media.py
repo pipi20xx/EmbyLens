@@ -4,7 +4,7 @@ from app.db.session import Base
 class MediaItem(Base):
     __tablename__ = "media_items"
     id = Column(String, primary_key=True, index=True) # Emby ID
-    server_id = Column(Integer, index=True)
+    server_id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True)
     item_type = Column(String, index=True) # Movie, Series, Season, Episode
     tmdb_id = Column(String, index=True, nullable=True)
