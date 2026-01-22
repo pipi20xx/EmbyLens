@@ -177,6 +177,13 @@ async def list_containers(host_id: str):
     service = get_docker_service(host_id)
     return service.list_containers()
 
+@router.get("/{host_id}/check-image-update")
+async def check_single_image_update(host_id: str, image: str):
+    """单镜像精准检测"""
+    service = get_docker_service(host_id)
+    info = await service.get_image_update_info(image)
+    return {image: info}
+
 @router.post("/{host_id}/containers/{container_id}/action")
 async def container_action(host_id: str, container_id: str, action: str = Body(..., embed=True)):
     start_time = time.time()

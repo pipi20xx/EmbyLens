@@ -1,5 +1,12 @@
 <template>
   <div class="container-panel">
+    <n-space style="margin-bottom: 12px">
+      <n-button type="primary" secondary @click="fetchContainers" :loading="loading">
+        <template #icon><n-icon><RefreshIcon /></n-icon></template>
+        刷新列表
+      </n-button>
+    </n-space>
+
     <n-data-table
       :columns="columns"
       :data="containers"
@@ -47,7 +54,9 @@ import {
   RefreshOutlined as RecreateIcon,
   DeleteOutlined as DeleteIcon,
   TerminalOutlined as LogIcon,
-  CodeOutlined as TerminalIcon
+  CodeOutlined as TerminalIcon,
+  AutorenewOutlined as RefreshIcon,
+  SystemUpdateAltOutlined as UpdateIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
@@ -62,6 +71,7 @@ const message = useMessage()
 const dialog = useDialog()
 const containers = ref([])
 const loading = ref(false)
+const updateInfo = ref<Record<string, any>>({})
 const loadingActions = ref<Record<string, boolean>>({})
 const containerSettings = ref<Record<string, any>>({})
 const containerLogs = ref('')
@@ -92,6 +102,20 @@ const fetchContainers = async () => {
     containerSettings.value = settingsRes.data
   } finally {
     loading.value = false
+  }
+}
+
+const checkSingleUpdate = async (image: string) => {
+  if (!props.hostId || !image) return
+  loadingActions.value[image] = true
+  try {
+    const res = await axios.get(`/api/docker/${props.hostId}/check-image-update`, { params: { image } })
+    updateInfo.value = { ...updateInfo.value, ...res.data }
+    message.success(`镜像 ${image} 检查完成`)
+  } catch (e) {
+    message.error('检查失败')
+  } finally {
+    loadingActions.value[image] = false
   }
 }
 
@@ -208,18 +232,48 @@ const columns: DataTableColumns<any> = [
       return h(NSpace, { size: [4, 4], align: 'center' }, { default: () => tags })
     }
   },
-  { title: '镜像', key: 'image', ellipsis: true },
+  { title: '镜像', key: 'image', ellipsis: true, render(row) {
+      const info = updateInfo.value[row.image]
+      const isChecking = loadingActions.value[row.image]
+      
+      const elements = [
+        h(NText, { 
+          depth: 3, 
+          style: 'max-width: 150px; cursor: pointer;',
+          onClick: () => checkSingleUpdate(row.image)
+        }, { default: () => row.image })
+      ]
+
+      if (info?.has_update) {
+        elements.push(h(NTag, { size: 'tiny', type: 'error', quaternary: true, style: 'margin-left: 4px' }, { default: () => 'NEW' }))
+      } else if (!info && !isChecking) {
+        // 未检查状态，显示一个淡淡的提示
+        elements.push(h(NButton, { 
+          size: 'tiny', 
+          quaternary: true, 
+          circle: true,
+          style: 'margin-left: 4px; opacity: 0.5',
+          onClick: () => checkSingleUpdate(row.image)
+        }, { default: () => h(NIcon, { size: 14 }, { default: () => h(UpdateIcon) }) }))
+      } else if (isChecking) {
+        elements.push(h(NText, { depth: 3, style: 'margin-left: 4px; font-size: 10px' }, { default: () => '...' }))
+      }
+
+      return h(NSpace, { align: 'center', size: 0 }, { default: () => elements })
+    }
+  },
   { title: '操作', key: 'actions', width: 380, render(row) {
       const isRunning = row.status === 'running'
+      const hasUpdate = updateInfo.value[row.image]?.has_update
       return h(NSpace, { size: 'small' }, {
         default: () => [
           h(NButton, { size: 'tiny', type: isRunning ? 'error' : 'primary', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, isRunning ? 'stop' : 'start') }, { 
             icon: () => h(NIcon, null, { default: () => h(isRunning ? StopIcon : StartIcon) }),
             default: () => isRunning ? '停止' : '启动' 
           }),
-          h(NButton, { size: 'tiny', type: 'warning', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { 
+          h(NButton, { size: 'tiny', type: hasUpdate ? 'error' : 'warning', secondary: !hasUpdate, pulse: hasUpdate, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { 
             icon: () => h(NIcon, null, { default: () => h(RecreateIcon) }),
-            default: () => '更新' 
+            default: () => hasUpdate ? '发现新镜像' : '更新' 
           }),
           h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleDelete(row) }, { 
             icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),

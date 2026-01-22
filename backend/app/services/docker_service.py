@@ -209,6 +209,117 @@ class DockerService:
         except Exception as e:
             return str(e)
 
+    async def get_image_update_info(self, image_tag: str):
+        """
+        获取镜像的更新信息。支持 Docker Hub 以及第三方仓库 (如 lscr.io, ghcr.io)。
+        """
+        if not image_tag: return None
+        
+        # 1. 解析镜像名与仓库地址
+        # lscr.io/linuxserver/qbittorrent:latest -> host=lscr.io, repo=linuxserver/qbittorrent, tag=latest
+        # nginx -> host=registry-1.docker.io, repo=library/nginx, tag=latest
+        parts = image_tag.split("/")
+        host = "registry-1.docker.io"
+        repo = ""
+        tag = "latest"
+        
+        full_repo_path = image_tag
+        if ":" in image_tag:
+            full_repo_path, tag = image_tag.rsplit(":", 1)
+            
+        if "." in parts[0] or ":" in parts[0]:
+            host = parts[0]
+            repo = "/".join(parts[1:])
+            if ":" in repo: repo = repo.rsplit(":", 1)[0]
+        else:
+            repo = full_repo_path
+            if "/" not in repo:
+                repo = f"library/{repo}"
+        
+        # 修正 Docker Hub 的主机名
+        reg_host = host
+        if host == "docker.io": reg_host = "registry-1.docker.io"
+            
+        # 2. 获取本地 RepoDigests
+        local_digests = []
+        res = self.exec_command(f"docker inspect --format='{{{{json .RepoDigests}}}}' {image_tag}", log_error=False)
+        if res["success"] and res["stdout"].strip():
+            try:
+                import json
+                local_digests = json.loads(res["stdout"])
+            except: pass
+            
+        if not local_digests and self.client:
+            try:
+                img = self.client.images.get(image_tag)
+                local_digests = img.attrs.get("RepoDigests", [])
+            except: pass
+            
+        # 3. 动态获取远程 Digest (支持 OCI 挑战认证)
+        remote_digest = ""
+        try:
+            from app.utils.http_client import get_async_client
+            # 扩展 Accept 头，支持多架构镜像清单
+            accept_headers = (
+                "application/vnd.docker.distribution.manifest.v2+json, "
+                "application/vnd.docker.distribution.manifest.list.v2+json, "
+                "application/vnd.oci.image.manifest.v1+json, "
+                "application/vnd.oci.image.index.v1+json"
+            )
+            
+            async with get_async_client(timeout=15.0) as client:
+                manifest_url = f"https://{reg_host}/v2/{repo}/manifests/{tag}"
+                headers = {"Accept": accept_headers}
+                
+                # 显式开启重定向跟随
+                res = await client.get(manifest_url, headers=headers, follow_redirects=True)
+                
+                if res.status_code == 401:
+                    auth_header = res.headers.get("WWW-Authenticate", "")
+                    if "Bearer" in auth_header:
+                        import re
+                        realm = re.search(r'realm="([^"]+)"', auth_header).group(1)
+                        service_match = re.search(r'service="([^"]+)"', auth_header)
+                        service = service_match.group(1) if service_match else ""
+                        scope_match = re.search(r'scope="([^"]+)"', auth_header)
+                        scope = scope_match.group(1) if scope_match else f"repository:{repo}:pull"
+                        
+                        auth_params = {"scope": scope}
+                        if service: auth_params["service"] = service
+                        
+                        auth_res = await client.get(realm, params=auth_params, follow_redirects=True)
+                        if auth_res.status_code == 200:
+                            token = auth_res.json().get("token") or auth_res.json().get("access_token")
+                            headers["Authorization"] = f"Bearer {token}"
+                            res = await client.get(manifest_url, headers=headers, follow_redirects=True)
+                
+                if res.status_code == 200:
+                    remote_digest = res.headers.get("Docker-Content-Digest", "")
+                else:
+                    logger.debug(f"HTTP {res.status_code} for {manifest_url}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch remote digest for {image_tag} on {host}: {e}")
+
+        # 4. 对比判定
+        has_update = False
+        if remote_digest:
+            is_latest = any(remote_digest in d for d in local_digests)
+            has_update = not is_latest
+            status_text = "发现新版本" if has_update else "已是最新"
+            logger.info(f"🔍 [镜像检测] 站点: {host} | 镜像: {repo}:{tag}")
+            logger.info(f"   ┣ 本地指纹: {local_digests}")
+            logger.info(f"   ┣ 远程指纹: {remote_digest}")
+            logger.info(f"   ┗ 判定结果: {status_text}")
+        else:
+            logger.warning(f"⚠️ [镜像检测] 无法获取远程指纹: {image_tag} (Host: {host})")
+
+        return {
+            "image": image_tag,
+            "local_digests": local_digests,
+            "remote_digest": remote_digest,
+            "has_update": has_update
+        }
+
     def test_connection(self) -> bool:
         if not self.client: return False
         try:
