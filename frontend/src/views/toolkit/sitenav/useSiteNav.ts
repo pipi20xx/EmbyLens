@@ -63,8 +63,12 @@ export function useSiteNav() {
         body: formData
       })
       const data = await res.json()
-      navSettings.value.background_url = data.url
-      message.success('背景上传成功')
+      if (res.ok) {
+        navSettings.value.background_url = data.url
+        message.success('背景上传成功')
+      } else {
+        message.error(data.detail || '背景上传失败')
+      }
     } catch (e) {
       message.error('背景上传失败')
     }

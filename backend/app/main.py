@@ -33,24 +33,7 @@ app = FastAPI(
 async def audit_middleware(request: Request, call_next):
     start_time = time.time()
     
-    # 捕获请求体 (仅针对非 GET 请求)
-    payload_str = None
-    if request.method != "GET" and request.url.path.startswith("/api"):
-        try:
-            body = await request.body()
-            if body:
-                payload_str = body.decode("utf-8")
-                # 重新包装 request 以允许下游继续读取 body
-                async def receive():
-                    return {"type": "http.request", "body": body}
-                request._receive = receive
-        except Exception:
-            pass
-    
-    response = await call_next(request)
-    process_time = (time.time() - start_time) * 1000
-    
-    # 排除审计路径
+    # 排除审计路径和文件上传路径
     exclude_paths = [
         "/api/system/logs", 
         "/api/stats/summary", 
@@ -65,7 +48,31 @@ async def audit_middleware(request: Request, call_next):
         "/ws/"
     ]
     
-    should_audit = request.url.path.startswith("/api") and not any(p in request.url.path for p in exclude_paths)
+    is_api = request.url.path.startswith("/api")
+    is_excluded = any(p in request.url.path for p in exclude_paths)
+    is_upload = "multipart/form-data" in request.headers.get("content-type", "")
+
+    # 捕获请求体 (仅针对非 GET 且非上传、非排除路径的请求)
+    payload_str = None
+    if request.method != "GET" and is_api and not is_excluded and not is_upload:
+        try:
+            body = await request.body()
+            if body:
+                try:
+                    payload_str = body.decode("utf-8")
+                    # 重新包装 request 以允许下游继续读取 body
+                    async def receive():
+                        return {"type": "http.request", "body": body}
+                    request._receive = receive
+                except UnicodeDecodeError:
+                    payload_str = "[Binary Data]"
+        except Exception:
+            pass
+    
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000
+    
+    should_audit = is_api and not is_excluded
 
     if should_audit:
         # 执行脱敏处理

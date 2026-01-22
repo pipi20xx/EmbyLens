@@ -18,18 +18,42 @@ const props = defineProps<{
   fetchingIcon: boolean
 }>()
 
-const emit = defineEmits(['update:show', 'save', 'fetchIcon'])
+const emit = defineEmits(['update:show', 'save', 'fetchIcon', 'update-icon'])
 const message = useMessage()
 
-const handleUploadFinish = ({ event }: { event: any }) => {
+const handleUploadFinish = (options: { file: any, event?: any }) => {
   try {
-    const res = JSON.parse(event.target.response)
-    if (res.icon && props.editingSite) {
-      props.editingSite.icon = res.icon
+    const file = options.file
+    const response = file.response || options.event?.target?.response
+    if (!response) {
+      message.error('上传响应为空')
+      return
+    }
+
+    const res = typeof response === 'string' ? JSON.parse(response) : response
+    if (res && res.icon) {
+      emit('update-icon', res.icon)
       message.success('图标上传成功')
     }
   } catch (e) {
     message.error('解析上传结果失败')
+    console.error('Upload parse error:', e)
+  }
+}
+
+const handleUploadError = ({ file }: { file: any }) => {
+  try {
+    const response = file.response
+    const res = typeof response === 'string' ? JSON.parse(response) : response
+    message.error(res?.detail || '上传失败')
+  } catch (e) {
+    message.error('上传失败')
+  }
+}
+
+const handleUploadChange = (options: { file: any }) => {
+  if (options.file.status === 'uploading') {
+    // 可以添加加载状态提示
   }
 }
 
@@ -72,11 +96,14 @@ const isEmoji = (str: string) => {
           <n-upload
             action="/api/navigation/upload-icon"
             :show-file-list="false"
+            accept="image/*"
             @finish="handleUploadFinish"
+            @error="handleUploadError"
+            @change="handleUploadChange"
           >
             <n-button block type="info" secondary dashed size="small">
               <template #icon><n-icon><UploadIcon /></n-icon></template>
-              上传本地图标 (PNG/JPG/SVG/ICO)
+              点击上传本地图标 (PNG/JPG/ICO/SVG/GIF)
             </n-button>
           </n-upload>
 

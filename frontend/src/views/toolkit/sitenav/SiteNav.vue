@@ -234,6 +234,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
       v-model:show="showEditor" :editingSite="editingSite"
       :categories="categories" :fetchingIcon="fetchingIcon"
       @save="handleSaveSite" @fetchIcon="handleAutoFetchIcon"
+      @update-icon="icon => { if (editingSite) editingSite.icon = icon }"
     />
 
     <CategoryManagerModal 

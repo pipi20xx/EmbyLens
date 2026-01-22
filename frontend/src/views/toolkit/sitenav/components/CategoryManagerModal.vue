@@ -100,7 +100,7 @@ const onDragEnd = () => {
         <n-text depth="3" style="font-size: 12px; margin-bottom: 12px; display: block;">外观设置 (自定义背景)</n-text>
         <n-space vertical size="large">
           <n-space align="center">
-            <n-upload :show-file-list="false" @change="handleUploadBg" accept="image/*">
+            <n-upload :show-file-list="false" @change="handleUploadBg" accept=".png,.jpg,.jpeg,.webp,.svg,.gif">
               <n-button secondary size="small">
                 <template #icon><n-icon><ImageIcon /></n-icon></template>
                 更换背景图

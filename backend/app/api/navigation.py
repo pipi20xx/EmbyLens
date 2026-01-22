@@ -39,9 +39,28 @@ async def update_settings(settings: dict):
 
 @router.post("/upload-bg")
 async def upload_background(file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-        raise HTTPException(status_code=400, detail="只支持图片格式")
+    filename = file.filename or ""
+    ext = os.path.splitext(filename)[1].lower()
+    
+    mime_map = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/x-png": ".png",
+        "image/webp": ".webp",
+        "image/svg+xml": ".svg",
+        "image/gif": ".gif"
+    }
+    
+    if not ext and file.content_type in mime_map:
+        ext = mime_map[file.content_type]
+
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif']
+    if ext not in allowed_extensions:
+        if file.content_type and file.content_type.startswith("image/"):
+            ext = mime_map.get(file.content_type, ".jpg")
+        else:
+            raise HTTPException(status_code=400, detail="只支持图片格式")
     
     # 清理旧背景
     if os.path.exists(BG_DIR):
@@ -52,8 +71,9 @@ async def upload_background(file: UploadFile = File(...)):
     filename = f"bg_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(BG_DIR, filename)
     
+    content = await file.read()
     with open(filepath, "wb") as f:
-        f.write(await file.read())
+        f.write(content)
     
     url = f"/nav_backgrounds/{filename}"
     nav_service.update_settings({"background_url": url})
@@ -61,15 +81,56 @@ async def upload_background(file: UploadFile = File(...)):
 
 @router.post("/upload-icon")
 async def upload_icon(file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.ico']:
-        raise HTTPException(status_code=400, detail="不支持的图片格式")
+    # 提取扩展名
+    filename = file.filename or ""
+    ext = os.path.splitext(filename)[1].lower()
+    
+    # 映射 content-type 到扩展名
+    mime_map = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/pjpeg": ".jpg",
+        "image/png": ".png",
+        "image/x-png": ".png",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+        "image/svg+xml": ".svg",
+        "image/x-icon": ".ico",
+        "image/vnd.microsoft.icon": ".ico",
+        "image/bmp": ".bmp",
+        "image/x-ms-bmp": ".bmp"
+    }
+    
+    # 如果没有扩展名，尝试从 content-type 推断
+    if not ext and file.content_type in mime_map:
+        ext = mime_map[file.content_type]
+    
+    # 允许更多常见的图片格式
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.ico', '.gif', '.bmp']
+    
+    print(f"[Navigation] Uploading icon: {filename}, ext: {ext}, content_type: {file.content_type}")
+
+    if ext not in allowed_extensions:
+        # 最后一次机会：如果 content-type 是图片，即使扩展名不认识也允许
+        if file.content_type and file.content_type.startswith("image/"):
+            # 如果是未知的图片类型，默认用 .png 或者是从 mime_map 获取
+            ext = mime_map.get(file.content_type, ".png")
+        else:
+            print(f"[Navigation] Unsupported format: {ext} / {file.content_type}")
+            raise HTTPException(status_code=400, detail=f"不支持的图片格式: {ext or '无扩展名'} ({file.content_type})")
     
     filename = f"custom_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(ICON_DIR, filename)
     
-    with open(filepath, "wb") as f:
-        f.write(await file.read())
+    try:
+        content = await file.read()
+        print(f"[Navigation] File read, size: {len(content)} bytes")
+        with open(filepath, "wb") as f:
+            f.write(content)
+        print(f"[Navigation] Icon saved to: {filepath}")
+    except Exception as e:
+        print(f"[Navigation] Save error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"保存文件失败: {str(e)}")
     
     return {"icon": f"/nav_icons/{filename}"}
 
