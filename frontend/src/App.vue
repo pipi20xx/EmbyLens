@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { 
   NConfigProvider, 
   NDialogProvider, 
@@ -20,6 +20,7 @@ import {
   isLogConsoleOpen, 
   isLoggedIn, 
   uiAuthEnabled,
+  isSideBarHidden,
   initMenuSettingsFromBackend 
 } from './store/navigationStore'
 import { useTheme } from './hooks/useTheme'
@@ -29,30 +30,33 @@ import axios from 'axios'
 // --- Theme System ---
 const { currentThemeType, themeOverrides, themeOptions } = useTheme()
 
+// --- UI Layout State ---
+const isHomeEntry = ref(false)
+const shouldHideSideBar = computed(() => {
+  return currentViewKey.value === 'SiteNavView' && isHomeEntry.value
+})
+
 onMounted(async () => {
+  // --- 路径入口检测 ---
+  if (window.location.pathname === '/home') {
+    isHomeEntry.value = true
+    currentViewKey.value = 'SiteNavView'
+    window.history.replaceState({}, '', '/')
+  }
+
   // --- 认证状态同步 ---
   try {
     const res = await axios.get('/api/auth/status')
-    // 兼容处理字符串和布尔值
     const enabled = res.data.ui_auth_enabled === true || res.data.ui_auth_enabled === 'true'
     uiAuthEnabled.value = enabled
     if (!enabled) {
       isLoggedIn.value = true
     }
-  } catch (err) {
-    console.error('Failed to sync auth status', err)
-  }
+  } catch (err) { }
 
   // --- 初始化菜单设置 ---
   if (isLoggedIn.value) {
     initMenuSettingsFromBackend()
-  }
-
-  // --- 路径入口检测 ---
-  // 如果访问路径是 /home，强制进入站点导航页，忽略记忆
-  if (window.location.pathname === '/home') {
-    currentViewKey.value = 'SiteNavView'
-    window.history.replaceState({}, '', '/')
   }
 })
 
@@ -69,17 +73,18 @@ const currentView = computed(() => {
         <template v-if="isLoggedIn">
           <n-layout has-sider position="absolute">
             <SideBar 
+              v-if="!shouldHideSideBar"
               v-model:themeType="currentThemeType" 
               :themeOptions="themeOptions" 
             />
 
             <n-layout-content :content-style="{
-              padding: 'var(--space-lg)',
+              padding: shouldHideSideBar ? '0' : 'var(--space-lg)',
               minHeight: '100vh',
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: currentViewKey === 'SiteNavView' ? 'transparent' : 'var(--app-bg-color)',
-              transition: 'padding 0.3s ease'
+              transition: 'all 0.3s ease'
             }">
               <div class="view-wrapper">
                 <transition name="fade" mode="out-in">

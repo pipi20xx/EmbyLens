@@ -249,9 +249,8 @@ const openUrl = (url: string) => window.open(url, '_blank')
 <style scoped>
 .site-nav-page { 
   position: relative; 
-  min-height: calc(100vh - 32px); 
-  margin: -16px; /* 抵消 App.vue 的 padding */
-  padding: 24px;
+  min-height: 100vh; 
+  padding: 8px; /* 基础内边距，配合 App.vue 的 padding */
 }
 
 /* 背景层样式 */
