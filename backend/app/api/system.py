@@ -91,24 +91,69 @@ async def upgrade_system(host_id: str = Query(None)):
     try:
         service = DockerService(target_host)
         
-        # 获取当前容器短 ID 用于探测路径
-        import socket
-        my_id = socket.gethostname()
-        
         # 自动探测物理路径
-        inspect_cmd = f"docker inspect {my_id} --format '{{{{json .Mounts}}}}'"
-        res = service.exec_command(inspect_cmd)
-        
         project_path = None
-        if res["success"]:
-            try:
-                import json
-                mounts = json.loads(res["stdout"])
-                for m in mounts:
-                    if m.get("Destination") == "/app/data":
-                        project_path = os.path.dirname(m.get("Source"))
+        
+        # 1. 深度指纹探测：通过容器标签定位（这是 Compose 官方记录宿主机路径的标准方式）
+        # 我们寻找镜像名包含 lens 且拥有 compose 工作目录标签的容器
+        inspect_all_cmd = (
+            "docker ps -a --format '{{.ID}}\t{{.Label \"com.docker.compose.project.working_dir\"}}\t{{.Image}}\t{{.Names}}'"
+        )
+        res_ps = service.exec_command(inspect_all_cmd, log_error=False)
+        
+        candidates = []
+        if res_ps["success"] and res_ps["stdout"].strip():
+            lines = res_ps["stdout"].strip().split('\n')
+            for line in lines:
+                parts = line.split('\t')
+                if len(parts) < 3: continue
+                cid, working_dir, image, name = parts[0], parts[1], parts[2], parts[3] if len(parts) > 3 else ""
+                
+                # 匹配特征：镜像名包含 lens，或者容器名包含 lens
+                if DOCKER_IMAGE in image or "lens" in image.lower() or "lens" in name.lower():
+                    # 如果有直接的 working_dir 标签，这是最准确的
+                    if working_dir and working_dir != "<no value>":
+                        project_path = working_dir
                         break
-            except: pass
+                    candidates.append(cid)
+
+        # 2. 如果没有直接标签，尝试从匹配容器的挂载点反推
+        if not project_path and candidates:
+            for cid in candidates:
+                inspect_cmd = f"docker inspect {cid} --format '{{{{json .Mounts}}}}'"
+                res_insp = service.exec_command(inspect_cmd, log_error=False)
+                if res_insp["success"]:
+                    try:
+                        import json
+                        mounts = json.loads(res_insp["stdout"])
+                        for m in mounts:
+                            # 寻找关键挂载点 /app/data
+                            if m.get("Destination") == "/app/data":
+                                src = m.get("Source")
+                                if src.endswith("/data"):
+                                    project_path = src[:-5] # 移除末尾的 /data
+                                else:
+                                    project_path = os.path.dirname(src)
+                                break
+                        if project_path: break
+                    except: pass
+
+        # 3. 最后的保底策略：尝试传统的 docker compose ls
+        if not project_path:
+            detect_cmd = "docker compose ls --all --format json"
+            res_compose = service.exec_command(detect_cmd, log_error=False)
+            if res_compose["success"] and res_compose["stdout"].strip():
+                try:
+                    import json
+                    projects = json.loads(res_compose["stdout"])
+                    for p in projects:
+                        p_name = str(p.get("Name") or p.get("Project", "")).lower()
+                        if "lens" in p_name:
+                            config_path = p.get("ConfigFiles") or p.get("ConfigPath")
+                            if config_path:
+                                project_path = os.path.dirname(config_path)
+                                break
+                except: pass
 
         if not project_path:
             project_path = target_host.get("project_path") or "/vol1/1000/NVME/Lens"
