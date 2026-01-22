@@ -12,6 +12,8 @@ import uuid
 import asyncio
 import json
 
+from app.services.emby import EmbyService, get_emby_service
+
 router = APIRouter()
 
 # --- Webhook 队列与后台处理 ---
@@ -45,12 +47,11 @@ class TagActionRequest(BaseModel):
     library_type: Literal['all', 'favorite'] = 'all'
     custom_tags: Optional[List[str]] = None
 
-async def get_helper():
+async def get_helper(server_id: str = None, emby_id: str = None):
+    service = get_emby_service(server_id, emby_id)
+    if not service: raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
     config = get_config()
-    url = config.get("url")
-    if not url: raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
-    token = config.get("session_token") or config.get("api_key")
-    return AutotagEmbyHelper(url, token, config.get("user_id")), config
+    return AutotagEmbyHelper(service.url, service.api_key, service.user_id), config
 
 async def fetch_tmdb_details(tmdb_key: str, tmdb_id: str, media_type: str):
     url = f"https://api.themoviedb.org/3/{media_type}/{tmdb_id}"
@@ -78,6 +79,9 @@ async def process_webhook_item(payload: Dict):
         logger.info("┃  [Webhook] 自动处理已关闭，跳过执行")
         return
     
+    # 尝试从 Payload 中识别服务器 ID
+    emby_server_id = payload.get("ServerId") or payload.get("Server", {}).get("Id")
+    
     # 1. 获取项目信息
     item = payload.get("Item", {})
     item_id = item.get("Id")
@@ -90,7 +94,16 @@ async def process_webhook_item(payload: Dict):
         if series_id:
             logger.info(f"┃  📺 检测到{item_type}入库，将自动处理其所属剧集系列 (ID: {series_id})")
             # 重新获取系列的信息
-            helper, _ = await get_helper()
+            # 如果我们有 ServerId，尝试通过 ServerId 查找本地配置的服务器
+            local_server_id = None
+            if emby_server_id:
+                # 注意：Emby 的 ServerId 和我们本地生成的 UUID 不一样
+                # 我们可能需要在保存服务器配置时记录 Emby 侧的 ServerId，
+                # 或者在这里遍历所有配置尝试匹配 URL (不太靠谱)
+                # 暂时使用 active server，但最好是能匹配上。
+                pass
+            
+            helper, _ = await get_helper(emby_id=emby_server_id)
             series_item = await helper.get_item_full_detail(series_id)
             if series_item:
                 item = series_item
@@ -116,7 +129,7 @@ async def process_webhook_item(payload: Dict):
     await asyncio.sleep(delay)
     
     # 2. 执行打标签逻辑
-    helper, _ = await get_helper()
+    helper, _ = await get_helper(emby_id=emby_server_id)
     tagger = Tagger(config.get("autotag_rules", []))
     tmdb_key = config.get("tmdb_api_key")
     

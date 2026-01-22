@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
 from app.core.config_manager import get_config
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -27,14 +27,11 @@ FULL_FIELDS = "ProviderIds,Name,Type,Id,Path,Overview,ProductionYear,CommunityRa
 
 # --- 使用 config.json 还原被误删的核心辅助函数 ---
 async def get_active_emby():
-    config = get_config()
-    url = config.get("url")
-    if not url: 
+    service = get_emby_service()
+    if not service: 
         logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
         raise HTTPException(status_code=400, detail="未配置服务器")
-    
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
+    return service
 
 async def _fetch_series_structure(service: EmbyService, series_item: Dict[str, Any]) -> Dict[str, Any]:
     series_details = series_item.copy()

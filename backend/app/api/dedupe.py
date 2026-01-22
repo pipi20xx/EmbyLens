@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
 from app.models.media import MediaItem
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.core.scorer import Scorer
 from app.core.config_manager import get_config, save_config
 from app.utils.logger import logger, audit_log
@@ -30,11 +30,10 @@ def parse_advanced_search(text: str):
     return criteria
 
 async def get_emby_context(db: AsyncSession):
-    config = get_config()
-    url = config.get("url")
-    if not url: raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
+    service = get_emby_service()
+    if not service:
+        raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
+    return service
 
 class BulkDeleteRequest(BaseModel):
     item_ids: List[str]

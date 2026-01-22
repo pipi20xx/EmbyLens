@@ -2,21 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.core.config_manager import get_config
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 import time
 
 router = APIRouter()
 
 async def get_active_emby():
-    config = get_config()
-    url = config.get("url")
-    if not url:
+    service = get_emby_service()
+    if not service:
         logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
         raise HTTPException(status_code=400, detail="未配置服务器")
-    
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
+    return service
 
 @router.get("/reverse-tmdb", summary="根据单集 ID 反查剧集 TMDB")
 async def reverse_lookup_tmdb(

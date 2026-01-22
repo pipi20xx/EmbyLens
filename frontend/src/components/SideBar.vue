@@ -17,9 +17,13 @@ import { currentViewKey, isLogConsoleOpen, menuSettings, isLoggedIn, logout, uiA
 import { ThemeType } from '../hooks/useTheme'
 import { 
   DragHandleOutlined as MenuManageIcon,
-  ExitToAppOutlined as LogoutIcon 
+  ExitToAppOutlined as LogoutIcon,
+  DnsOutlined as ServerIcon
 } from '@vicons/material'
 import { useRouter } from 'vue-router'
+import { servers, activeServerId, fetchServers, activateServer } from '../store/serverStore'
+import { onMounted, h } from 'vue'
+import { useMessage } from 'naive-ui'
 
 const props = defineProps<{
   themeType: ThemeType
@@ -28,9 +32,36 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:themeType'])
 const router = useRouter()
+const message = useMessage()
 
 const collapsed = ref(localStorage.getItem('lens_sidebar_collapsed') === 'true')
 const showMenuManager = ref(false)
+
+const serverOptions = computed(() => {
+  return servers.value.map(s => ({
+    label: s.name,
+    key: s.id,
+    icon: () => h(NIcon, null, { default: () => h(ServerIcon) })
+  }))
+})
+
+const activeServerName = computed(() => {
+  const active = servers.value.find(s => s.id === activeServerId.value)
+  return active ? active.name : '未选择服务器'
+})
+
+const handleServerSelect = async (serverId: string) => {
+  const success = await activateServer(serverId)
+  if (success) {
+    message.success(`已切换至服务器: ${activeServerName.value}`)
+    // 强制刷新页面以应用新服务器配置，或者在各自组件中监听
+    window.location.reload()
+  }
+}
+
+onMounted(() => {
+  fetchServers()
+})
 
 const handleLogout = () => {
   logout()
@@ -75,9 +106,20 @@ const handleThemeSelect = (val: string) => {
         <app-logo :size="28" :theme="themeType" />
         <div v-if="!collapsed" class="logo-info">
           <div class="logo-text">Lens</div>
-          <div class="version-tag">v2.0.3</div>
+          <div class="version-tag">v2.0.4</div>
         </div>
       </n-space>
+    </div>
+
+    <div class="server-switcher" v-if="servers.length > 0">
+      <n-dropdown trigger="click" :options="serverOptions" @select="handleServerSelect">
+        <n-button quaternary block size="small" :style="{ padding: collapsed ? '0' : '0 12px', justifyContent: 'flex-start' }">
+          <template #icon>
+            <n-icon color="var(--primary-color)"><ServerIcon /></n-icon>
+          </template>
+          <span v-if="!collapsed" class="server-name-text">{{ activeServerName }}</span>
+        </n-button>
+      </n-dropdown>
     </div>
     
     <n-scrollbar style="flex-grow: 1;">
@@ -139,5 +181,7 @@ const handleThemeSelect = (val: string) => {
 .logo-info { display: flex; flex-direction: column; justify-content: center; }
 .logo-text { font-weight: 800; font-size: 1.1rem; color: var(--primary-color); line-height: 1.2; letter-spacing: 0.5px; }
 .version-tag { font-size: 0.7rem; color: var(--text-color); opacity: 0.5; font-family: var(--font-mono); margin-top: 0px; }
+.server-switcher { padding: 4px 8px 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.server-name-text { font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
 .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border-color); }
 </style>

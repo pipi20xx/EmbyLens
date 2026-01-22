@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from app.db.session import get_db
 from app.models.media import MediaItem, DedupeRule
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 import time
 
@@ -56,16 +56,18 @@ class MetadataManagerResponse(BaseModel):
 from app.core.config_manager import get_config
 import time
 
-router = APIRouter()
-
 async def get_emby_context(db: AsyncSession):
-    config = get_config()
-    url = config.get("url")
-    if not url:
+    service = get_emby_service()
+    if not service:
         raise HTTPException(status_code=400, detail="未配置服务器")
     
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key")), config.get("user_id")
+    # 获取当前服务器的 user_id
+    config = get_config()
+    active_id = config.get("active_server_id")
+    active_server = next((s for s in config.get("emby_servers", []) if s.get("id") == active_id), {})
+    user_id = active_server.get("user_id")
+    
+    return service, user_id
 
 async def _get_library_id(service: EmbyService, lib_name: str) -> Optional[str]:
     resp = await service._request("GET", "/Library/VirtualFolders")

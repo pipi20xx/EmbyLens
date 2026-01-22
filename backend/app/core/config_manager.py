@@ -5,6 +5,8 @@ from typing import Dict, Any
 CONFIG_FILE = "data/config.json"
 
 DEFAULT_CONFIG = {
+    "emby_servers": [],
+    "active_server_id": "",
     "name": "默认服务器",
     "url": "",
     "api_key": "",
@@ -79,6 +81,25 @@ def get_config() -> Dict[str, Any]:
                             full_config[key] = []
                     else:
                         full_config[key] = val if val is not None else full_config[key]
+            
+            # 兼容性迁移逻辑：如果 emby_servers 为空，但存在旧的 url/api_key 配置，则迁移至列表
+            if not full_config.get("emby_servers") and full_config.get("url"):
+                import uuid
+                server_id = str(uuid.uuid4())
+                old_server = {
+                    "id": server_id,
+                    "name": full_config.get("name", "默认服务器"),
+                    "url": full_config.get("url"),
+                    "api_key": full_config.get("api_key"),
+                    "user_id": full_config.get("user_id"),
+                    "username": full_config.get("username"),
+                    "password": full_config.get("password"),
+                    "session_token": full_config.get("session_token")
+                }
+                full_config["emby_servers"] = [old_server]
+                full_config["active_server_id"] = server_id
+                # 迁移后立即保存
+                save_config(full_config)
                         
             return full_config
     except Exception:

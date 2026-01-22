@@ -5,21 +5,20 @@ import httpx
 import time
 from app.db.session import get_db
 from app.core.config_manager import get_config
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 from app.utils.http_client import get_async_client
 
 router = APIRouter()
 
 async def get_emby_context():
-    config = get_config()
-    url = config.get("url")
-    if not url:
+    service = get_emby_service()
+    if not service:
         logger.error("❌ 任务终止: 未发现配置。请在系统设置中填入 IP 和 API Key")
         raise HTTPException(status_code=400, detail="未配置服务器")
     
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key")), config
+    config = get_config()
+    return service, config
 
 async def fetch_tmdb_data(tmdb_key: str, path: str, params: Dict = None):
     if not tmdb_key:

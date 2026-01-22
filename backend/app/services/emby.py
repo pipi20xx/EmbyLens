@@ -56,9 +56,11 @@ class EmbyService:
             logger.error(f"┃  ┃  ❌ 指令发送异常 ({type(e).__name__}): {str(e)}")
             return None
 
-    async def test_connection(self) -> bool:
+    async def test_connection(self) -> Optional[Dict[str, Any]]:
         resp = await self._request("GET", "/System/Info")
-        return resp is not None and resp.status_code == 200
+        if resp is not None and resp.status_code == 200:
+            return resp.json()
+        return None
 
     async def fetch_items(self, item_types: List[str], recursive: bool = True, parent_id: str = None) -> List[Dict[str, Any]]:
         params = {
@@ -94,3 +96,34 @@ class EmbyService:
         """调用 Emby API 删除条目"""
         resp = await self._request("DELETE", f"/Items/{item_id}")
         return resp is not None and resp.status_code in [200, 204]
+
+def get_emby_service(server_id: str = None, emby_id: str = None) -> Optional[EmbyService]:
+    """获取 EmbyService 实例。优先使用 server_id (本地 ID)，其次是 emby_id (Emby 真实 ID)。"""
+    config = get_config()
+    servers = config.get("emby_servers", [])
+    
+    # 查找目标服务器配置
+    target_server = None
+    if server_id:
+        target_server = next((s for s in servers if s.get("id") == server_id), None)
+    elif emby_id:
+        target_server = next((s for s in servers if s.get("emby_id") == emby_id), None)
+    else:
+        active_id = config.get("active_server_id")
+        target_server = next((s for s in servers if s.get("id") == active_id), None)
+    
+    # 如果没找到且列表不为空，默认用第一个（兜底）
+    if not target_server and servers:
+        target_server = servers[0]
+        
+    if not target_server:
+        return None
+        
+    # 优先使用 session_token，没有再用 api_key
+    token = target_server.get("session_token") or target_server.get("api_key")
+    return EmbyService(
+        url=target_server.get("url", ""),
+        api_key=token,
+        user_id=target_server.get("user_id"),
+        tmdb_key=config.get("tmdb_api_key")
+    )

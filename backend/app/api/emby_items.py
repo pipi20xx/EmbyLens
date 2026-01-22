@@ -2,24 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.core.config_manager import get_config
-from app.services.emby import EmbyService
+from app.services.emby import EmbyService, get_emby_service
 from app.utils.logger import logger, audit_log
 import time
 
 router = APIRouter()
 
-async def get_emby_service():
-    config = get_config()
-    url = config.get("url")
-    if not url:
-        return None
-    token = config.get("session_token") or config.get("api_key")
-    return EmbyService(url, token, config.get("user_id"), config.get("tmdb_api_key"))
-
 @router.get("/info")
 async def get_item_info(item_id: str, db: AsyncSession = Depends(get_db)):
     start_time = time.time()
-    service = await get_emby_service()
+    service = get_emby_service()
     if not service:
         raise HTTPException(status_code=400, detail="未配置 Emby 服务器")
     
