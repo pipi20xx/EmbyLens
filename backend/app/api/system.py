@@ -164,9 +164,10 @@ async def upgrade_system(host_id: str = Query(None)):
         # 确保日志目录存在
         service.exec_command(f"mkdir -p {project_path}/data/logs")
 
-        # 执行升级命令：使用 nohup 确保后台运行，并修复字符串格式化
+        # 执行升级命令：纯 Docker Compose 升级流程
+        # 适用于所有镜像部署用户
         upgrade_cmd = (
-            f"nohup sh -c 'cd {project_path} && git pull && docker compose up -d --build' "
+            f"nohup sh -c 'cd {project_path} && docker compose pull && docker compose up -d' "
             f"> {project_path}/data/logs/upgrade.log 2>&1 &"
         )
         
