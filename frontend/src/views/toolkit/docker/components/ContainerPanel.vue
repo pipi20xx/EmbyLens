@@ -207,7 +207,8 @@ const openSettingsModal = (name: string) => {
 const saveSettings = async () => {
   await axios.post(`/api/docker/container-settings/${settingsForm.value.name}`, { 
     custom_port: settingsForm.value.custom_port,
-    auto_update: settingsForm.value.auto_update
+    auto_update: settingsForm.value.auto_update,
+    host_id: props.hostId // 新增：记录主机 ID
   })
   message.success('设置已保存')
   showSettingsModal.value = false

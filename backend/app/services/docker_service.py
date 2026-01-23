@@ -323,61 +323,75 @@ class DockerService:
     @staticmethod
     async def run_auto_update_task():
         """
-        自动更新任务执行逻辑：遍历所有主机和容器，对开启了 auto_update 的容器执行镜像检查与重构
+        极致精准版：根据记录中的 host_id 直接定点更新
         """
         logger.info("🚀 [Docker] 开始执行每日自动更新任务...")
         from app.core.config_manager import get_config
         from app.services.notification_service import NotificationService
         
         config = get_config()
-        hosts = config.get("docker_hosts", [])
+        all_hosts = config.get("docker_hosts", [])
         container_settings = config.get("docker_container_settings", {})
         
+        # 1. 筛选出所有开启了自动更新且有 host_id 的记录
+        # 按 host_id 分组，格式: { "host_abc": ["container1", "container2"] }
+        tasks_by_host = {}
+        for name, settings in container_settings.items():
+            if settings.get("auto_update") and settings.get("host_id"):
+                h_id = settings.get("host_id")
+                if h_id not in tasks_by_host:
+                    tasks_by_host[h_id] = []
+                tasks_by_host[h_id].append(name)
+        
+        if not tasks_by_host:
+            logger.info("ℹ️ [Docker] 没有发现待更新的任务记录，任务结束。")
+            return
+
         updated_count = 0
         error_count = 0
-        
-        for host_config in hosts:
-            host_name = host_config.get("name", "Unknown Host")
-            host_id = host_config.get("id")
+
+        # 2. 定点执行
+        for h_id, names in tasks_by_host.items():
+            # 找到对应的主机配置
+            host_config = next((h for h in all_hosts if h.get("id") == h_id), None)
+            if not host_config:
+                logger.error(f"❌ [Docker] 找不到 ID 为 {h_id} 的主机配置，跳过容器: {names}")
+                continue
+
+            host_name = host_config.get("name", "Unknown")
+            logger.info(f"🌐 [Docker] 正在连接主机 [{host_name}] 检查容器: {', '.join(names)}")
             
             try:
                 service = DockerService(host_config)
-                containers = service.list_containers()
+                # 精准查询这几个容器
+                containers = service.list_containers(all=True, filters={"name": names})
                 
                 for container in containers:
-                    name = container.get("name")
-                    if container_settings.get(name, {}).get("auto_update"):
+                    c_name = container.get("name")
+                    if c_name in names:
                         image = container.get("image")
-                        logger.info(f"🔍 [Docker] 正在检查容器 {name} 的镜像更新: {image}")
-                        
                         try:
                             update_info = await service.get_image_update_info(image)
                             if update_info and update_info.get("has_update"):
-                                logger.info(f"✨ [Docker] 发现镜像更新，正在重构容器: {name}")
-                                # 获取容器 ID
+                                logger.info(f"✨ [Docker][{host_name}] 发现镜像更新: {c_name}")
                                 c_id = container.get("full_id") or container.get("id")
-                                success = service.container_action(c_id, "recreate")
-                                
-                                if success:
+                                if service.container_action(c_id, "recreate"):
                                     updated_count += 1
                                     await NotificationService.emit(
                                         event="docker.auto_update",
                                         title="Docker 自动更新成功",
-                                        message=f"主机: {host_name}\n容器: {name}\n镜像: {image}\n结果: 已更新并自动重构"
+                                        message=f"主机: {host_name}\n容器: {c_name}\n镜像: {image}\n结果: 已更新并重构"
                                     )
                                 else:
                                     error_count += 1
-                                    logger.error(f"❌ [Docker] 容器 {name} 重构失败")
-                            else:
-                                logger.debug(f"ℹ️ [Docker] 容器 {name} 镜像已是最新")
                         except Exception as e:
-                            logger.error(f"❌ [Docker] 检查/更新容器 {name} 出错: {e}")
+                            logger.error(f"❌ [Docker][{host_name}] 处理 {c_name} 异常: {e}")
                             error_count += 1
             except Exception as e:
-                logger.error(f"❌ [Docker] 连接主机 {host_name} 失败: {e}")
-                error_count += 1
-                
-        logger.info(f"🏁 [Docker] 自动更新任务执行完毕。成功: {updated_count}, 失败: {error_count}")
+                logger.error(f"❌ [Docker] 无法连接主机 {host_name}: {e}")
+                error_count += len(names)
+
+        logger.info(f"🏁 [Docker] 自动更新完毕。更新: {updated_count}, 失败: {error_count}")
 
     @staticmethod
     async def start_scheduler():
