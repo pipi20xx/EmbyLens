@@ -77,11 +77,12 @@ logger = setup_logger()
 
 # 辅助函数：模拟审计风格日志
 def audit_log(title: str, duration_ms: float, details: List[str]):
-    logger.info(f"⏱️ [性能审计]: {title} 耗时 {duration_ms:.0f}ms")
-    logger.info(f"📢 [最终结论汇报]")
-    for i, detail in enumerate(details):
-        prefix = "┣" if i < len(details) - 1 else "┗"
-        logger.info(f"{prefix} {detail}")
+    # 性能审计降噪：过滤掉耗时极短的 GET 请求
+    if duration_ms < 100 and "GET" in title:
+        return
+        
+    detail_str = " | ".join(details)
+    logger.info(f"⏱️ [性能审计]: {title} 耗时 {duration_ms:.0f}ms | {detail_str}")
 
 # 系统日志 API 相关逻辑
 def get_log_dates() -> List[str]:

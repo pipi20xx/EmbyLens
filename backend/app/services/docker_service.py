@@ -321,17 +321,85 @@ class DockerService:
         }
 
     @staticmethod
+    async def run_auto_update_task():
+        """
+        自动更新任务执行逻辑：遍历所有主机和容器，对开启了 auto_update 的容器执行镜像检查与重构
+        """
+        logger.info("🚀 [Docker] 开始执行每日自动更新任务...")
+        from app.core.config_manager import get_config
+        from app.services.notification_service import NotificationService
+        
+        config = get_config()
+        hosts = config.get("docker_hosts", [])
+        container_settings = config.get("docker_container_settings", {})
+        
+        updated_count = 0
+        error_count = 0
+        
+        for host_config in hosts:
+            host_name = host_config.get("name", "Unknown Host")
+            host_id = host_config.get("id")
+            
+            try:
+                service = DockerService(host_config)
+                containers = service.list_containers()
+                
+                for container in containers:
+                    name = container.get("name")
+                    if container_settings.get(name, {}).get("auto_update"):
+                        image = container.get("image")
+                        logger.info(f"🔍 [Docker] 正在检查容器 {name} 的镜像更新: {image}")
+                        
+                        try:
+                            update_info = await service.get_image_update_info(image)
+                            if update_info and update_info.get("has_update"):
+                                logger.info(f"✨ [Docker] 发现镜像更新，正在重构容器: {name}")
+                                # 获取容器 ID
+                                c_id = container.get("full_id") or container.get("id")
+                                success = service.container_action(c_id, "recreate")
+                                
+                                if success:
+                                    updated_count += 1
+                                    await NotificationService.emit(
+                                        event="docker.auto_update",
+                                        title="Docker 自动更新成功",
+                                        message=f"主机: {host_name}\n容器: {name}\n镜像: {image}\n结果: 已更新并自动重构"
+                                    )
+                                else:
+                                    error_count += 1
+                                    logger.error(f"❌ [Docker] 容器 {name} 重构失败")
+                            else:
+                                logger.debug(f"ℹ️ [Docker] 容器 {name} 镜像已是最新")
+                        except Exception as e:
+                            logger.error(f"❌ [Docker] 检查/更新容器 {name} 出错: {e}")
+                            error_count += 1
+            except Exception as e:
+                logger.error(f"❌ [Docker] 连接主机 {host_name} 失败: {e}")
+                error_count += 1
+                
+        logger.info(f"🏁 [Docker] 自动更新任务执行完毕。成功: {updated_count}, 失败: {error_count}")
+
+    @staticmethod
     async def start_scheduler():
         """
         启动自动更新调度器
         """
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from apscheduler.triggers.cron import CronTrigger
+        import os
+        import pytz
         
-        scheduler = AsyncIOScheduler()
+        # 获取系统时区，默认为 UTC
+        tz_name = os.getenv("TZ", "UTC")
+        try:
+            tz = pytz.timezone(tz_name)
+        except Exception:
+            tz = pytz.UTC
+
+        scheduler = AsyncIOScheduler(timezone=tz)
         
         # 每天凌晨 3:00 执行
-        trigger = CronTrigger(hour=3, minute=0)
+        trigger = CronTrigger(hour=3, minute=0, timezone=tz)
         
         scheduler.add_job(
             DockerService.run_auto_update_task,
@@ -341,7 +409,7 @@ class DockerService:
         )
         
         scheduler.start()
-        logger.info("📅 [Docker] 自动更新调度器已启动，设定时间：每日 03:00")
+        logger.info(f"📅 [Docker] 自动更新调度器已启动 (时区: {tz_name}, 设定时间: 每日 03:00)")
 
     def test_connection(self) -> bool:
         if not self.client: return False

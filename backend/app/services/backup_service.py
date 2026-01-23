@@ -17,23 +17,45 @@ from app.core.config_manager import get_config, save_config
 from app.services.notification_service import NotificationService
 
 class BackupService:
-    _scheduler = AsyncIOScheduler()
+    _scheduler = None
     _is_running = False
+
+    @classmethod
+    def get_scheduler(cls):
+        if cls._scheduler is None:
+            import os
+            import pytz
+            tz_name = os.getenv("TZ", "UTC")
+            try:
+                tz = pytz.timezone(tz_name)
+            except Exception:
+                tz = pytz.UTC
+            cls._scheduler = AsyncIOScheduler(timezone=tz)
+        return cls._scheduler
 
     @classmethod
     async def start_scheduler(cls):
         if not cls._is_running:
-            cls._scheduler.start()
+            cls.get_scheduler().start()
             cls._is_running = True
-            logger.info("⏰ [Backup] 定时任务调度器已启动")
+            logger.info(f"⏰ [Backup] 定时任务调度器已启动 (时区: {os.getenv('TZ', 'UTC')})")
             await cls.reload_tasks()
 
     @classmethod
     async def reload_tasks(cls):
         """从 config.json 加载并重载所有定时任务"""
-        cls._scheduler.remove_all_jobs()
+        scheduler = cls.get_scheduler()
+        scheduler.remove_all_jobs()
         config = get_config()
         tasks = config.get("backup_tasks", [])
+        
+        import os
+        import pytz
+        tz_name = os.getenv("TZ", "UTC")
+        try:
+            tz = pytz.timezone(tz_name)
+        except Exception:
+            tz = pytz.UTC
         
         for task in tasks:
             if not task.get("enabled", True):
@@ -45,14 +67,14 @@ class BackupService:
                 schedule_value = task.get("schedule_value")
                 
                 if schedule_type == "cron":
-                    trigger = CronTrigger.from_crontab(schedule_value)
+                    trigger = CronTrigger.from_crontab(schedule_value, timezone=tz)
                 elif schedule_type == "interval":
                     # 假设 value 是分钟
-                    trigger = IntervalTrigger(minutes=int(schedule_value))
+                    trigger = IntervalTrigger(minutes=int(schedule_value), timezone=tz)
                 else:
                     continue
 
-                cls._scheduler.add_job(
+                scheduler.add_job(
                     cls.run_backup_task,
                     trigger=trigger,
                     args=[task_id],
