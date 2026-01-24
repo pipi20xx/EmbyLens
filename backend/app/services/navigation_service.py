@@ -14,7 +14,17 @@ DEFAULT_NAV = {
         "background_url": "",
         "background_opacity": 0.4,
         "background_blur": 5,
-        "background_size": "cover"
+        "background_size": "cover",
+        "background_color": "#000000",
+        "card_background": "rgba(20, 20, 25, 0.7)",
+        "card_blur": 10,
+        "card_border_color": "rgba(255, 255, 255, 0.1)",
+        "text_color": "#ffffff",
+        "text_description_color": "rgba(255, 255, 255, 0.5)",
+        "category_title_color": "#ffffff",
+        "content_max_width": 100,
+        "page_title": "站点导航",
+        "page_subtitle": "右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）"
     }
 }
 
