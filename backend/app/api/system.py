@@ -17,7 +17,7 @@ import asyncio
 
 router = APIRouter()
 
-CURRENT_VERSION = "v2.1.3"
+CURRENT_VERSION = "v2.1.4"
 DOCKER_IMAGE = "pipi20xx/lens"
 
 @router.get("/version")
