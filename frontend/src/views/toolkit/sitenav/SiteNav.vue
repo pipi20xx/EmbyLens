@@ -21,18 +21,27 @@ import { isHomeEntry } from '../../../store/navigationStore'
 import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
 
-const { 
+const {
   sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
   addSite, updateSite, deleteSite, updateSiteOrder,
   addCategory, deleteCategory, updateCategory, updateCategoryOrder,
   updateNavSettings, resetNavSettings, uploadBackground, fetchIconFromUrl, 
-  exportConfig, importConfig, message
+  exportConfig, importConfig, message, hitokoto, fetchHitokoto
 } = useSiteNav()
 
 onMounted(() => {
   fetchSites()
   fetchCategories()
   fetchSettings()
+  fetchHitokoto()
+})
+
+// 计算背景图
+const computedBgUrl = computed(() => {
+  if (navSettings.value.wallpaper_mode === 'bing') {
+    return 'https://bing.biturl.top/?resolution=1920&format=image&index=0&mkt=zh-CN'
+  }
+  return navSettings.value.background_url
 })
 
 // --- 状态管理 ---
@@ -173,10 +182,10 @@ const openUrl = (url: string) => window.open(url, '_blank')
     
     <!-- 背景层：顶层图片（受透明度和模糊度影响） -->
     <div 
-      v-if="navSettings.background_url"
+      v-if="computedBgUrl"
       class="site-nav-background-image"
       :style="{
-        backgroundImage: `url('${navSettings.background_url}')`,
+        backgroundImage: `url('${computedBgUrl}')`,
         opacity: navSettings.background_opacity ?? 0.7,
         filter: `blur(${navSettings.background_blur ?? 0}px)`,
         backgroundSize: navSettings.background_size || 'cover'
@@ -189,8 +198,13 @@ const openUrl = (url: string) => window.open(url, '_blank')
         <div class="header-left">
           <div class="page-title">{{ navSettings.page_title }}</div>
           <div class="page-subtitle">{{ navSettings.page_subtitle }}</div>
-        </div>
-        <div class="header-right">
+          
+          <!-- 每日一言积木 -->
+          <div v-if="navSettings.show_hitokoto" class="hitokoto-container" @click="fetchHitokoto">
+            <span class="hitokoto-text">“ {{ hitokoto.text }} ”</span>
+            <span class="hitokoto-from">—— {{ hitokoto.from }}</span>
+          </div>
+        </div>        <div class="header-right">
           <n-space>
             <n-tooltip trigger="hover">
               <template #trigger>
@@ -316,7 +330,19 @@ const openUrl = (url: string) => window.open(url, '_blank')
 
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 700; color: var(--nav-text-color); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.page-subtitle { font-size: 12px; color: var(--nav-text-desc-color); }
+.page-subtitle { font-size: 12px; color: var(--nav-text-desc-color); margin-bottom: 8px; }
+
+.hitokoto-container {
+  display: inline-flex;
+  flex-direction: column;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  max-width: 600px;
+}
+.hitokoto-container:hover { opacity: 0.8; }
+.hitokoto-text { font-size: 14px; color: var(--nav-text-color); font-style: italic; opacity: 0.9; }
+.hitokoto-from { font-size: 12px; color: var(--nav-text-desc-color); align-self: flex-end; margin-top: 4px; }
 
 .category-section { margin-bottom: 32px; }
 .category-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }

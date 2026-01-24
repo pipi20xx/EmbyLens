@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { 
-  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard, NColorPicker, NDivider, NGrid, NGridItem, NInput
+  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard, NColorPicker, NDivider, NGrid, NGridItem, NInput, NRadioGroup, NRadioButton, NSwitch
 } from 'naive-ui'
 import { 
   ImageOutlined as ImageIcon,
@@ -23,6 +23,8 @@ const props = defineProps<{
     content_max_width: number
     page_title: string
     page_subtitle: string
+    wallpaper_mode: string
+    show_hitokoto: boolean
   }
 }>()
 
@@ -45,25 +47,44 @@ const handleUploadBg = (options: { file: { file: File } }) => {
       <!-- 核心图片上传区 -->
       <n-card embedded :bordered="false" size="small">
         <template #header>
-          <n-text depth="3" style="font-size: 13px;">底图资源</n-text>
+          <n-text depth="3" style="font-size: 13px;">背景资源</n-text>
         </template>
-        <n-space align="center" justify="space-between">
-          <n-upload :show-file-list="false" @change="handleUploadBg" accept=".png,.jpg,.jpeg,.webp,.svg,.gif">
-            <n-button type="primary" secondary>
-              <template #icon><n-icon><ImageIcon /></n-icon></template>
-              {{ settings.background_url ? '更换背景图片' : '上传背景图片' }}
-            </n-button>
-          </n-upload>
-          
-          <n-button 
-            v-if="settings.background_url"
-            secondary 
-            type="error" 
-            quaternary 
-            @click="emit('updateSettings', { background_url: '' })"
+        <n-space vertical size="medium">
+          <n-radio-group 
+            :value="settings.wallpaper_mode" 
+            @update:value="val => emit('updateSettings', { wallpaper_mode: val })"
           >
-            移除当前背景
-          </n-button>
+            <n-radio-button value="custom">自定义上传</n-radio-button>
+            <n-radio-button value="bing">必应每日壁纸</n-radio-button>
+          </n-radio-group>
+
+          <n-divider style="margin: 4px 0" />
+
+          <div v-if="settings.wallpaper_mode === 'custom'">
+            <n-space align="center" justify="space-between">
+              <n-upload :show-file-list="false" @change="handleUploadBg" accept=".png,.jpg,.jpeg,.webp,.svg,.gif">
+                <n-button type="primary" secondary>
+                  <template #icon><n-icon><ImageIcon /></n-icon></template>
+                  {{ settings.background_url ? '更换背景图片' : '上传背景图片' }}
+                </n-button>
+              </n-upload>
+              
+              <n-button 
+                v-if="settings.background_url"
+                secondary 
+                type="error" 
+                quaternary 
+                @click="emit('updateSettings', { background_url: '' })"
+              >
+                移除
+              </n-button>
+            </n-space>
+          </div>
+          <div v-else>
+            <n-text depth="3" style="font-size: 12px;">
+              已启用必应每日壁纸。系统将自动获取每日最新高清图片作为背景。
+            </n-text>
+          </div>
         </n-space>
       </n-card>
 
@@ -136,6 +157,15 @@ const handleUploadBg = (options: { file: { file: File } }) => {
           <n-text depth="3" style="font-size: 13px;">内容文本</n-text>
         </template>
         <n-space vertical>
+          <div class="setting-item">
+            <n-space justify="space-between" align="center">
+              <span class="label-small" style="margin-bottom: 0">显示“每日一言”</span>
+              <n-switch 
+                :value="settings.show_hitokoto" 
+                @update:value="val => emit('updateSettings', { show_hitokoto: val })" 
+              />
+            </n-space>
+          </div>
           <div class="setting-item">
             <span class="label-small">主标题</span>
             <n-input 

@@ -32,6 +32,8 @@ const props = defineProps<{
     content_max_width: number
     page_title: string
     page_subtitle: string
+    wallpaper_mode: string
+    show_hitokoto: boolean
   }
 }>()
 

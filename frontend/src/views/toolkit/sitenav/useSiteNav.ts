@@ -36,16 +36,29 @@ const DEFAULT_SETTINGS = {
   category_title_color: '#ffffff',
   content_max_width: 90,
   page_title: '站点导航',
-  page_subtitle: '个性化您的导航面板'
+  page_subtitle: '个性化您的导航面板',
+  wallpaper_mode: 'custom', // 'custom' or 'bing'
+  show_hitokoto: false
 }
 
 const navSettings = ref({ ...DEFAULT_SETTINGS })
 const loading = ref(false)
+const hitokoto = ref({ text: '', from: '' })
 
 export function useSiteNav() {
   const { message } = createDiscreteApi(['message'], {
     configProviderProps: { theme: darkTheme }
   })
+
+  const fetchHitokoto = async () => {
+    try {
+      const res = await fetch('https://v1.hitokoto.cn')
+      const data = await res.json()
+      hitokoto.value = { text: data.hitokoto, from: data.from }
+    } catch (e) {
+      hitokoto.value = { text: '心之所向，素履以往。', from: '七堇年' }
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -280,6 +293,8 @@ export function useSiteNav() {
     categories,
     navSettings,
     loading,
+    hitokoto,
+    fetchHitokoto,
     fetchSites,
     fetchCategories,
     fetchSettings,
