@@ -164,7 +164,8 @@ const openUrl = (url: string) => window.open(url, '_blank')
       '--nav-text-color': navSettings.text_color || '#ffffff',
       '--nav-text-desc-color': navSettings.text_description_color || 'rgba(255, 255, 255, 0.5)',
       '--nav-bg-color': navSettings.background_color || '#000000',
-      '--nav-category-color': navSettings.category_title_color || '#ffffff'
+      '--nav-category-color': navSettings.category_title_color || '#ffffff',
+      '--nav-content-width': `${navSettings.content_max_width || 100}%`
     }"
   >
     <!-- 背景层 -->
@@ -180,11 +181,11 @@ const openUrl = (url: string) => window.open(url, '_blank')
     ></div>
 
     <!-- 内容包裹层 -->
-    <div class="site-nav-content">
+    <div class="site-nav-content" style="max-width: var(--nav-content-width); margin: 0 auto; padding: 0 20px;">
       <div class="nav-header">
         <div class="header-left">
-          <div class="page-title">站点导航</div>
-          <div class="page-subtitle">右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）</div>
+          <div class="page-title">{{ navSettings.page_title }}</div>
+          <div class="page-subtitle">{{ navSettings.page_subtitle }}</div>
         </div>
         <div class="header-right">
           <n-space>

@@ -33,7 +33,10 @@ const DEFAULT_SETTINGS = {
   card_border_color: 'rgba(255, 255, 255, 0.1)',
   text_color: '#ffffff',
   text_description_color: 'rgba(255, 255, 255, 0.5)',
-  category_title_color: '#ffffff'
+  category_title_color: '#ffffff',
+  content_max_width: 100,
+  page_title: '站点导航',
+  page_subtitle: '右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）'
 }
 
 const navSettings = ref({ ...DEFAULT_SETTINGS })

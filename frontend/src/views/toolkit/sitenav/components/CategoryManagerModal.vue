@@ -29,6 +29,9 @@ const props = defineProps<{
     text_color: string
     text_description_color: string
     category_title_color: string
+    content_max_width: number
+    page_title: string
+    page_subtitle: string
   }
 }>()
 

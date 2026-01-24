@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { 
-  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard, NColorPicker, NDivider, NGrid, NGridItem
+  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard, NColorPicker, NDivider, NGrid, NGridItem, NInput
 } from 'naive-ui'
 import { 
   ImageOutlined as ImageIcon,
@@ -20,6 +20,9 @@ const props = defineProps<{
     text_color: string
     text_description_color: string
     category_title_color: string
+    content_max_width: number
+    page_title: string
+    page_subtitle: string
   }
 }>()
 
@@ -122,6 +125,57 @@ const handleUploadBg = (options: { file: { file: File } }) => {
             </div>
           </div>
         </n-space>
+        <div v-if="!settings.background_url" class="overlay-tip">
+          请先上传背景图以解锁样式调整
+        </div>
+      </n-card>
+
+      <!-- 内容文本 -->
+      <n-card embedded :bordered="false" size="small">
+        <template #header>
+          <n-text depth="3" style="font-size: 13px;">内容文本</n-text>
+        </template>
+        <n-space vertical>
+          <div class="setting-item">
+            <span class="label-small">主标题</span>
+            <n-input 
+              :value="settings.page_title" 
+              placeholder="站点导航"
+              @update:value="val => emit('updateSettings', { page_title: val })" 
+            />
+          </div>
+          <div class="setting-item">
+            <span class="label-small">副标题 (提示文字)</span>
+            <n-input 
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              :value="settings.page_subtitle" 
+              placeholder="提示文字..."
+              @update:value="val => emit('updateSettings', { page_subtitle: val })" 
+            />
+          </div>
+        </n-space>
+      </n-card>
+
+      <!-- 布局调整 -->
+      <n-card embedded :bordered="false" size="small">
+        <template #header>
+          <n-text depth="3" style="font-size: 13px;">布局调整</n-text>
+        </template>
+        <div class="setting-item">
+          <div class="label-row">
+            <span class="label">页面内容宽度</span>
+            <n-text depth="3" size="small">{{ settings.content_max_width }}%</n-text>
+          </div>
+          <n-slider 
+            :value="settings.content_max_width" 
+            :min="30" :max="100" :step="1" 
+            @update:value="val => emit('updateSettings', { content_max_width: val })" 
+          />
+          <n-text depth="3" style="font-size: 11px; margin-top: 4px; display: block;">
+            调整内容区域的最大宽度。当小于 100% 时，内容会自动水平居中。
+          </n-text>
+        </div>
       </n-card>
 
       <!-- 卡片样式高级设置 -->
