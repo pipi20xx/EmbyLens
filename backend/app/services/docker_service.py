@@ -131,6 +131,55 @@ class DockerService:
                 config = attrs.get('Config', {})
                 host_config = attrs.get('HostConfig', {})
                 
+                # --- 修复：保留挂载的 Propagation 属性 (如 rslave) ---
+                # HostConfig.Binds 有时会丢失 propagation 信息，需从 Mounts 找回
+                mounts = attrs.get('Mounts', [])
+                current_binds = host_config.get('Binds') or []
+                final_binds = []
+                
+                # 1. 建立现有 Binds 的索引 (Source:Dest -> Mode)
+                bind_map = {} 
+                for b in current_binds:
+                    parts = b.split(':')
+                    if len(parts) >= 2:
+                        # 统一作为 Key: "Src:Dst"
+                        key = f"{parts[0]}:{parts[1]}"
+                        mode = parts[2] if len(parts) > 2 else ""
+                        bind_map[key] = mode
+
+                # 2. 遍历 Mounts 补充 Propagation
+                for m in mounts:
+                    if m.get('Type') == 'bind':
+                        src = m.get('Source')
+                        dst = m.get('Destination')
+                        propagation = m.get('Propagation', '')
+                        
+                        # 只有非默认的 propagation (如 rslave, rshared) 才需要显式添加
+                        if propagation and propagation != 'rprivate':
+                            key = f"{src}:{dst}"
+                            if key in bind_map:
+                                mode = bind_map[key]
+                                # 如果现有 mode 没包含该 propagation，则追加
+                                if propagation not in mode:
+                                    new_mode = f"{mode},{propagation}" if mode else propagation
+                                    bind_map[key] = new_mode
+                            else:
+                                # 如果 Binds 里缺失该挂载，尝试补回 (默认 rw)
+                                rw_mode = "rw" if m.get('RW', True) else "ro"
+                                bind_map[key] = f"{rw_mode},{propagation}"
+
+                # 3. 重建 Binds 列表
+                if not bind_map and current_binds:
+                    # 如果没解析出任何东西但原 Binds 不为空 (可能是旧版本 Docker 没 Mounts)，保留原样
+                    final_binds = current_binds
+                else:
+                    for key, mode in bind_map.items():
+                        if mode:
+                            final_binds.append(f"{key}:{mode}")
+                        else:
+                            final_binds.append(key)
+                # -------------------------------------------------
+
                 # 转换端口映射格式 (docker-py run 需要格式: { 'container_port/proto': 'host_port' })
                 port_bindings = host_config.get('PortBindings') or {}
                 ports = {}
@@ -150,7 +199,7 @@ class DockerService:
                     "name": name,
                     "detach": True,
                     "environment": config.get('Env', []),
-                    "volumes": host_config.get('Binds', []),
+                    "volumes": final_binds,
                     "ports": ports,
                     "restart_policy": host_config.get('RestartPolicy', {}),
                     "network_mode": network_mode,
