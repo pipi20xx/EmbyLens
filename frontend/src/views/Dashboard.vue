@@ -278,7 +278,8 @@ import {
   CameraRound as LensIcon,
   DnsRound as DockerIcon,
   AdminPanelSettingsRound as SecurityIcon,
-  PersonOutlineRound as ProfileIcon
+  PersonOutlineRound as ProfileIcon,
+  NotificationsActiveRound as NotificationIcon
 } from '@vicons/material'
 import { currentViewKey } from '../store/navigationStore'
 
@@ -403,6 +404,12 @@ const systemTools = [
     key: 'ExternalControlView', 
     icon: markRaw(SecurityIcon), 
     desc: '管理 API Token 与审计日志' 
+  },
+  { 
+    label: '通知消息中心', 
+    key: 'NotificationManagerView', 
+    icon: markRaw(NotificationIcon), 
+    desc: '配置 Telegram 等多平台通知推送' 
   }
 ]
 
