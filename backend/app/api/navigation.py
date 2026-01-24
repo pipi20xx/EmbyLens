@@ -205,11 +205,27 @@ async def list_sites():
 
 @router.post("/", response_model=SiteNavResponse)
 async def create_site(site: SiteNavCreate):
-    return nav_service.add_site(site.dict())
+    # 自动本地化远程图标
+    site_data = site.dict()
+    icon = site_data.get("icon")
+    if icon and icon.startswith(("http://", "https://")):
+        local_path = await download_and_cache_icon(icon)
+        if local_path:
+            site_data["icon"] = local_path
+            
+    return nav_service.add_site(site_data)
 
 @router.put("/{site_id}")
 async def update_site(site_id: int, site: SiteNavUpdate):
-    nav_service.update_site(site_id, site.dict(exclude_unset=True))
+    # 自动本地化远程图标
+    site_data = site.dict(exclude_unset=True)
+    icon = site_data.get("icon")
+    if icon and icon.startswith(("http://", "https://")):
+        local_path = await download_and_cache_icon(icon)
+        if local_path:
+            site_data["icon"] = local_path
+            
+    nav_service.update_site(site_id, site_data)
     nav_service.cleanup_orphaned_icons() 
     return {"message": "Updated"}
 
