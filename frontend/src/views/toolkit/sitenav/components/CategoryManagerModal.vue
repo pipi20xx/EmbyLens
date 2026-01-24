@@ -34,6 +34,10 @@ const props = defineProps<{
     page_subtitle: string
     wallpaper_mode: string
     show_hitokoto: boolean
+    header_alignment: string
+    header_item_spacing: number
+    header_margin_top: number
+    header_margin_bottom: number
   }
 }>()
 

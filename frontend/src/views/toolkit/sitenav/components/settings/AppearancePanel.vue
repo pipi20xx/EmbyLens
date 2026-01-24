@@ -24,7 +24,15 @@ const props = defineProps<{
     page_title: string
     page_subtitle: string
     wallpaper_mode: string
+    bing_mkt: string
+    bing_index: number
+    bing_resolution: string
+    show_wallpaper_info: boolean
     show_hitokoto: boolean
+    header_alignment: string
+    header_item_spacing: number
+    header_margin_top: number
+    header_margin_bottom: number
   }
 }>()
 
@@ -81,9 +89,59 @@ const handleUploadBg = (options: { file: { file: File } }) => {
             </n-space>
           </div>
           <div v-else>
-            <n-text depth="3" style="font-size: 12px;">
-              已启用必应每日壁纸。系统将自动获取每日最新高清图片作为背景。
-            </n-text>
+            <n-space vertical size="medium">
+              <n-text depth="3" style="font-size: 12px;">
+                已启用必应每日壁纸。您可以自定义地区和历史日期。
+              </n-text>
+              
+              <div class="setting-item">
+                <span class="label-small">壁纸地区 (Market)</span>
+                <n-select 
+                  :value="settings.bing_mkt" 
+                  :options="[
+                    { label: '中国 (zh-CN)', value: 'zh-CN' },
+                    { label: '美国 (en-US)', value: 'en-US' },
+                    { label: '日本 (ja-JP)', value: 'ja-JP' },
+                    { label: '德国 (de-DE)', value: 'de-DE' },
+                    { label: '英国 (en-GB)', value: 'en-GB' }
+                  ]"
+                  @update:value="val => emit('updateSettings', { bing_mkt: val })" 
+                />
+              </div>
+
+              <div class="setting-item">
+                <div class="label-row">
+                  <span class="label-small">历史日期偏移</span>
+                  <n-text depth="3" size="small">{{ settings.bing_index === 0 ? '今天' : settings.bing_index + ' 天前' }}</n-text>
+                </div>
+                <n-slider 
+                  :value="settings.bing_index" 
+                  :min="0" :max="7" :step="1" 
+                  @update:value="val => emit('updateSettings', { bing_index: val })" 
+                />
+              </div>
+
+              <div class="setting-item">
+                <span class="label-small">分辨率质量</span>
+                <n-radio-group 
+                  :value="settings.bing_resolution" 
+                  @update:value="val => emit('updateSettings', { bing_resolution: val })"
+                >
+                  <n-radio-button value="1920x1080">1080P</n-radio-button>
+                  <n-radio-button value="UHD">4K UHD</n-radio-button>
+                </n-radio-group>
+              </div>
+
+              <div class="setting-item">
+                <n-space justify="space-between" align="center">
+                  <span class="label-small" style="margin-bottom: 0">显示壁纸故事信息</span>
+                  <n-switch 
+                    :value="settings.show_wallpaper_info" 
+                    @update:value="val => emit('updateSettings', { show_wallpaper_info: val })" 
+                  />
+                </n-space>
+              </div>
+            </n-space>
           </div>
         </n-space>
       </n-card>
@@ -192,20 +250,69 @@ const handleUploadBg = (options: { file: { file: File } }) => {
         <template #header>
           <n-text depth="3" style="font-size: 13px;">布局调整</n-text>
         </template>
-        <div class="setting-item">
-          <div class="label-row">
-            <span class="label">页面内容宽度</span>
-            <n-text depth="3" size="small">{{ settings.content_max_width }}%</n-text>
+        <n-space vertical size="large">
+          <div class="setting-item">
+            <span class="label-small">标题对齐方式</span>
+            <n-radio-group 
+              :value="settings.header_alignment" 
+              @update:value="val => emit('updateSettings', { header_alignment: val })"
+            >
+              <n-radio-button value="left">左对齐</n-radio-button>
+              <n-radio-button value="center">居中对齐</n-radio-button>
+              <n-radio-button value="right">右对齐</n-radio-button>
+            </n-radio-group>
           </div>
-          <n-slider 
-            :value="settings.content_max_width" 
-            :min="30" :max="100" :step="1" 
-            @update:value="val => emit('updateSettings', { content_max_width: val })" 
-          />
-          <n-text depth="3" style="font-size: 11px; margin-top: 4px; display: block;">
-            调整内容区域的最大宽度。当小于 100% 时，内容会自动水平居中。
-          </n-text>
-        </div>
+
+          <div class="setting-item">
+            <div class="label-row">
+              <span class="label">页面内容宽度</span>
+              <n-text depth="3" size="small">{{ settings.content_max_width }}%</n-text>
+            </div>
+            <n-slider 
+              :value="settings.content_max_width" 
+              :min="30" :max="100" :step="1" 
+              @update:value="val => emit('updateSettings', { content_max_width: val })" 
+            />
+          </div>
+
+          <n-divider style="margin: 4px 0" />
+
+          <div class="setting-item">
+            <div class="label-row">
+              <span class="label">标题顶部边距 (MT)</span>
+              <n-text depth="3" size="small">{{ settings.header_margin_top }}px</n-text>
+            </div>
+            <n-slider 
+              :value="settings.header_margin_top" 
+              :min="0" :max="200" :step="1" 
+              @update:value="val => emit('updateSettings', { header_margin_top: val })" 
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="label-row">
+              <span class="label">标题行间距</span>
+              <n-text depth="3" size="small">{{ settings.header_item_spacing }}px</n-text>
+            </div>
+            <n-slider 
+              :value="settings.header_item_spacing" 
+              :min="0" :max="50" :step="1" 
+              @update:value="val => emit('updateSettings', { header_item_spacing: val })" 
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="label-row">
+              <span class="label">标题底部边距 (MB)</span>
+              <n-text depth="3" size="small">{{ settings.header_margin_bottom }}px</n-text>
+            </div>
+            <n-slider 
+              :value="settings.header_margin_bottom" 
+              :min="0" :max="100" :step="1" 
+              @update:value="val => emit('updateSettings', { header_margin_bottom: val })" 
+            />
+          </div>
+        </n-space>
       </n-card>
 
       <!-- 卡片样式高级设置 -->
@@ -293,13 +400,6 @@ const handleUploadBg = (options: { file: { file: File } }) => {
 .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .label { font-size: 14px; font-weight: 500; }
 .label-small { font-size: 12px; margin-bottom: 4px; display: block; color: rgba(255,255,255,0.7); }
-</style>
-
-<style scoped>
-.tab-content { padding: 8px 0; min-height: 350px; }
-.setting-item { margin-bottom: 20px; }
-.label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.label { font-size: 14px; font-weight: 500; }
 .overlay-tip {
   text-align: center;
   padding: 10px;

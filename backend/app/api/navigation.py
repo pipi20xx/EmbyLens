@@ -307,6 +307,33 @@ async def import_navigation(file: UploadFile = File(...)):
 # 增强型图标抓取
 # ==========================================
 
+@router.get("/bing-wallpaper")
+async def get_bing_wallpaper(
+    index: int = 0, 
+    mkt: str = "zh-CN",
+    resolution: str = "1920x1080"
+):
+    """获取必应每日壁纸及其元数据"""
+    try:
+        url = f"https://www.bing.com/HPImageArchive.aspx?format=js&idx={index}&n=1&mkt={mkt}"
+        async with get_async_client(timeout=10.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "images" in data and len(data["images"]) > 0:
+                    image = data["images"][0]
+                    # 构建完整图片 URL
+                    base_url = f"https://www.bing.com{image['urlbase']}_{resolution}.jpg"
+                    return {
+                        "url": base_url,
+                        "title": image.get("title", ""),
+                        "copyright": image.get("copyright", ""),
+                        "copyrightlink": image.get("copyrightlink", "")
+                    }
+    except Exception as e:
+        print(f"Fetch bing error: {e}")
+    return {"error": "Failed to fetch"}
+
 @router.get("/fetch-icon")
 async def fetch_icon(url: str = Query(...)):
     """抓取网页图标并自动本地化"""

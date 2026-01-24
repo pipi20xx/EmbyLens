@@ -21,12 +21,13 @@ import { isHomeEntry } from '../../../store/navigationStore'
 import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
 
-const {
+const { 
   sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
   addSite, updateSite, deleteSite, updateSiteOrder,
   addCategory, deleteCategory, updateCategory, updateCategoryOrder,
   updateNavSettings, resetNavSettings, uploadBackground, fetchIconFromUrl, 
-  exportConfig, importConfig, message, hitokoto, fetchHitokoto
+  exportConfig, importConfig, message, hitokoto, fetchHitokoto,
+  bingInfo, fetchBingWallpaper
 } = useSiteNav()
 
 onMounted(() => {
@@ -39,11 +40,10 @@ onMounted(() => {
 // 计算背景图
 const computedBgUrl = computed(() => {
   if (navSettings.value.wallpaper_mode === 'bing') {
-    return 'https://bing.biturl.top/?resolution=1920&format=image&index=0&mkt=zh-CN'
+    return bingInfo.value.url
   }
   return navSettings.value.background_url
 })
-
 // --- 状态管理 ---
 const showEditor = ref(false)
 const showSettings = ref(false)
@@ -174,7 +174,11 @@ const openUrl = (url: string) => window.open(url, '_blank')
       '--nav-text-desc-color': navSettings.text_description_color || 'rgba(255, 255, 255, 0.7)',
       '--nav-bg-color': navSettings.background_color || '#1e1e22',
       '--nav-category-color': navSettings.category_title_color || '#ffffff',
-      '--nav-content-width': `${navSettings.content_max_width || 90}%`
+      '--nav-content-width': `${navSettings.content_max_width || 90}%`,
+      '--nav-header-align': navSettings.header_alignment || 'left',
+      '--nav-header-gap': `${navSettings.header_item_spacing ?? 12}px`,
+      '--nav-header-mt': `${navSettings.header_margin_top ?? 20}px`,
+      '--nav-header-mb': `${navSettings.header_margin_bottom ?? 30}px`
     }"
   >
     <!-- 背景层：底层实色 -->
@@ -192,19 +196,41 @@ const openUrl = (url: string) => window.open(url, '_blank')
       }"
     ></div>
 
+    <!-- 每日一言底部对齐保护层 -->
+    <div 
+      v-if="navSettings.wallpaper_mode === 'bing' && navSettings.show_wallpaper_info && bingInfo.title" 
+      class="wallpaper-info-layer"
+    >
+      <div class="wp-info-content">
+        <div class="wp-title">{{ bingInfo.title }}</div>
+        <div class="wp-copyright">{{ bingInfo.copyright }}</div>
+      </div>
+    </div>
+
     <!-- 内容包裹层 -->
     <div class="site-nav-content" style="max-width: var(--nav-content-width); margin: 0 auto; padding: 0 20px;">
-      <div class="nav-header">
-        <div class="header-left">
+      <div class="nav-header" :style="{ marginTop: 'var(--nav-header-mt)', marginBottom: 'var(--nav-header-mb)' }">
+        <div class="header-left" :style="{ 
+          textAlign: 'var(--nav-header-align)', 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: navSettings.header_alignment === 'center' ? 'center' : (navSettings.header_alignment === 'right' ? 'flex-end' : 'flex-start'),
+          gap: 'var(--nav-header-gap)'
+        }">
           <div class="page-title">{{ navSettings.page_title }}</div>
-          <div class="page-subtitle">{{ navSettings.page_subtitle }}</div>
+          <div class="page-subtitle" style="margin-bottom: 0;">{{ navSettings.page_subtitle }}</div>
           
           <!-- 每日一言积木 -->
-          <div v-if="navSettings.show_hitokoto" class="hitokoto-container" @click="fetchHitokoto">
+          <div v-if="navSettings.show_hitokoto" class="hitokoto-container" @click="fetchHitokoto" :style="{
+             alignItems: navSettings.header_alignment === 'center' ? 'center' : (navSettings.header_alignment === 'right' ? 'flex-end' : 'flex-start'),
+             marginTop: 0
+          }">
             <span class="hitokoto-text">“ {{ hitokoto.text }} ”</span>
             <span class="hitokoto-from">—— {{ hitokoto.from }}</span>
           </div>
-        </div>        <div class="header-right">
+        </div>
+        <div class="header-right" style="align-self: flex-start;">
           <n-space>
             <n-tooltip trigger="hover">
               <template #trigger>
@@ -343,6 +369,22 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .hitokoto-container:hover { opacity: 0.8; }
 .hitokoto-text { font-size: 14px; color: var(--nav-text-color); font-style: italic; opacity: 0.9; }
 .hitokoto-from { font-size: 12px; color: var(--nav-text-desc-color); align-self: flex-end; margin-top: 4px; }
+
+.wallpaper-info-layer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 5;
+  text-align: right;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.wp-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+.wp-copyright { font-size: 11px; color: rgba(255, 255, 255, 0.7); }
 
 .category-section { margin-bottom: 32px; }
 .category-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }

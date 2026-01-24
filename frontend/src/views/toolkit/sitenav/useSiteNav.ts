@@ -38,12 +38,21 @@ const DEFAULT_SETTINGS = {
   page_title: '站点导航',
   page_subtitle: '个性化您的导航面板',
   wallpaper_mode: 'custom', // 'custom' or 'bing'
-  show_hitokoto: false
+  show_hitokoto: false,
+  bing_mkt: 'zh-CN',
+  bing_index: 0,
+  bing_resolution: '1920x1080',
+  show_wallpaper_info: false,
+  header_alignment: 'left',
+  header_item_spacing: 12,
+  header_margin_top: 20,
+  header_margin_bottom: 30
 }
 
 const navSettings = ref({ ...DEFAULT_SETTINGS })
 const loading = ref(false)
 const hitokoto = ref({ text: '', from: '' })
+const bingInfo = ref({ url: '', title: '', copyright: '' })
 
 export function useSiteNav() {
   const { message } = createDiscreteApi(['message'], {
@@ -60,11 +69,21 @@ export function useSiteNav() {
     }
   }
 
+  const fetchBingWallpaper = async () => {
+    try {
+      const { bing_index, bing_mkt, bing_resolution } = navSettings.value
+      const res = await fetch(`/api/navigation/bing-wallpaper?index=${bing_index}&mkt=${bing_mkt}&resolution=${bing_resolution}`)
+      const data = await res.json()
+      if (data.url) bingInfo.value = data
+    } catch (e) {}
+  }
+
   const fetchSettings = async () => {
     try {
       const response = await fetch('/api/navigation/settings')
       const data = await response.json()
       navSettings.value = { ...DEFAULT_SETTINGS, ...data }
+      if (navSettings.value.wallpaper_mode === 'bing') fetchBingWallpaper()
     } catch (e) {}
   }
 
@@ -87,6 +106,12 @@ export function useSiteNav() {
         body: JSON.stringify(settings)
       })
       navSettings.value = { ...navSettings.value, ...settings }
+      
+      // 如果必应相关参数改变，重新抓取
+      const bingKeys = ['wallpaper_mode', 'bing_mkt', 'bing_index', 'bing_resolution']
+      if (Object.keys(settings).some(k => bingKeys.includes(k))) {
+        if (navSettings.value.wallpaper_mode === 'bing') fetchBingWallpaper()
+      }
     } catch (e) {
       message.error('保存设置失败')
     }
@@ -294,7 +319,9 @@ export function useSiteNav() {
     navSettings,
     loading,
     hitokoto,
+    bingInfo,
     fetchHitokoto,
+    fetchBingWallpaper,
     fetchSites,
     fetchCategories,
     fetchSettings,
