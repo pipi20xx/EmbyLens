@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { 
-  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard
+  NSpace, NButton, NIcon, NText, NUpload, NSlider, NSelect, NCard, NColorPicker, NDivider, NGrid, NGridItem
 } from 'naive-ui'
 import { 
-  ImageOutlined as ImageIcon
+  ImageOutlined as ImageIcon,
+  PaletteOutlined as PaletteIcon
 } from '@vicons/material'
 
 const props = defineProps<{
@@ -12,10 +13,17 @@ const props = defineProps<{
     background_opacity: number
     background_blur: number
     background_size: string
+    background_color: string
+    card_background: string
+    card_blur: number
+    card_border_color: string
+    text_color: string
+    text_description_color: string
+    category_title_color: string
   }
 }>()
 
-const emit = defineEmits(['uploadBg', 'updateSettings'])
+const emit = defineEmits(['uploadBg', 'updateSettings', 'resetSettings'])
 
 const sizeOptions = [
   { label: '全部填充 (Cover)', value: 'cover' },
@@ -57,59 +65,151 @@ const handleUploadBg = (options: { file: { file: File } }) => {
       </n-card>
 
       <!-- 样式精调区 -->
-      <n-card embedded :bordered="false" size="small" :disabled="!settings.background_url">
+      <n-card embedded :bordered="false" size="small">
         <template #header>
-          <n-text depth="3" style="font-size: 13px;">样式精调</n-text>
+          <n-text depth="3" style="font-size: 13px;">背景样式</n-text>
         </template>
         
-        <n-space vertical size="large" :style="{ opacity: settings.background_url ? 1 : 0.4 }">
+        <n-space vertical size="large">
           <div class="setting-item">
             <div class="label-row">
-              <span class="label">填充模式</span>
-              <n-text depth="3" size="small">决定图片如何适配屏幕</n-text>
+              <span class="label">背景底色</span>
+              <n-text depth="3" size="small">无图片或图片透明时显示的颜色</n-text>
             </div>
-            <n-select 
-              :value="settings.background_size" 
-              :options="sizeOptions" 
-              :disabled="!settings.background_url"
-              @update:value="val => emit('updateSettings', { background_size: val })" 
+            <n-color-picker 
+              :value="settings.background_color" 
+              @update:value="val => emit('updateSettings', { background_color: val })" 
             />
           </div>
 
-          <div class="setting-item">
-            <div class="label-row">
-              <span class="label">背景透明度</span>
-              <n-text depth="3" size="small">{{ Math.round(settings.background_opacity * 100) }}%</n-text>
-            </div>
-            <n-slider 
-              :value="settings.background_opacity" 
-              :min="0" :max="1" :step="0.01" 
-              :disabled="!settings.background_url"
-              @update:value="val => emit('updateSettings', { background_opacity: val })" 
-            />
-          </div>
+          <n-divider style="margin: 8px 0" />
 
-          <div class="setting-item">
-            <div class="label-row">
-              <span class="label">背景模糊度</span>
-              <n-text depth="3" size="small">{{ settings.background_blur }}px</n-text>
+          <div v-if="settings.background_url" style="margin-top: 8px;">
+            <div class="setting-item">
+              <div class="label-row">
+                <span class="label">填充模式</span>
+                <n-text depth="3" size="small">决定图片如何适配屏幕</n-text>
+              </div>
+              <n-select 
+                :value="settings.background_size" 
+                :options="sizeOptions" 
+                @update:value="val => emit('updateSettings', { background_size: val })" 
+              />
             </div>
-            <n-slider 
-              :value="settings.background_blur" 
-              :min="0" :max="20" :step="1" 
-              :disabled="!settings.background_url"
-              @update:value="val => emit('updateSettings', { background_blur: val })" 
-            />
+
+            <div class="setting-item">
+              <div class="label-row">
+                <span class="label">背景透明度</span>
+                <n-text depth="3" size="small">{{ Math.round(settings.background_opacity * 100) }}%</n-text>
+              </div>
+              <n-slider 
+                :value="settings.background_opacity" 
+                :min="0" :max="1" :step="0.01" 
+                @update:value="val => emit('updateSettings', { background_opacity: val })" 
+              />
+            </div>
+
+            <div class="setting-item">
+              <div class="label-row">
+                <span class="label">背景模糊度</span>
+                <n-text depth="3" size="small">{{ settings.background_blur }}px</n-text>
+              </div>
+              <n-slider 
+                :value="settings.background_blur" 
+                :min="0" :max="20" :step="1" 
+                @update:value="val => emit('updateSettings', { background_blur: val })" 
+              />
+            </div>
           </div>
         </n-space>
-        
-        <div v-if="!settings.background_url" class="overlay-tip">
-          请先上传背景图以解锁样式调整
-        </div>
+      </n-card>
+
+      <!-- 卡片样式高级设置 -->
+      <n-card embedded :bordered="false" size="small">
+        <template #header>
+          <n-text depth="3" style="font-size: 13px;">卡片高级样式</n-text>
+        </template>
+
+        <n-space vertical size="large">
+          <n-grid :x-gap="12" :y-gap="12" :cols="2">
+            <n-grid-item>
+              <div class="setting-item">
+                <span class="label-small">卡片背景色</span>
+                <n-color-picker 
+                  show-alpha
+                  :value="settings.card_background" 
+                  @update:value="val => emit('updateSettings', { card_background: val })" 
+                />
+              </div>
+            </n-grid-item>
+            <n-grid-item>
+              <div class="setting-item">
+                <span class="label-small">卡片边框色</span>
+                <n-color-picker 
+                  show-alpha
+                  :value="settings.card_border_color" 
+                  @update:value="val => emit('updateSettings', { card_border_color: val })" 
+                />
+              </div>
+            </n-grid-item>
+            <n-grid-item>
+              <div class="setting-item">
+                <span class="label-small">标题文字色</span>
+                <n-color-picker 
+                  :value="settings.text_color" 
+                  @update:value="val => emit('updateSettings', { text_color: val })" 
+                />
+              </div>
+            </n-grid-item>
+            <n-grid-item>
+              <div class="setting-item">
+                <span class="label-small">描述文字色</span>
+                <n-color-picker 
+                  show-alpha
+                  :value="settings.text_description_color" 
+                  @update:value="val => emit('updateSettings', { text_description_color: val })" 
+                />
+              </div>
+            </n-grid-item>
+            <n-grid-item>
+              <div class="setting-item">
+                <span class="label-small">分类标题色</span>
+                <n-color-picker 
+                  :value="settings.category_title_color" 
+                  @update:value="val => emit('updateSettings', { category_title_color: val })" 
+                />
+              </div>
+            </n-grid-item>
+          </n-grid>
+
+          <div class="setting-item">
+            <div class="label-row">
+              <span class="label">卡片模糊度 (Glassmorphism)</span>
+              <n-text depth="3" size="small">{{ settings.card_blur }}px</n-text>
+            </div>
+            <n-slider 
+              :value="settings.card_blur" 
+              :min="0" :max="30" :step="1" 
+              @update:value="val => emit('updateSettings', { card_blur: val })" 
+            />
+          </div>
+
+          <n-button block quaternary type="warning" @click="emit('resetSettings')">
+            恢复默认样式
+          </n-button>
+        </n-space>
       </n-card>
     </n-space>
   </div>
 </template>
+
+<style scoped>
+.tab-content { padding: 8px 0; }
+.setting-item { margin-bottom: 12px; }
+.label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.label { font-size: 14px; font-weight: 500; }
+.label-small { font-size: 12px; margin-bottom: 4px; display: block; color: rgba(255,255,255,0.7); }
+</style>
 
 <style scoped>
 .tab-content { padding: 8px 0; min-height: 350px; }

@@ -21,12 +21,22 @@ export interface SiteNav {
 // --- 全局状态积木 ---
 const sites = ref<SiteNav[]>([])
 const categories = ref<Category[]>([])
-const navSettings = ref({
+
+const DEFAULT_SETTINGS = {
   background_url: '',
   background_opacity: 0.4,
   background_blur: 5,
-  background_size: 'cover'
-})
+  background_size: 'cover',
+  background_color: '#000000',
+  card_background: 'rgba(20, 20, 25, 0.7)',
+  card_blur: 10,
+  card_border_color: 'rgba(255, 255, 255, 0.1)',
+  text_color: '#ffffff',
+  text_description_color: 'rgba(255, 255, 255, 0.5)',
+  category_title_color: '#ffffff'
+}
+
+const navSettings = ref({ ...DEFAULT_SETTINGS })
 const loading = ref(false)
 
 export function useSiteNav() {
@@ -37,8 +47,20 @@ export function useSiteNav() {
   const fetchSettings = async () => {
     try {
       const response = await fetch('/api/navigation/settings')
-      navSettings.value = await response.json()
+      const data = await response.json()
+      navSettings.value = { ...DEFAULT_SETTINGS, ...data }
     } catch (e) {}
+  }
+
+  const resetNavSettings = async () => {
+    try {
+      // 排除掉背景图 URL，只重置样式相关的
+      const { background_url, ...styleSettings } = DEFAULT_SETTINGS
+      await updateNavSettings(styleSettings)
+      message.success('已恢复默认样式')
+    } catch (e) {
+      message.error('重置失败')
+    }
   }
 
   const updateNavSettings = async (settings: any) => {
@@ -263,6 +285,7 @@ export function useSiteNav() {
     deleteCategory,
     updateCategoryOrder,
     updateNavSettings,
+    resetNavSettings,
     uploadBackground,
     addSite,
     updateSite,

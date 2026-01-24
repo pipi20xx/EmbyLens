@@ -25,7 +25,7 @@ const {
   sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
   addSite, updateSite, deleteSite, updateSiteOrder,
   addCategory, deleteCategory, updateCategory, updateCategoryOrder,
-  updateNavSettings, uploadBackground, fetchIconFromUrl, 
+  updateNavSettings, resetNavSettings, uploadBackground, fetchIconFromUrl, 
   exportConfig, importConfig, message
 } = useSiteNav()
 
@@ -155,16 +155,27 @@ const openUrl = (url: string) => window.open(url, '_blank')
 </script>
 
 <template>
-  <div class="site-nav-page">
+  <div 
+    class="site-nav-page"
+    :style="{
+      '--nav-card-bg': navSettings.card_background || 'rgba(20, 20, 25, 0.7)',
+      '--nav-card-blur': `${navSettings.card_blur ?? 10}px`,
+      '--nav-card-border': navSettings.card_border_color || 'rgba(255, 255, 255, 0.1)',
+      '--nav-text-color': navSettings.text_color || '#ffffff',
+      '--nav-text-desc-color': navSettings.text_description_color || 'rgba(255, 255, 255, 0.5)',
+      '--nav-bg-color': navSettings.background_color || '#000000',
+      '--nav-category-color': navSettings.category_title_color || '#ffffff'
+    }"
+  >
     <!-- 背景层 -->
     <div 
-      v-if="navSettings.background_url" 
       class="site-nav-background"
       :style="{
-        backgroundImage: `url('${navSettings.background_url}')`,
-        opacity: navSettings.background_opacity || 0.4,
-        filter: `blur(${navSettings.background_blur || 0}px)`,
-        backgroundSize: navSettings.background_size || 'cover'
+        backgroundImage: navSettings.background_url ? `url('${navSettings.background_url}')` : 'none',
+        opacity: navSettings.background_opacity ?? 0.4,
+        filter: `blur(${navSettings.background_blur ?? 0}px)`,
+        backgroundSize: navSettings.background_size || 'cover',
+        backgroundColor: 'var(--nav-bg-color)'
       }"
     ></div>
 
@@ -260,6 +271,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
       @add="addCategory" @delete="deleteCategory" @reorder="updateCategoryOrder"
       @export="exportConfig" @import="importConfig" @update="updateCategory"
       @uploadBg="uploadBackground" @updateSettings="updateNavSettings"
+      @resetSettings="resetNavSettings"
     />
   </div>
 </template>
@@ -292,12 +304,12 @@ const openUrl = (url: string) => window.open(url, '_blank')
 }
 
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.page-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
+.page-title { font-size: 20px; font-weight: 700; color: var(--nav-text-color); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.page-subtitle { font-size: 12px; color: var(--nav-text-desc-color); }
 
 .category-section { margin-bottom: 32px; }
 .category-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }
-.category-title { font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.category-title { font-size: 15px; font-weight: 600; color: var(--nav-category-color); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .category-action { opacity: 0; transition: opacity 0.2s; }
 .category-header:hover .category-action { opacity: 1; }
 
@@ -307,12 +319,12 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .site-card {
   display: flex; align-items: center; padding: 4px 8px;
   height: 60px; width: 180px;
-  background: rgba(20, 20, 25, 0.7); /* 半透明背景适配自定义底图 */
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--nav-card-bg);
+  backdrop-filter: blur(var(--nav-card-blur));
+  border: 1px solid var(--nav-card-border);
   border-radius: 10px; cursor: pointer; transition: all 0.2s;
 }
-.site-card:hover { border-color: var(--primary-color); transform: translateY(-2px); background: rgba(30, 30, 35, 0.8); }
+.site-card:hover { border-color: var(--primary-color); transform: translateY(-2px); opacity: 0.9; }
 .site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
 
 .site-icon-wrapper {
@@ -325,8 +337,8 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .emoji-icon { font-size: 28px; line-height: 1; }
 
 .site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; }
-.site-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.site-desc { font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-name { font-size: 14px; font-weight: 600; color: var(--nav-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-desc { font-size: 11px; color: var(--nav-text-desc-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .empty-state { margin-top: 100px; }
 </style>

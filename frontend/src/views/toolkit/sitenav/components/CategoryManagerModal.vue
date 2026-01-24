@@ -22,12 +22,19 @@ const props = defineProps<{
     background_opacity: number
     background_blur: number
     background_size: string
+    background_color: string
+    card_background: string
+    card_blur: number
+    card_border_color: string
+    text_color: string
+    text_description_color: string
+    category_title_color: string
   }
 }>()
 
 const emit = defineEmits([
   'update:show', 'add', 'delete', 'reorder', 
-  'export', 'import', 'update', 'uploadBg', 'updateSettings'
+  'export', 'import', 'update', 'uploadBg', 'updateSettings', 'resetSettings'
 ])
 
 // 中转子组件事件
@@ -56,6 +63,7 @@ const handleUploadBg = (file: File) => emit('uploadBg', file)
           :settings="settings" 
           @uploadBg="handleUploadBg"
           @updateSettings="s => emit('updateSettings', s)"
+          @resetSettings="() => emit('resetSettings')"
         />
       </n-tab-pane>
 
