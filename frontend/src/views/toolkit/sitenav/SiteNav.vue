@@ -158,25 +158,28 @@ const openUrl = (url: string) => window.open(url, '_blank')
   <div 
     class="site-nav-page"
     :style="{
-      '--nav-card-bg': navSettings.card_background || 'rgba(20, 20, 25, 0.7)',
-      '--nav-card-blur': `${navSettings.card_blur ?? 10}px`,
-      '--nav-card-border': navSettings.card_border_color || 'rgba(255, 255, 255, 0.1)',
+      '--nav-card-bg': navSettings.card_background || 'rgba(255, 255, 255, 0.12)',
+      '--nav-card-blur': `${navSettings.card_blur ?? 16}px`,
+      '--nav-card-border': navSettings.card_border_color || 'rgba(255, 255, 255, 0.15)',
       '--nav-text-color': navSettings.text_color || '#ffffff',
-      '--nav-text-desc-color': navSettings.text_description_color || 'rgba(255, 255, 255, 0.5)',
-      '--nav-bg-color': navSettings.background_color || '#000000',
+      '--nav-text-desc-color': navSettings.text_description_color || 'rgba(255, 255, 255, 0.7)',
+      '--nav-bg-color': navSettings.background_color || '#1e1e22',
       '--nav-category-color': navSettings.category_title_color || '#ffffff',
-      '--nav-content-width': `${navSettings.content_max_width || 100}%`
+      '--nav-content-width': `${navSettings.content_max_width || 90}%`
     }"
   >
-    <!-- 背景层 -->
+    <!-- 背景层：底层实色 -->
+    <div class="site-nav-background-base"></div>
+    
+    <!-- 背景层：顶层图片（受透明度和模糊度影响） -->
     <div 
-      class="site-nav-background"
+      v-if="navSettings.background_url"
+      class="site-nav-background-image"
       :style="{
-        backgroundImage: navSettings.background_url ? `url('${navSettings.background_url}')` : 'none',
-        opacity: navSettings.background_opacity ?? 0.4,
+        backgroundImage: `url('${navSettings.background_url}')`,
+        opacity: navSettings.background_opacity ?? 0.7,
         filter: `blur(${navSettings.background_blur ?? 0}px)`,
-        backgroundSize: navSettings.background_size || 'cover',
-        backgroundColor: 'var(--nav-bg-color)'
+        backgroundSize: navSettings.background_size || 'cover'
       }"
     ></div>
 
@@ -281,27 +284,34 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .site-nav-page { 
   position: relative; 
   min-height: 100vh; 
-  padding: 8px; /* 基础内边距，配合 App.vue 的 padding */
+  padding: 8px; 
 }
 
-/* 背景层样式 */
-.site-nav-background {
+/* 背景底层：实色 */
+.site-nav-background-base {
   position: fixed;
   inset: 0;
   z-index: 0;
-  /* 移除 !important，允许内联样式覆盖 */
-  background-size: cover; 
+  background-color: var(--nav-bg-color);
+  width: 100%;
+  height: 100%;
+}
+
+/* 背景顶层：图片 */
+.site-nav-background-image {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
-  background-color: #000;
   width: 100%;
   height: 100%;
 }
 
 .site-nav-content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -314,18 +324,24 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .category-action { opacity: 0; transition: opacity 0.2s; }
 .category-header:hover .category-action { opacity: 1; }
 
-.sites-flex-container { display: flex; flex-wrap: wrap; gap: 12px; }
+.sites-flex-container { display: flex; flex-wrap: wrap; gap: 16px; }
 .site-item-wrapper { flex-shrink: 0; }
 
 .site-card {
-  display: flex; align-items: center; padding: 4px 8px;
-  height: 60px; width: 180px;
+  display: flex; align-items: center; padding: 8px 12px;
+  height: 64px; width: 200px;
   background: var(--nav-card-bg);
   backdrop-filter: blur(var(--nav-card-blur));
   border: 1px solid var(--nav-card-border);
-  border-radius: 10px; cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.site-card:hover { border-color: var(--primary-color); transform: translateY(-2px); opacity: 0.9; }
+.site-card:hover { 
+  border-color: var(--primary-color); 
+  transform: translateY(-4px); 
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+}
 .site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
 
 .site-icon-wrapper {

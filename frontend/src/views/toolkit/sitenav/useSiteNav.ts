@@ -24,19 +24,19 @@ const categories = ref<Category[]>([])
 
 const DEFAULT_SETTINGS = {
   background_url: '',
-  background_opacity: 0.4,
-  background_blur: 5,
+  background_opacity: 0.7,
+  background_blur: 0,
   background_size: 'cover',
-  background_color: '#000000',
-  card_background: 'rgba(20, 20, 25, 0.7)',
-  card_blur: 10,
-  card_border_color: 'rgba(255, 255, 255, 0.1)',
+  background_color: '#1e1e22',
+  card_background: 'rgba(255, 255, 255, 0.12)',
+  card_blur: 16,
+  card_border_color: 'rgba(255, 255, 255, 0.15)',
   text_color: '#ffffff',
-  text_description_color: 'rgba(255, 255, 255, 0.5)',
+  text_description_color: 'rgba(255, 255, 255, 0.7)',
   category_title_color: '#ffffff',
-  content_max_width: 100,
+  content_max_width: 90,
   page_title: '站点导航',
-  page_subtitle: '右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）'
+  page_subtitle: '个性化您的导航面板'
 }
 
 const navSettings = ref({ ...DEFAULT_SETTINGS })
