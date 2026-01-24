@@ -88,6 +88,34 @@ async def _get_full_item(service: EmbyService, user_id: str, item_id: str) -> Op
 
 # --- 工具箱实装 ---
 
+from app.utils.http_client import get_async_client
+import json
+
+# 简单的内存缓存
+_hd_icons_cache = {"data": None, "time": 0}
+
+@router.get("/navigation/hd-icons")
+async def get_hd_icons():
+    """代理获取 HD-Icons 列表"""
+    import time
+    now = time.time()
+    if _hd_icons_cache["data"] and (now - _hd_icons_cache["time"] < 3600):
+        return _hd_icons_cache["data"]
+    
+    url = "https://raw.githubusercontent.com/xushier/HD-Icons/main/icons.json"
+    try:
+        async with get_async_client(timeout=10) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                _hd_icons_cache["data"] = data
+                _hd_icons_cache["time"] = now
+                return data
+    except Exception as e:
+        logger.error(f"Failed to fetch HD-Icons: {e}")
+    
+    return {"icons": []}
+
 @router.post("/mapper", response_model=MetadataManagerResponse)
 async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(get_db)):
     service, user_id = await get_emby_context(db)

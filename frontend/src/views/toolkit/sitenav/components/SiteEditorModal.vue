@@ -7,9 +7,11 @@ import {
 import { 
   AutoFixHighOutlined as MagicIcon, 
   LanguageOutlined as WebIcon,
-  FileUploadOutlined as UploadIcon
+  FileUploadOutlined as UploadIcon,
+  CollectionsOutlined as LibraryIcon
 } from '@vicons/material'
 import { SiteNav, Category } from '../useSiteNav'
+import HDIconPicker from './HDIconPicker.vue'
 
 const props = defineProps<{
   show: boolean
@@ -20,6 +22,8 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:show', 'save', 'fetchIcon', 'update-icon'])
 const message = useMessage()
+
+const showHDIconPicker = ref(false)
 
 const handleUploadFinish = (options: { file: any, event?: any }) => {
   try {
@@ -107,6 +111,11 @@ const isEmoji = (str: string) => {
             </n-button>
           </n-upload>
 
+          <n-button block type="primary" secondary dashed size="small" @click="showHDIconPicker = true">
+            <template #icon><n-icon><LibraryIcon /></n-icon></template>
+            HD-Icons 图标库 (在线选择)
+          </n-button>
+
           <div class="mini-preview">
             <template v-if="editingSite.icon">
               <div v-if="isEmoji(editingSite.icon)" class="preview-emoji">{{ editingSite.icon }}</div>
@@ -132,6 +141,11 @@ const isEmoji = (str: string) => {
       </n-space>
     </template>
   </n-modal>
+
+  <HDIconPicker 
+    v-model:show="showHDIconPicker" 
+    @select="url => { if (editingSite) editingSite.icon = url }" 
+  />
 </template>
 
 <style scoped>
