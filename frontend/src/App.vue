@@ -20,7 +20,7 @@ import {
   isLogConsoleOpen, 
   isLoggedIn, 
   uiAuthEnabled,
-  isSideBarHidden,
+  isHomeEntry,
   initMenuSettingsFromBackend 
 } from './store/navigationStore'
 import { useTheme } from './hooks/useTheme'
@@ -31,7 +31,6 @@ import axios from 'axios'
 const { currentThemeType, themeOverrides, themeOptions } = useTheme()
 
 // --- UI Layout State ---
-const isHomeEntry = ref(false)
 const shouldHideSideBar = computed(() => {
   return currentViewKey.value === 'SiteNavView' && isHomeEntry.value
 })

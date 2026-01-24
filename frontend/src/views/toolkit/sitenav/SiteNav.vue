@@ -10,9 +10,12 @@ import {
   AddCircleOutlineOutlined as AddIcon,
   SettingsOutlined as SettingsIcon,
   EditOutlined as EditIcon,
-  DeleteOutlined as DeleteIcon
+  DeleteOutlined as DeleteIcon,
+  MenuOpenOutlined as MenuOpenIcon,
+  MenuOutlined as MenuIcon
 } from '@vicons/material'
 import { useSiteNav, SiteNav } from './useSiteNav'
+import { isHomeEntry } from '../../../store/navigationStore'
 
 // 导入积木组件
 import SiteEditorModal from './components/SiteEditorModal.vue'
@@ -173,9 +176,24 @@ const openUrl = (url: string) => window.open(url, '_blank')
           <div class="page-subtitle">右键编辑卡片，直接拖动卡片排序（支持跨分类拖拽）</div>
         </div>
         <div class="header-right">
-          <n-button circle quaternary @click="showSettings = true">
-            <template #icon><n-icon><SettingsIcon /></n-icon></template>
-          </n-button>
+          <n-space>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button circle quaternary @click="isHomeEntry = !isHomeEntry">
+                  <template #icon>
+                    <n-icon>
+                      <MenuOpenIcon v-if="isHomeEntry" />
+                      <MenuIcon v-else />
+                    </n-icon>
+                  </template>
+                </n-button>
+              </template>
+              {{ isHomeEntry ? '显示侧边导航' : '隐藏侧边导航' }}
+            </n-tooltip>
+            <n-button circle quaternary @click="showSettings = true">
+              <template #icon><n-icon><SettingsIcon /></n-icon></template>
+            </n-button>
+          </n-space>
         </div>
       </div>
 

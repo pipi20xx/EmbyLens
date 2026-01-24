@@ -11,6 +11,7 @@ export const uiAuthEnabled = ref(true)
 export const username = ref(localStorage.getItem('lens_username') || '')
 
 export const isLogConsoleOpen = ref(false)
+export const isHomeEntry = ref(false)
 
 // 菜单设置：包含排序和显示隐藏
 export interface MenuSetting {
