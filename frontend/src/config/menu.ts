@@ -53,6 +53,7 @@ export const menuOptions: MenuOption[] = [
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
+  { label: '终端管理', key: 'TerminalManagerView', icon: renderIcon(ConsoleIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
   { label: '数据备份管理', key: 'BackupManagerView', icon: renderIcon(BackupIcon) },

@@ -277,6 +277,7 @@ import {
   BackupTableRound as BackupIcon,
   CameraRound as LensIcon,
   DnsRound as DockerIcon,
+  TerminalRound as TerminalIcon,
   AdminPanelSettingsRound as SecurityIcon,
   PersonOutlineRound as ProfileIcon,
   NotificationsActiveRound as NotificationIcon
@@ -418,6 +419,12 @@ const otherTools = [
     key: 'DockerManagerView', 
     icon: markRaw(DockerIcon), 
     desc: '本地与远程 Docker 容器运维' 
+  },
+  { 
+    label: '系统终端管理', 
+    key: 'TerminalManagerView', 
+    icon: markRaw(TerminalIcon), 
+    desc: '多主机 SSH 连接与快速命令管理' 
   },
   { 
     label: 'PostgreSQL 管理', 

@@ -34,6 +34,7 @@ const defaultSettings: MenuSetting[] = [
   { key: 'ActorManagerView', visible: true },
   { key: 'WebhookReceiverView', visible: true },
   { key: 'AutoTagsView', visible: true },
+  { key: 'TerminalManagerView', visible: true },
   { key: 'DockerManagerView', visible: true },
   { key: 'PostgresManagerView', visible: true },
   { key: 'BackupManagerView', visible: true },

@@ -17,6 +17,7 @@ export const viewMap: Record<string, any> = {
   DedupeView: defineAsyncComponent(() => import('../views/Dedupe.vue')),
   AutoTagsView: defineAsyncComponent(() => import('../views/toolkit/autotags/AutoTagsManager.vue')),
   DockerManagerView: defineAsyncComponent(() => import('../views/toolkit/DockerManager.vue')),
+  TerminalManagerView: defineAsyncComponent(() => import('../views/toolkit/terminal/TerminalManager.vue')),
   PostgresManagerView: defineAsyncComponent(() => import('../views/toolkit/PostgresManager.vue')),
   BackupManagerView: defineAsyncComponent(() => import('../views/toolkit/BackupManager.vue')),
   NotificationManagerView: defineAsyncComponent(() => import('../views/toolkit/NotificationManager.vue')),

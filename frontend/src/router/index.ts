@@ -57,6 +57,12 @@ const router = createRouter({
       component: () => import('../views/toolkit/ActorLab.vue'),
     },
     {
+      path: '/toolkit/terminal',
+      name: 'TerminalManager',
+      component: () => import('../views/toolkit/terminal/TerminalManager.vue'),
+      meta: { title: '终端管理', icon: 'TerminalOutlined' }
+    },
+    {
       path: '/toolkit/actor-manager',
       name: 'ActorManager',
       component: () => import('../views/toolkit/ActorManager.vue'),

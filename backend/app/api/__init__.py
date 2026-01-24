@@ -20,10 +20,12 @@ from .navigation import router as navigation_router
 from .auth import router as auth_router
 from .backup import router as backup_router
 from .notification import router as notification_router
+from .terminal import router as terminal_router
 
 router = APIRouter()
 
 router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+router.include_router(terminal_router, prefix="/terminal", tags=["Terminal"])
 router.include_router(notification_router, prefix="/notification", tags=["Notification"])
 router.include_router(backup_router, prefix="/backup", tags=["Backup"])
 router.include_router(server_router, prefix="/server", tags=["Server"])
