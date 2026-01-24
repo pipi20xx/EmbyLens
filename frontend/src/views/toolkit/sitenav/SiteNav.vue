@@ -20,6 +20,7 @@ import { isHomeEntry } from '../../../store/navigationStore'
 // 导入积木组件
 import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
+import NavClock from './components/NavClock.vue'
 
 const { 
   sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
@@ -219,6 +220,13 @@ const openUrl = (url: string) => window.open(url, '_blank')
           alignItems: navSettings.header_alignment === 'center' ? 'center' : (navSettings.header_alignment === 'right' ? 'flex-end' : 'flex-start'),
           gap: 'var(--nav-header-gap)'
         }">
+          <!-- 时钟积木 -->
+          <NavClock 
+            v-if="navSettings.show_clock" 
+            :alignment="navSettings.header_alignment" 
+            :textColor="navSettings.text_color"
+          />
+
           <div class="page-title">{{ navSettings.page_title }}</div>
           <div class="page-subtitle" style="margin-bottom: 0;">{{ navSettings.page_subtitle }}</div>
           

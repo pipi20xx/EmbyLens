@@ -29,6 +29,7 @@ const props = defineProps<{
     bing_resolution: string
     show_wallpaper_info: boolean
     show_hitokoto: boolean
+    show_clock: boolean
     header_alignment: string
     category_alignment: string
     header_item_spacing: number
@@ -213,9 +214,18 @@ const handleUploadBg = (options: { file: { file: File } }) => {
       <!-- 内容文本 -->
       <n-card embedded :bordered="false" size="small">
         <template #header>
-          <n-text depth="3" style="font-size: 13px;">内容文本</n-text>
+          <n-text depth="3" style="font-size: 13px;">内容组件</n-text>
         </template>
         <n-space vertical>
+          <div class="setting-item">
+            <n-space justify="space-between" align="center">
+              <span class="label-small" style="margin-bottom: 0">显示数字时钟</span>
+              <n-switch 
+                :value="settings.show_clock" 
+                @update:value="val => emit('updateSettings', { show_clock: val })" 
+              />
+            </n-space>
+          </div>
           <div class="setting-item">
             <n-space justify="space-between" align="center">
               <span class="label-small" style="margin-bottom: 0">显示“每日一言”</span>

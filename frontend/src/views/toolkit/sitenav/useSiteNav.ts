@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
   page_subtitle: '个性化您的导航面板',
   wallpaper_mode: 'custom', // 'custom' or 'bing'
   show_hitokoto: false,
+  show_clock: false,
   bing_mkt: 'zh-CN',
   bing_index: 0,
   bing_resolution: '1920x1080',
