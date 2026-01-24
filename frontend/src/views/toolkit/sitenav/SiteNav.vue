@@ -175,6 +175,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
       '--nav-bg-color': navSettings.background_color || '#1e1e22',
       '--nav-category-color': navSettings.category_title_color || '#ffffff',
       '--nav-content-width': `${navSettings.content_max_width || 90}%`,
+      '--nav-category-align': navSettings.category_alignment || 'left',
       '--nav-header-align': navSettings.header_alignment || 'left',
       '--nav-header-gap': `${navSettings.header_item_spacing ?? 12}px`,
       '--nav-header-mt': `${navSettings.header_margin_top ?? 20}px`,
@@ -261,15 +262,19 @@ const openUrl = (url: string) => window.open(url, '_blank')
       </div>
 
       <div v-for="group in groupedSites" :key="group.id" class="category-section">
-              <div class="category-header">
-                <div class="category-title">{{ group.name }}</div>
-                <div class="category-action">
-                  <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
-                    <template #icon><n-icon><AddIcon /></n-icon></template>
-                  </n-button>
-                </div>
-              </div>
-                <div class="sites-flex-container">
+        <div class="category-header" :style="{ 
+          justifyContent: navSettings.category_alignment === 'center' ? 'center' : (navSettings.category_alignment === 'right' ? 'flex-end' : 'flex-start'),
+          margin: '0 0 16px 0',
+          paddingLeft: navSettings.category_alignment === 'left' ? '4px' : '0'
+        }">
+          <div class="category-title">{{ group.name }}</div>
+          <div class="category-action">
+            <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
+              <template #icon><n-icon><AddIcon /></n-icon></template>
+            </n-button>
+          </div>
+        </div>
+        <div class="sites-grid-container">
           <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
             <div 
               class="site-card" 
@@ -386,44 +391,78 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .wp-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
 .wp-copyright { font-size: 11px; color: rgba(255, 255, 255, 0.7); }
 
-.category-section { margin-bottom: 32px; }
-.category-header { display: flex; align-items: center; margin-bottom: 12px; gap: 8px; }
-.category-title { font-size: 15px; font-weight: 600; color: var(--nav-category-color); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-.category-action { opacity: 0; transition: opacity 0.2s; }
-.category-header:hover .category-action { opacity: 1; }
+.category-section { margin-bottom: 40px; }
+.category-header { 
+  display: flex; align-items: center; margin-bottom: 20px; gap: 12px; 
+  padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.category-title { 
+  font-size: 16px; font-weight: 600; color: var(--nav-category-color); 
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3); opacity: 0.9;
+  letter-spacing: 0.5px;
+}
+.category-action { opacity: 0; transition: all 0.2s ease; }
+.category-header:hover .category-action { opacity: 1; transform: translateX(4px); }
 
-.sites-flex-container { display: flex; flex-wrap: wrap; gap: 16px; }
-.site-item-wrapper { flex-shrink: 0; }
+.sites-grid-container { 
+  display: grid; 
+  /* 核心：minmax(200px, 1fr) 让卡片自动填满行内剩余空间，消除左右大空白 */
+  /* auto-fill 确保即使卡片少，也会按列排列，不会强行撑满全屏 */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+  gap: 20px; 
+  width: 100%;
+}
+.site-item-wrapper { display: flex; }
 
 .site-card {
-  display: flex; align-items: center; padding: 8px 12px;
-  height: 64px; width: 200px;
+  display: flex; align-items: center; padding: 10px 14px;
+  height: 64px; 
+  width: 100%;
+  /* 限制单张卡片最大宽度，防止只有 1-2 张卡片时拉得太长 */
+  max-width: 280px; 
   background: var(--nav-card-bg);
   backdrop-filter: blur(var(--nav-card-blur));
   border: 1px solid var(--nav-card-border);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.1);
   border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+.site-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0; transition: opacity 0.3s;
 }
 .site-card:hover { 
   border-color: var(--primary-color); 
-  transform: translateY(-4px); 
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  transform: translateY(-6px); 
+  box-shadow: 0 16px 24px -8px rgba(0, 0, 0, 0.4);
   background: rgba(255, 255, 255, 0.2);
 }
+.site-card:hover::before { opacity: 1; }
 .site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
 
 .site-icon-wrapper {
   width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.1); margin-right: 12px; flex-shrink: 0;
-  border-radius: 10px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.12); margin-right: 14px; flex-shrink: 0;
+  border-radius: 12px; overflow: hidden;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+.site-card:hover .site-icon-wrapper {
+  transform: scale(1.1) rotate(5deg);
+  background: rgba(255, 255, 255, 0.2);
 }
 .image-icon { width: 100%; height: 100%; object-fit: cover; }
 .emoji-icon { font-size: 28px; line-height: 1; }
 
-.site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; }
-.site-name { font-size: 14px; font-weight: 600; color: var(--nav-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.site-desc { font-size: 11px; color: var(--nav-text-desc-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; z-index: 1; }
+.site-name { font-size: 14px; font-weight: 600; color: var(--nav-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; transition: color 0.3s; }
+.site-card:hover .site-name { color: var(--primary-color); }
+.site-desc { font-size: 11px; color: var(--nav-text-desc-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; transition: opacity 0.3s; }
+.site-card:hover .site-desc { opacity: 1; }
 
 .empty-state { margin-top: 100px; }
 </style>

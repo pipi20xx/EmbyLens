@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS = {
   bing_resolution: '1920x1080',
   show_wallpaper_info: false,
   header_alignment: 'left',
+  category_alignment: 'left',
   header_item_spacing: 12,
   header_margin_top: 20,
   header_margin_bottom: 30

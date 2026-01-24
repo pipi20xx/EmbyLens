@@ -30,6 +30,7 @@ const props = defineProps<{
     show_wallpaper_info: boolean
     show_hitokoto: boolean
     header_alignment: string
+    category_alignment: string
     header_item_spacing: number
     header_margin_top: number
     header_margin_bottom: number
@@ -252,10 +253,22 @@ const handleUploadBg = (options: { file: { file: File } }) => {
         </template>
         <n-space vertical size="large">
           <div class="setting-item">
-            <span class="label-small">标题对齐方式</span>
+            <span class="label-small">主标题对齐方式</span>
             <n-radio-group 
               :value="settings.header_alignment" 
               @update:value="val => emit('updateSettings', { header_alignment: val })"
+            >
+              <n-radio-button value="left">左对齐</n-radio-button>
+              <n-radio-button value="center">居中对齐</n-radio-button>
+              <n-radio-button value="right">右对齐</n-radio-button>
+            </n-radio-group>
+          </div>
+
+          <div class="setting-item">
+            <span class="label-small">分类标题对齐方式</span>
+            <n-radio-group 
+              :value="settings.category_alignment" 
+              @update:value="val => emit('updateSettings', { category_alignment: val })"
             >
               <n-radio-button value="left">左对齐</n-radio-button>
               <n-radio-button value="center">居中对齐</n-radio-button>
