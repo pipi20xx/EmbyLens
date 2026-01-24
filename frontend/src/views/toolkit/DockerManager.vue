@@ -34,6 +34,7 @@
             </n-space>
             
             <n-space>
+              <n-button type="warning" ghost @click="openAutoUpdateModal">计划设置</n-button>
               <n-button type="info" ghost @click="showBrowserModal = true" :disabled="!selectedHostId" v-if="activeTab === 'compose'">扫描外部目录</n-button>
               <n-button type="info" ghost @click="refreshAll" :loading="refreshing">全部刷新</n-button>
             </n-space>
@@ -76,12 +77,65 @@
       @select="handleFileSelect" 
       @remove="removeScanPath" 
     />
+
+    <!-- 自动更新设置弹窗 -->
+    <n-modal v-model:show="showAutoUpdateModal" preset="card" title="自动更新全局设置" style="width: 450px">
+      <n-space vertical size="large">
+        <n-alert type="info" title="说明" bordered>
+          此处设置将决定系统何时执行镜像检查。开启后，仅会对在容器列表中手动勾选了“自动更新”标记的容器生效。
+        </n-alert>
+        
+        <n-form-item label="启用全局调度">
+          <n-switch v-model:value="autoUpdateSettings.enabled" />
+        </n-form-item>
+
+        <n-form-item label="执行模式">
+          <n-radio-group v-model:value="autoUpdateSettings.type">
+            <n-radio-button value="cron">每日定时 (Cron)</n-radio-button>
+            <n-radio-button value="interval">固定间隔 (Interval)</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
+
+        <!-- 每日定时模式：使用时间选择器 -->
+        <n-form-item v-if="autoUpdateSettings.type === 'cron'" label="执行时间 (每天)">
+          <n-time-picker 
+            v-model:formatted-value="autoUpdateSettings.value" 
+            value-format="HH:mm" 
+            format="HH:mm" 
+            style="width: 100%"
+          />
+        </n-form-item>
+
+        <!-- 固定间隔模式：使用天/时/分组合 -->
+        <n-form-item v-if="autoUpdateSettings.type === 'interval'" label="执行间隔">
+          <n-grid :cols="3" :x-gap="12">
+            <n-form-item-gi label="天">
+              <n-input-number v-model:value="intervalParts.d" :min="0" placeholder="0" />
+            </n-form-item-gi>
+            <n-form-item-gi label="时">
+              <n-input-number v-model:value="intervalParts.h" :min="0" :max="23" placeholder="0" />
+            </n-form-item-gi>
+            <n-form-item-gi label="分">
+              <n-input-number v-model:value="intervalParts.m" :min="0" :max="59" placeholder="0" />
+            </n-form-item-gi>
+          </n-grid>
+          <template #feedback>
+            当前合计: {{ (intervalParts.d * 1440) + (intervalParts.h * 60) + intervalParts.m }} 分钟
+          </template>
+        </n-form-item>
+
+        <n-space justify="end" style="margin-top: 20px">
+          <n-button @click="showAutoUpdateModal = false">取消</n-button>
+          <n-button type="primary" :loading="savingAutoUpdate" @click="saveAutoUpdateSettings">保存并生效</n-button>
+        </n-space>
+      </n-space>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { NSpace, NCard, NText, NSelect, NButton, NTag, NTabs, NTabPane, useMessage, useDialog } from 'naive-ui'
+import { NSpace, NCard, NText, NSelect, NButton, NTag, NTabs, NTabPane, useMessage, useDialog, NH2, NModal, NFormItem, NRadioGroup, NRadioButton, NInput, NSwitch, NAlert, NTimePicker, NGrid, NFormItemGi, NInputNumber } from 'naive-ui'
 import axios from 'axios'
 
 // 导入乐高组件
@@ -112,6 +166,60 @@ const showBrowserModal = ref(false)
 const browserInitialPath = ref('/')
 const isPickingForNewProject = ref(false)
 const pickedPathForNewProject = ref('')
+
+const showAutoUpdateModal = ref(false)
+const savingAutoUpdate = ref(false)
+const autoUpdateSettings = ref({
+  enabled: true,
+  type: 'cron',
+  value: '03:00'
+})
+
+// 用于间隔模式的拆解数据
+const intervalParts = ref({ d: 0, h: 0, m: 0 })
+
+const openAutoUpdateModal = async () => {
+  try {
+    const res = await axios.get('/api/docker/auto-update/settings')
+    autoUpdateSettings.value = res.data
+    
+    // 如果是间隔模式，反向拆解分钟数为天/时/分
+    if (autoUpdateSettings.value.type === 'interval') {
+      const totalMin = parseInt(autoUpdateSettings.value.value) || 0
+      intervalParts.value.d = Math.floor(totalMin / 1440)
+      intervalParts.value.h = Math.floor((totalMin % 1440) / 60)
+      intervalParts.value.m = totalMin % 60
+    }
+    
+    showAutoUpdateModal.value = true
+  } catch (e) {
+    message.error('获取设置失败')
+  }
+}
+
+const saveAutoUpdateSettings = async () => {
+  savingAutoUpdate.value = true
+  try {
+    // 如果是间隔模式，保存前先合并数据
+    if (autoUpdateSettings.value.type === 'interval') {
+      const totalMin = (intervalParts.value.d * 1440) + (intervalParts.value.h * 60) + intervalParts.value.m
+      if (totalMin <= 0) {
+        message.warning('执行间隔不能为 0')
+        savingAutoUpdate.value = false
+        return
+      }
+      autoUpdateSettings.value.value = String(totalMin)
+    }
+
+    await axios.post('/api/docker/auto-update/settings', autoUpdateSettings.value)
+    message.success('设置已保存，调度器已重载')
+    showAutoUpdateModal.value = false
+  } catch (e) {
+    message.error('保存失败')
+  } finally {
+    savingAutoUpdate.value = false
+  }
+}
 
 const browseRemotePath = async (path: string = '/') => {
   if (!selectedHostId.value) {

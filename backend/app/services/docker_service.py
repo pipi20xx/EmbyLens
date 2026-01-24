@@ -63,11 +63,12 @@ class DockerService:
             logger.error(f"Failed to connect to Docker host {self.host_config.get('name')}: {e}")
             return None
 
-    def list_containers(self, all=True) -> List[Dict[str, Any]]:
+    def list_containers(self, all=True, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         # 优先尝试通过 docker-py 客户端获取（效率高，数据全）
         if self.client:
             try:
-                containers = self.client.containers.list(all=all)
+                # 传入 filters 参数
+                containers = self.client.containers.list(all=all, filters=filters)
                 return [{
                     "id": c.short_id,
                     "full_id": c.id,
@@ -330,11 +331,16 @@ class DockerService:
         from app.services.notification_service import NotificationService
         
         config = get_config()
+        # 检查是否全局开启了自动更新
+        auto_settings = config.get("docker_auto_update_settings", {"enabled": True})
+        if not auto_settings.get("enabled"):
+            logger.info("ℹ️ [Docker] 自动更新已全局关闭，跳过执行。")
+            return
+
         all_hosts = config.get("docker_hosts", [])
         container_settings = config.get("docker_container_settings", {})
         
         # 1. 筛选出所有开启了自动更新且有 host_id 的记录
-        # 按 host_id 分组，格式: { "host_abc": ["container1", "container2"] }
         tasks_by_host = {}
         for name, settings in container_settings.items():
             if settings.get("auto_update") and settings.get("host_id"):
@@ -352,7 +358,6 @@ class DockerService:
 
         # 2. 定点执行
         for h_id, names in tasks_by_host.items():
-            # 找到对应的主机配置
             host_config = next((h for h in all_hosts if h.get("id") == h_id), None)
             if not host_config:
                 logger.error(f"❌ [Docker] 找不到 ID 为 {h_id} 的主机配置，跳过容器: {names}")
@@ -362,8 +367,8 @@ class DockerService:
             logger.info(f"🌐 [Docker] 正在连接主机 [{host_name}] 检查容器: {', '.join(names)}")
             
             try:
+                from app.services.docker_service import DockerService
                 service = DockerService(host_config)
-                # 精准查询这几个容器
                 containers = service.list_containers(all=True, filters={"name": names})
                 
                 for container in containers:
@@ -393,37 +398,79 @@ class DockerService:
 
         logger.info(f"🏁 [Docker] 自动更新完毕。更新: {updated_count}, 失败: {error_count}")
 
-    @staticmethod
-    async def start_scheduler():
-        """
-        启动自动更新调度器
-        """
-        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    _scheduler = None
+    _is_running = False
+
+    @classmethod
+    def get_scheduler(cls):
+        if cls._scheduler is None:
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            import os
+            import pytz
+            tz_name = os.getenv("TZ", "UTC")
+            try:
+                tz = pytz.timezone(tz_name)
+            except Exception:
+                tz = pytz.UTC
+            cls._scheduler = AsyncIOScheduler(timezone=tz)
+        return cls._scheduler
+
+    @classmethod
+    async def start_scheduler(cls):
+        if not cls._is_running:
+            cls.get_scheduler().start()
+            cls._is_running = True
+            logger.info("📅 [Docker] 自动更新调度器已启动")
+            await cls.reload_scheduler()
+
+    @classmethod
+    async def reload_scheduler(cls):
+        """重载调度器设置"""
         from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.triggers.interval import IntervalTrigger
+        from app.core.config_manager import get_config
         import os
         import pytz
         
-        # 获取系统时区，默认为 UTC
+        scheduler = cls.get_scheduler()
+        scheduler.remove_all_jobs()
+        
+        config = get_config()
+        settings = config.get("docker_auto_update_settings", {"enabled": True, "type": "cron", "value": "03:00"})
+        
+        if not settings.get("enabled"):
+            logger.info("📅 [Docker] 自动更新已停用")
+            return
+
         tz_name = os.getenv("TZ", "UTC")
         try:
             tz = pytz.timezone(tz_name)
         except Exception:
             tz = pytz.UTC
 
-        scheduler = AsyncIOScheduler(timezone=tz)
-        
-        # 每天凌晨 3:00 执行
-        trigger = CronTrigger(hour=3, minute=0, timezone=tz)
-        
-        scheduler.add_job(
-            DockerService.run_auto_update_task,
-            trigger,
-            id="docker_auto_update",
-            replace_existing=True
-        )
-        
-        scheduler.start()
-        logger.info(f"📅 [Docker] 自动更新调度器已启动 (时区: {tz_name}, 设定时间: 每日 03:00)")
+        try:
+            stype = settings.get("type", "cron")
+            sval = settings.get("value", "03:00")
+            
+            if stype == "cron":
+                if ":" in sval:
+                    h, m = sval.split(":")
+                    trigger = CronTrigger(hour=int(h), minute=int(m), timezone=tz)
+                else:
+                    trigger = CronTrigger.from_crontab(sval, timezone=tz)
+            else: # interval (minutes)
+                trigger = IntervalTrigger(minutes=int(sval), timezone=tz)
+
+            scheduler.add_job(
+                DockerService.run_auto_update_task,
+                trigger,
+                id="docker_auto_update",
+                replace_existing=True
+            )
+            logger.info(f"📅 [Docker] 自动更新已重载 ({stype}: {sval}, 时区: {tz_name})")
+        except Exception as e:
+            logger.error(f"❌ [Docker] 重载调度器失败: {e}")
+        # ... (rest of the method logic)
 
     def test_connection(self) -> bool:
         if not self.client: return False

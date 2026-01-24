@@ -83,7 +83,12 @@ const fetchHistoryLog = async (date: string) => {
 const handleDateChange = (val: string | null) => {
   if (val === null) {
     clearConsole()
-    appendLog(">>> 正在切换回实时日志流... <<<")
+    // 重新连接以获取最新的回填日志
+    if (socket) {
+      socket.close()
+      socket = null
+    }
+    connectWebSocket()
     isPaused.value = false
   } else {
     isPaused.value = true // 查看历史时自动暂停实时流
@@ -212,7 +217,7 @@ onUnmounted(() => {
           ref="virtualListInst"
           class="log-list"
           :items="consoleLogs"
-          :item-size="20"
+          :item-size="15"
           key-field="id"
         >
           <template #default="{ item }">

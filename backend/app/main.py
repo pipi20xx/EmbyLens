@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import router as api_router
-from app.utils.logger import logger, log_queue, audit_log
+from app.utils.logger import logger, audit_log
 from sqlalchemy import select
 from app.db.session import engine, Base, get_db
 from app.models import * 
@@ -22,7 +22,7 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 
 app = FastAPI(
     title="Lens API",
-    version="2.1.1",
+    version="2.1.2",
 )
 # 全局审计与性能监控中间件
 @app.middleware("http")
@@ -166,19 +166,19 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     
     # 获取最近的历史日志并回填
-    from app.utils.logger import get_last_n_logs
+    from app.utils.logger import get_last_n_logs, log_broadcaster
     history = get_last_n_logs(200) # 增加回填行数到 200
-    history.reverse() # 反转，确保最新的一条最先发出（配合前端 unshift）
     for line in history:
         try:
             await websocket.send_text(line)
         except:
             return
 
+    queue = log_broadcaster.subscribe()
     try:
         while True:
             # 获取队列中的新日志
-            msg = await log_queue.get()
+            msg = await queue.get()
             try:
                 await websocket.send_text(msg)
             except Exception:
@@ -186,8 +186,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    finally:
+        log_broadcaster.unsubscribe(queue)
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse

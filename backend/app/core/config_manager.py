@@ -41,6 +41,11 @@ DEFAULT_CONFIG = {
     },
     "docker_hosts": [],
     "docker_container_settings": {},
+    "docker_auto_update_settings": {
+        "enabled": True,
+        "type": "cron",
+        "value": "03:00"
+    },
     "pgsql_hosts": [],
     "backup_tasks": [],
     "notification_settings": {

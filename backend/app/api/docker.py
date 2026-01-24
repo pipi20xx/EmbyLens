@@ -464,3 +464,24 @@ async def save_container_settings(container_name: str, settings: Dict[str, Any] 
     config["docker_container_settings"] = all_settings
     save_config(config)
     return {"message": "Settings saved"}
+
+class DockerAutoUpdateSettings(BaseModel):
+    enabled: bool
+    type: str # 'cron' or 'interval'
+    value: str
+
+@router.get("/auto-update/settings")
+async def get_auto_update_settings():
+    config = get_config()
+    return config.get("docker_auto_update_settings", {"enabled": True, "type": "cron", "value": "03:00"})
+
+@router.post("/auto-update/settings")
+async def save_auto_update_settings(settings: DockerAutoUpdateSettings):
+    config = get_config()
+    config["docker_auto_update_settings"] = settings.dict()
+    save_config(config)
+    
+    # 异步触发调度器重载
+    asyncio.create_task(DockerService.reload_scheduler())
+    
+    return {"message": "Settings updated and scheduler reloaded"}

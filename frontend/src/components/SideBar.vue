@@ -105,7 +105,7 @@ const handleThemeSelect = (val: string) => {
       <n-space align="center" :size="10">
         <app-logo :size="28" :theme="themeType" />
       <div class="sidebar-footer" v-if="!collapsed">
-        <div class="version-tag">v2.1.1</div>
+        <div class="version-tag">v2.1.2</div>
       </div>
       </n-space>
     </div>

@@ -29,8 +29,27 @@ class LogFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt, datefmt="%H:%M:%S")
         return formatter.format(record)
 
-# 实时广播队列
-log_queue = asyncio.Queue()
+# 实时广播管理器
+class LogBroadcaster:
+    def __init__(self):
+        self.subscribers = set()
+
+    def subscribe(self):
+        queue = asyncio.Queue()
+        self.subscribers.add(queue)
+        return queue
+
+    def unsubscribe(self, queue):
+        self.subscribers.discard(queue)
+
+    async def broadcast(self, message):
+        for queue in list(self.subscribers):
+            try:
+                await queue.put(message)
+            except:
+                pass
+
+log_broadcaster = LogBroadcaster()
 
 class QueueHandler(logging.Handler):
     def emit(self, record):
@@ -38,15 +57,47 @@ class QueueHandler(logging.Handler):
             msg = self.format(record)
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                loop.create_task(log_queue.put(msg))
+                loop.create_task(log_broadcaster.broadcast(msg))
         except:
+            pass
+
+class DailyFileHandler(logging.FileHandler):
+    """自定义处理程序：始终以 YYYY-MM-DD.log 命名，并在跨天时自动切换"""
+    def __init__(self, dirname, backupCount=7, encoding='utf-8'):
+        self.dirname = dirname
+        self.backupCount = backupCount
+        self.encoding = encoding
+        self.current_date = datetime.now().strftime("%Y-%m-%d")
+        log_file = os.path.join(self.dirname, f"{self.current_date}.log")
+        super().__init__(log_file, encoding=encoding)
+
+    def emit(self, record):
+        # 每次写入前检查日期
+        new_date = datetime.now().strftime("%Y-%m-%d")
+        if new_date != self.current_date:
+            self.current_date = new_date
+            # 关闭旧文件，开启新文件
+            self.stream.close()
+            self.baseFilename = os.path.join(self.dirname, f"{self.current_date}.log")
+            self.stream = self._open()
+            # 简单的清理逻辑：保留最近 backupCount 天的日志
+            self._cleanup_old_logs()
+        super().emit(record)
+
+    def _cleanup_old_logs(self):
+        try:
+            files = [f for f in os.listdir(self.dirname) if f.endswith(".log")]
+            files.sort(reverse=True)
+            if len(files) > self.backupCount:
+                for old_file in files[self.backupCount:]:
+                    os.remove(os.path.join(self.dirname, old_file))
+        except Exception:
             pass
 
 def setup_logger():
     logger = logging.getLogger("Lens")
     logger.setLevel(logging.INFO)
     
-    # 防止重复添加 Handler (工业级加固)
     if logger.handlers:
         return logger
     
@@ -58,15 +109,16 @@ def setup_logger():
     q_handler = QueueHandler()
     q_handler.setFormatter(logging.Formatter("%(asctime)s | %(message)s", datefmt="%H:%M:%S"))
     
-    # 3. 按日持久化文件
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    log_file = os.path.join(LOG_DIR, f"{current_date}.log")
-    file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=3, encoding='utf-8')
+    # 3. 自定义动态日期文件处理器 (方案 B)
+    file_handler = DailyFileHandler(LOG_DIR, backupCount=7, encoding='utf-8')
     file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
     
     logger.addHandler(stdout_handler)
     logger.addHandler(q_handler)
     logger.addHandler(file_handler)
+    
+    logger.propagate = False
+    return logger
     
     # 禁用日志向上传播，防止重复记录到 uvicorn 的 root logger
     logger.propagate = False
@@ -77,8 +129,9 @@ logger = setup_logger()
 
 # 辅助函数：模拟审计风格日志
 def audit_log(title: str, duration_ms: float, details: List[str]):
-    # 性能审计降噪：过滤掉耗时极短的 GET 请求
-    if duration_ms < 100 and "GET" in title:
+    # 性能审计深度降噪：过滤掉耗时低于 300ms 的所有常规请求
+    # 300ms 以内的响应在内网环境下属于正常波动，不具备审计价值
+    if duration_ms < 300:
         return
         
     detail_str = " | ".join(details)
