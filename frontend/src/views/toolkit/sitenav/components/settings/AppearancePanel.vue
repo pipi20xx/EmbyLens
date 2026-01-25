@@ -168,7 +168,7 @@ const handleUploadBg = (options: { file: { file: File } }) => {
 
           <n-divider style="margin: 8px 0" />
 
-          <div v-if="settings.background_url" style="margin-top: 8px;">
+          <div v-if="settings.background_url || settings.wallpaper_mode === 'bing'" style="margin-top: 8px;">
             <div class="setting-item">
               <div class="label-row">
                 <span class="label">填充模式</span>
@@ -206,7 +206,7 @@ const handleUploadBg = (options: { file: { file: File } }) => {
             </div>
           </div>
         </n-space>
-        <div v-if="!settings.background_url" class="overlay-tip">
+        <div v-if="!settings.background_url && settings.wallpaper_mode !== 'bing'" class="overlay-tip">
           请先上传背景图以解锁样式调整
         </div>
       </n-card>

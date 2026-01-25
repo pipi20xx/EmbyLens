@@ -76,9 +76,18 @@ export const getColumns = () => [
       
       return h(NSpace, { size: 'small' }, {
         default: () => [
+          // 1. 媒体规格 (DisplayTitle)
           row.display_title !== 'N/A' ? h(NTag, { size: 'tiny', type: 'info', ghost: true }, { default: () => row.display_title }) : null,
-          h(NText, { depth: 3, style: 'font-size: 11px' }, { default: () => row.video_codec }),
-          row.video_range !== 'SDR' ? h(NTag, { size: 'tiny', type: 'error' }, { default: () => row.video_range }) : null
+          
+          // 2. 视频编码 (Codec) - 改为 Tag 统一风格
+          h(NTag, { size: 'tiny', bordered: false, style: 'opacity: 0.8' }, { default: () => row.video_codec }),
+          
+          // 3. 动态范围 (VideoRange) - 总是显示，SDR 为普通色，HDR 为醒目色
+          h(NTag, { 
+            size: 'tiny', 
+            type: row.video_range === 'SDR' ? 'default' : 'error',
+            bordered: row.video_range === 'SDR'
+          }, { default: () => row.video_range })
         ]
       })
     }

@@ -307,14 +307,29 @@ async def import_navigation(file: UploadFile = File(...)):
 # 增强型图标抓取
 # ==========================================
 
+# 简单的内存缓存: { "key": { "date": "2023-10-27", "data": {...} } }
+BING_CACHE = {}
+
 @router.get("/bing-wallpaper")
 async def get_bing_wallpaper(
     index: int = 0, 
     mkt: str = "zh-CN",
     resolution: str = "1920x1080"
 ):
-    """获取必应每日壁纸及其元数据"""
+    """获取必应每日壁纸及其元数据（带服务端缓存）"""
     try:
+        # 1. 生成缓存 Key 和当前日期
+        cache_key = f"{mkt}_{index}_{resolution}"
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        # 2. 检查缓存
+        if cache_key in BING_CACHE:
+            cached = BING_CACHE[cache_key]
+            # 只有当缓存数据的日期是"今天"时才使用，确保跨天自动更新
+            if cached.get("date") == today_str:
+                return cached.get("data")
+
+        # 3. 缓存未命中或过期，请求 Bing API
         url = f"https://www.bing.com/HPImageArchive.aspx?format=js&idx={index}&n=1&mkt={mkt}"
         async with get_async_client(timeout=10.0) as client:
             resp = await client.get(url)
@@ -324,14 +339,25 @@ async def get_bing_wallpaper(
                     image = data["images"][0]
                     # 构建完整图片 URL
                     base_url = f"https://www.bing.com{image['urlbase']}_{resolution}.jpg"
-                    return {
+                    
+                    result_data = {
                         "url": base_url,
                         "title": image.get("title", ""),
                         "copyright": image.get("copyright", ""),
                         "copyrightlink": image.get("copyrightlink", "")
                     }
+
+                    # 4. 写入缓存
+                    BING_CACHE[cache_key] = {
+                        "date": today_str,
+                        "data": result_data
+                    }
+                    
+                    return result_data
+
     except Exception as e:
         print(f"Fetch bing error: {e}")
+    
     return {"error": "Failed to fetch"}
 
 @router.get("/fetch-icon")

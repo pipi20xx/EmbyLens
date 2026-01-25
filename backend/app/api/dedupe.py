@@ -211,7 +211,8 @@ async def smart_select_v4(db: AsyncSession = Depends(get_db)):
             logger.info(f"┃  ┣ 📦 重复组 [{key}] 有 {len(g_items)} 个副本")
             for i in g_items:
                 status = "🗑️ 建议删除" if i.id in suggested else "✅ 建议保留"
-                if i.id in suggested and any(i.path.startswith(ex) for ex in exclude_paths if ex.strip()):
+                # 改为包含匹配 (只要路径包含关键词即排除)，且忽略大小写
+                if i.id in suggested and any(ex.lower() in i.path.lower() for ex in exclude_paths if ex.strip()):
                     status = "🛡️ 白名单保护"
                     suggested.remove(i.id)
                 logger.info(f"┃  ┃  ┗ {status}: [{i.display_title} | {i.video_codec}] {i.path}")

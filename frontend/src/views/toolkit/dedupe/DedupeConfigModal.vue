@@ -13,18 +13,28 @@
         <!-- 1. 评分权重标签页 -->
         <n-tab-pane name="rules" tab="评分权重">
           <n-alert type="info" size="small" style="margin-bottom: 16px">
-            评分项目越靠前优先级越高。值按优先级从高到低排列，英文逗号分隔。
+            <div><strong style="margin-right: 4px">优先级逻辑：</strong>从上到下权重递减。同一行内，排在前面的关键词优先级更高。</div>
+            <div style="margin-top: 4px; opacity: 0.8">所有输入项均不区分大小写（系统会自动处理）。</div>
           </n-alert>
           
-          <n-form-item label="媒体规格 (如: 4k, 2160p, 1080p, 720p)">
+          <n-form-item label="媒体规格 (DisplayTitle)">
+            <template #label>
+              <span>媒体规格 <span style="opacity: 0.6; font-weight: normal; font-size: 12px">(对应 DisplayTitle, 如: 4k, 1080p)</span></span>
+            </template>
             <n-input v-model:value="form.display_title" placeholder="例如: 4k, 2160p, 1080p" />
           </n-form-item>
           
-          <n-form-item label="视频编码 (如: hevc, h265, h264, av1)">
-            <n-input v-model:value="form.video_codec" placeholder="例如: hevc, h265, h264" />
+          <n-form-item label="视频编码 (Codec)">
+            <template #label>
+              <span>视频编码 <span style="opacity: 0.6; font-weight: normal; font-size: 12px">(对应 Codec, 如: hevc, h264)</span></span>
+            </template>
+            <n-input v-model:value="form.video_codec" placeholder="例如: hevc, h265, h264, av1" />
           </n-form-item>
           
-          <n-form-item label="动态范围 (如: dolbyvision, hdr, sdr)">
+          <n-form-item label="动态范围 (VideoRange)">
+            <template #label>
+              <span>动态范围 <span style="opacity: 0.6; font-weight: normal; font-size: 12px">(对应 VideoRange, 如: hdr, sdr)</span></span>
+            </template>
             <n-input v-model:value="form.video_range" placeholder="例如: dolbyvision, hdr, sdr" />
           </n-form-item>
           
@@ -41,11 +51,11 @@
         
         <!-- 2. 白名单排除标签页 -->
         <n-tab-pane name="exclude" tab="白名单排除">
-          <n-form-item label="绝对不会被选中的路径前缀">
+          <n-form-item label="白名单关键词 (路径包含即保留)">
             <n-input
               v-model:value="excludeText"
               type="textarea"
-              placeholder="每行一个路径，例如：/vol1/Anime/Protected"
+              placeholder="每行一个关键词或路径片段 (不区分大小写)&#10;只要完整路径中包含该词，文件就会被保护。&#10;&#10;例如：&#10;2023&#10;Feature&#10;/vol1/Anime/Protected"
               :autosize="{ minRows: 8, maxRows: 15 }"
             />
           </n-form-item>
