@@ -13,6 +13,35 @@ export const username = ref(localStorage.getItem('lens_username') || '')
 export const isLogConsoleOpen = ref(false)
 export const isHomeEntry = ref(false)
 
+// --- History Management (Back/Forward Support) ---
+let isPopping = false
+
+if (typeof window !== 'undefined') {
+  // Ensure we have an initial state
+  const initialKey = localStorage.getItem(SAVE_KEY) || 'DashboardView'
+  if (!history.state?.lensView) {
+    history.replaceState({ lensView: initialKey }, '', '#' + initialKey)
+  }
+
+  window.addEventListener('popstate', (event) => {
+    // Handle history navigation (Back/Forward buttons)
+    if (event.state && event.state.lensView) {
+      isPopping = true
+      currentViewKey.value = event.state.lensView
+      Promise.resolve().then(() => { isPopping = false })
+    } 
+    // Handle manual hash change or hash navigation without state
+    else if (window.location.hash) {
+      const hashKey = window.location.hash.slice(1)
+      if (hashKey && hashKey !== currentViewKey.value) {
+        isPopping = true
+        currentViewKey.value = hashKey
+        Promise.resolve().then(() => { isPopping = false })
+      }
+    }
+  })
+}
+
 // 菜单设置：包含排序和显示隐藏
 export interface MenuSetting {
   key: string
@@ -110,6 +139,13 @@ export const initMenuSettingsFromBackend = async () => {
 // 监听变化并自动持久化
 watch(currentViewKey, (val) => {
   localStorage.setItem(SAVE_KEY, val)
+  
+  // Sync with browser history
+  if (!isPopping && typeof window !== 'undefined') {
+    if (history.state?.lensView !== val) {
+      history.pushState({ lensView: val }, '', '#' + val)
+    }
+  }
 })
 
 watch(menuSettings, (val) => {
