@@ -96,18 +96,23 @@ class BackupService:
             logger.error(f"❌ [Backup] 找不到任务 ID: {task_id}")
             return
 
-        # 1. 初始化执行记录
-        async with AsyncSessionLocal() as db:
-            history = BackupHistory(
-                task_id=task_id,
-                task_name=task.get("name"),
-                mode=task.get("mode"),
-                status="running"
-            )
-            db.add(history)
-            await db.commit()
-            await db.refresh(history)
-            history_id = history.id
+        # 1. 初始化执行记录 (快速提交，释放连接)
+        history_id = None
+        try:
+            async with AsyncSessionLocal() as db:
+                history = BackupHistory(
+                    task_id=task_id,
+                    task_name=task.get("name"),
+                    mode=task.get("mode"),
+                    status="running"
+                )
+                db.add(history)
+                await db.commit()
+                await db.refresh(history)
+                history_id = history.id
+        except Exception as e:
+            logger.error(f"❌ [Backup] 创建执行记录失败: {e}")
+            # 即使记录创建失败，备份仍尝试运行，但无法在 UI 显示进度
 
         start_time = time.time()
         logger.info(f"🚀 [Backup] 开始执行备份任务: {task.get('name')}")
@@ -116,7 +121,6 @@ class BackupService:
         message = ""
         output_path = ""
         total_size = 0
-        file_count = 0
 
         try:
             mode = task.get("mode", "7z")
@@ -155,32 +159,50 @@ class BackupService:
                     strategy=task.get("sync_strategy", "mirror")
                 )
             
-            if success:
-                if mode != "sync":
+            if success and output_path:
+                if mode != "sync" and os.path.exists(output_path):
                     total_size = os.path.getsize(output_path) / (1024 * 1024) # MB
-                else:
-                    # 同步模式下计算目录大小
-                    total_size = 0 # 暂时不计算
             
         except Exception as e:
             success = False
             message = str(e)
-            logger.error(f"❌ [Backup] 任务 {task.get('name')} 出错: {e}")
+            logger.error(f"❌ [Backup] 任务 {task.get('name')} 运行时异常: {e}")
 
-        # 2. 更新执行记录
-        async with AsyncSessionLocal() as db:
-            await db.execute(
-                update(BackupHistory)
-                .where(BackupHistory.id == history_id)
-                .values(
-                    status="success" if success else "failed",
-                    end_time=datetime.now(),
-                    size=total_size,
-                    message=message,
-                    output_path=output_path
-                )
-            )
-            await db.commit()
+        # 2. 更新执行记录 (确保最终状态得到更新)
+        if history_id:
+            try:
+                async with AsyncSessionLocal() as db:
+                    await db.execute(
+                        update(BackupHistory)
+                        .where(BackupHistory.id == history_id)
+                        .values(
+                            status="success" if success else "failed",
+                            end_time=datetime.now(),
+                            size=total_size,
+                            message=message[:500] if message else "", # 防止消息过长
+                            output_path=output_path
+                        )
+                    )
+                    await db.commit()
+            except Exception as e:
+                logger.error(f"❌ [Backup] 更新执行记录失败: {e}")
+        
+        duration = time.time() - start_time
+        logger.info(f"🏁 [Backup] 任务 {task.get('name')} 执行完毕 (耗时: {duration:.1f}s, 状态: {'成功' if success else '失败'})")
+
+        # 发送通知
+        try:
+            event = "backup.success" if success else "backup.failed"
+            title = "备份成功" if success else "备份失败"
+            msg = f"任务: {task.get('name')}\n模式: {task.get('mode')}\n耗时: {duration:.1f}s"
+            if not success:
+                msg += f"\n错误: {message}"
+            else:
+                msg += f"\n大小: {total_size:.2f} MB"
+                
+            await NotificationService.emit(event, title, msg)
+        except Exception as e:
+            logger.warning(f"⚠️ [Backup] 发送通知失败: {e}")
         
         duration = time.time() - start_time
         logger.info(f"🏁 [Backup] 任务 {task.get('name')} 执行完毕 (耗时: {duration:.1f}s, 状态: {'成功' if success else '失败'})")
