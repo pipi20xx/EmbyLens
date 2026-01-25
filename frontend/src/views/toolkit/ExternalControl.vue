@@ -96,11 +96,12 @@
           <div class="docs-wrapper">
             <iframe 
               ref="docsIframe"
-              :key="`${config.api_token}`"
-              :src="`/api/system/docs?token=${config.api_token}`" 
+              :key="`${currentThemeType}-${config.api_token}`"
+              :src="`/api/system/docs?theme=${currentThemeType}&token=${config.api_token}`" 
               frameborder="0" 
               class="docs-iframe"
               @load="initIframeMonitor"
+              scrolling="no"
             ></iframe>
           </div>
         </n-tab-pane>
@@ -125,8 +126,10 @@ import {
 } from 'naive-ui'
 import axios from 'axios'
 import { copyText } from '../../utils/clipboard'
+import { useTheme } from '../../hooks/useTheme'
 
 const message = useMessage()
+const { currentThemeType } = useTheme()
 const loadingLogs = ref(false)
 const auditLogs = ref([])
 const showLogDetail = ref(false)

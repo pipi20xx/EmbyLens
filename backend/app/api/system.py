@@ -195,11 +195,39 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
     if referer and host not in referer and "localhost" not in referer:
          raise HTTPException(status_code=403, detail="禁止直接访问 API 文档。请通过系统仪表盘进入。")
     
-    # 根据主题定义配色
-    primary_color = "#bb86fc" if theme == "purple" else "#705df2"
-    bg_color = "#0b040f" if theme == "purple" else "#101014"
-    card_bg = "#180a20" if theme == "purple" else "#1e1e24"
-    text_color = "#e0e0e0"
+    # 精细化配色方案
+    theme_configs = {
+        "purple": {
+            "primary": "#a370f7",
+            "bg": "#0f0913",
+            "card": "#1a1021",
+            "text": "#e2e2e9"
+        },
+        "modern": {
+            "primary": "#6366f1",
+            "bg": "#0e0e11",
+            "card": "#18181b",
+            "text": "#f4f4f5"
+        },
+        "oceanic": {
+            "primary": "#2dd4bf",
+            "bg": "#020617",
+            "card": "#0f172a",
+            "text": "#f1f5f9"
+        },
+        "crimson": {
+            "primary": "#fb7185",
+            "bg": "#0a0808",
+            "card": "#181212",
+            "text": "#fceef0"
+        }
+    }
+    
+    cfg = theme_configs.get(theme, theme_configs["purple"])
+    primary_color = cfg["primary"]
+    bg_color = cfg["bg"]
+    card_bg = cfg["card"]
+    text_color = cfg["text"]
 
     # 自动授权脚本
     auth_js = ""
@@ -228,6 +256,15 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
     body {{ background-color: {bg_color} !important; margin: 0; padding: 0; }}
     .swagger-ui {{ background-color: {bg_color} !important; color: {text_color} !important; }}
     
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+    ::-webkit-scrollbar-track {{ background: {bg_color}; }}
+    ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 10px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: {primary_color}; }}
+    
+    /* Firefox 滚动条支持 */
+    * {{ scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) {bg_color}; }}
+
     .swagger-ui .topbar {{ display: none; }}
     .swagger-ui .info .title, .swagger-ui .info li, .swagger-ui .info p, .swagger-ui .info table, .swagger-ui .info h1, .swagger-ui .info h2, .swagger-ui .info h3 {{ color: {text_color} !important; }}
     
@@ -245,26 +282,40 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
     .swagger-ui .btn {{ color: {text_color} !important; border-color: rgba(255,255,255,0.2) !important; background: transparent !important; }}
     .swagger-ui .btn.execute {{ background-color: {primary_color} !important; border-color: {primary_color} !important; color: #000 !important; font-weight: bold !important; }}
     
-    /* 重点：授权弹窗 (Available authorizations) 适配 */
-    .swagger-ui .modal-ux {{ background-color: {bg_color} !important; border: 1px solid rgba(255,255,255,0.1) !important; }}
-    .swagger-ui .modal-ux-header {{ border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
-    .swagger-ui .modal-ux-header h3 {{ color: {text_color} !important; }}
-    .swagger-ui .modal-ux-content {{ background-color: {bg_color} !important; }}
-    .swagger-ui .modal-ux-content h4 {{ color: {text_color} !important; }}
-    .swagger-ui .auth-container {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
-    .swagger-ui .auth-container:last-of-type {{ border-bottom: none !important; }}
-    .swagger-ui .auth-container label {{ color: {text_color} !important; }}
-    .swagger-ui .auth-btn-wrapper {{ justify-content: center !important; gap: 10px !important; }}
-    .swagger-ui .modal-ux-content p {{ color: rgba(255,255,255,0.6) !important; }}
-    .swagger-ui .authorization__btn svg {{ fill: {primary_color} !important; }}
-
-    /* 参数 (Parameters) 与交互区适配 */
+    /* 重点：模型 (Models / Schemas) 区块 */
+    .swagger-ui .models {{ background: {card_bg} !important; border: 1px solid rgba(255,255,255,0.05) !important; margin: 20px !important; border-radius: 8px !important; }}
+    .swagger-ui .models .model-container {{ background: transparent !important; margin: 0 !important; padding: 10px !important; }}
+    .swagger-ui .models h4 {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; padding-bottom: 10px !important; }}
+    .swagger-ui .model-box {{ background: transparent !important; color: {text_color} !important; }}
+    .swagger-ui .model-box-control {{ background: transparent !important; color: {text_color} !important; border: none !important; }}
+    .swagger-ui .model-box-control:focus {{ outline: none !important; }}
+    .swagger-ui .model-wrapper {{ background: transparent !important; }}
+    .swagger-ui .model {{ color: {text_color} !important; background: transparent !important; }}
+    .swagger-ui .model-title {{ color: {text_color} !important; }}
+    .swagger-ui .prop-type {{ color: #f2a3ff !important; }}
+    .swagger-ui .prop-format {{ color: rgba(255,255,255,0.4) !important; }}
+    .swagger-ui .prop-name {{ color: {text_color} !important; font-weight: bold !important; }}
+    
+    /* 修复 Schemas 内部嵌套表格和列表的白底 */
+    .swagger-ui section.models .model-container {{ background-color: transparent !important; }}
+    .swagger-ui section.models .model-box {{ background-color: rgba(255,255,255,0.02) !important; }}
+    .swagger-ui .model-toggle:after {{ filter: invert(1) brightness(2); }}
+    
+    /* 响应与表格 */
+    .swagger-ui table thead tr td, .swagger-ui table thead tr th {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
+    .swagger-ui .response-col_status {{ color: {text_color} !important; }}
+    .swagger-ui section.models h4 {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
+    .swagger-ui .model-toggle:after {{ filter: invert(1) brightness(2); }}
+    .swagger-ui .parameter__name, .swagger-ui .parameter__type, .swagger-ui .parameter__deprecated, .swagger-ui .parameter__in {{ color: {text_color} !important; font-family: monospace !important; }}
+    .swagger-ui .parameter__extension, .swagger-ui .parameter__in {{ font-style: italic !important; color: rgba(255,255,255,0.5) !important; }}
+    
+    /* Parameters 专属修复 */
     .swagger-ui .opblock-section-header {{ background: rgba(255,255,255,0.05) !important; border-top: 1px solid rgba(255,255,255,0.1) !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
     .swagger-ui .opblock-section-header h4 {{ color: {text_color} !important; }}
-    .swagger-ui table.parameters thead th {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }}
+    .swagger-ui .parameters-container, .swagger-ui .responses-container {{ background: transparent !important; }}
+    .swagger-ui table.parameters, .swagger-ui table.responses-table {{ background: transparent !important; }}
     .swagger-ui .parameter__name {{ color: {primary_color} !important; font-weight: bold !important; }}
     .swagger-ui .parameter__type {{ color: #f2a3ff !important; }}
-    .swagger-ui .parameter__in {{ font-style: italic !important; color: rgba(255,255,255,0.5) !important; }}
     
     /* 按钮适配 */
     .swagger-ui .btn.try-out__btn {{ border-color: {primary_color} !important; color: {primary_color} !important; transition: all 0.3s !important; }}
@@ -273,17 +324,73 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
     
     /* 响应结果区 */
     .swagger-ui .responses-inner h4, .swagger-ui .responses-inner h5 {{ color: {text_color} !important; }}
-    .swagger-ui .response-col_status {{ color: {text_color} !important; font-weight: bold !important; }}
     .swagger-ui .opblock-body pre {{ background: #111 !important; color: #70ff70 !important; border: 1px solid rgba(255,255,255,0.1) !important; padding: 10px !important; border-radius: 8px !important; }}
     
-    /* 模型 (Models) 适配 */
-    .swagger-ui .model-box {{ background: transparent !important; }}
-    .swagger-ui .model {{ color: {text_color} !important; }}
-    .swagger-ui section.models .model-container {{ background: {card_bg} !important; border: 1px solid rgba(255,255,255,0.05) !important; margin-bottom: 10px !important; }}
-    .swagger-ui section.models h4 {{ color: {text_color} !important; }}
-    .swagger-ui .model-title {{ color: {text_color} !important; }}
-    .swagger-ui .prop-name {{ color: {text_color} !important; font-weight: bold !important; }}
-    .swagger-ui .prop-type {{ color: #f2a3ff !important; }}
+    /* Markdown 描述 */
+    .swagger-ui .renderedMarkdown p, .swagger-ui .renderedMarkdown li {{ color: rgba(255,255,255,0.8) !important; }}
+
+    /* 接口行右侧图标 (锁与箭头) 适配 */
+    .swagger-ui .authorization__btn svg {{ fill: {primary_color} !important; }}
+    .swagger-ui .opblock-summary-control svg {{ fill: {text_color} !important; opacity: 0.7; }}
+    .swagger-ui .opblock-summary-control:hover svg {{ opacity: 1; }}
+    .swagger-ui .view-line-link.copy-to-clipboard svg {{ fill: {text_color} !important; }}
+
+    /* 重点：授权弹窗 (Available authorizations) 适配与位置修正 */
+    .swagger-ui .scheme-container {{ position: relative !important; }}
+    .swagger-ui .dialog-ux {{ 
+      position: absolute !important; 
+      top: 100% !important; 
+      left: 50% !important; 
+      transform: translateX(-50%) !important; 
+      z-index: 9999 !important;
+      width: 600px !important; 
+    }}
+    .swagger-ui .modal-ux-mask {{ 
+      position: absolute !important; 
+      top: 0 !important; 
+      left: 0 !important; 
+      width: 100% !important; 
+      height: 10000px !important; 
+      z-index: 9998 !important; 
+      background: rgba(0, 0, 0, 0.5) !important; 
+    }}
+    .swagger-ui .modal-ux {{ 
+      background-color: {card_bg} !important; 
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      border-radius: 8px !important;
+      max-height: 700px !important; 
+      overflow-y: auto !important; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+    }}
+    .swagger-ui .modal-ux-header {{ border-bottom: 1px solid rgba(255,255,255,0.1) !important; padding: 10px 15px !important; }}
+    .swagger-ui .modal-ux-header h3 {{ color: {text_color} !important; }}
+    .swagger-ui .modal-ux-content {{ background-color: {bg_color} !important; padding: 15px !important; }}
+    .swagger-ui .modal-ux-content h4 {{ color: {text_color} !important; }}
+    .swagger-ui .auth-container {{ color: {text_color} !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; padding: 15px 0 !important; }}
+    .swagger-ui .auth-container:last-of-type {{ border-bottom: none !important; }}
+    .swagger-ui .auth-container label {{ color: {text_color} !important; }}
+    .swagger-ui .auth-btn-wrapper {{ justify-content: center !important; gap: 10px !important; }}
+    .swagger-ui .modal-ux-content p {{ color: rgba(255,255,255,0.6) !important; }}
+    
+    /* 适配新版 JSON Schema 渲染器 */
+    .json-schema-2020-12-accordion {{ background: transparent !important; border: none !important; color: {text_color} !important; }}
+    .json-schema-2020-12-accordion__children {{ color: {text_color} !important; }}
+    .json-schema-2020-12__title {{ color: {text_color} !important; font-weight: bold !important; }}
+    .json-schema-2020-12-accordion__icon svg {{ fill: {text_color} !important; }}
+    .json-schema-2020-12-accordion:hover {{ background: rgba(255,255,255,0.05) !important; }}
+    .json-schema-2020-12-expand-deep-button {{ 
+      color: {primary_color} !important; 
+      background: transparent !important; 
+      border: 1px solid {primary_color} !important; 
+      border-radius: 4px !important;
+      padding: 2px 8px !important;
+      cursor: pointer !important;
+      font-size: 12px !important;
+    }}
+    .json-schema-2020-12-expand-deep-button:hover {{ 
+      background: {primary_color} !important; 
+      color: #000 !important; 
+    }}
     """
     
     from fastapi.openapi.docs import get_swagger_ui_html
@@ -302,6 +409,8 @@ async def get_documentation(request: Request, theme: str = "purple", token: str 
 async def get_open_api_endpoint(request: Request):
     from fastapi.openapi.utils import get_openapi
     schema = get_openapi(title="Lens API", version=CURRENT_VERSION, routes=request.app.routes)
+    
+    # 1. 注入全局安全定义
     schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",
@@ -309,6 +418,15 @@ async def get_open_api_endpoint(request: Request):
             "bearerFormat": "JWT"
         }
     }
+    
+    # 2. 强制遍历所有路径，确保每个操作都明确引用 BearerAuth
+    # 这一步能解决点击锁图标后弹窗可能为空的问题
+    if "paths" in schema:
+        for path in schema["paths"].values():
+            for operation in path.values():
+                operation["security"] = [{"BearerAuth": []}]
+
+    # 3. 设置全局安全校验
     schema["security"] = [{"BearerAuth": []}]
     return schema
 
