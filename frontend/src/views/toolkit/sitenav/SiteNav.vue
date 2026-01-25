@@ -342,24 +342,26 @@ const openUrl = (url: string) => window.open(url, '_blank')
 
 /* 背景底层：实色 */
 .site-nav-background-base {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 0;
   background-color: var(--nav-bg-color);
-  width: 100%;
-  height: 100%;
 }
 
 /* 背景顶层：图片 */
 .site-nav-background-image {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 1;
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
-  width: 100%;
-  height: 100%;
 }
 
 .site-nav-content {
