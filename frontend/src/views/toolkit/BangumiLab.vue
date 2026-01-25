@@ -93,6 +93,7 @@ import {
   NTabs, NTabPane
 } from 'naive-ui'
 import { useBangumi } from './bangumi/useBangumi'
+import { copyElementContent } from '../../utils/clipboard'
 import SubjectCard from './bangumi/components/SubjectCard.vue'
 import MetadataCard from './bangumi/components/MetadataCard.vue'
 import CharacterPanel from './bangumi/components/CharacterPanel.vue'
@@ -127,18 +128,14 @@ const showJson = (data: any, title: string) => {
 }
 
 const copyRawJson = () => {
-  const text = JSON.stringify(jsonModal.data, null, 2)
-  const textArea = document.createElement("textarea")
-  textArea.value = text
-  document.body.appendChild(textArea)
-  textArea.select()
-  try {
-    document.execCommand('copy')
+  // 尝试优先获取 n-code 内部的 pre 标签，如果获取不到则获取外层容器
+  const selector = document.querySelector('.json-code-wrapper pre') ? '.json-code-wrapper pre' : '.json-code-wrapper'
+  
+  if (copyElementContent(selector)) {
     message.success('已复制到剪贴板')
-  } catch (err) {
-    message.error('复制失败')
+  } else {
+    message.error('复制失败，请尝试手动全选复制')
   }
-  document.body.removeChild(textArea)
 }
 </script>
 

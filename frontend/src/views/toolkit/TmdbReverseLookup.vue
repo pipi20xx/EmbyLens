@@ -57,6 +57,7 @@ import {
   NInputGroupLabel, NCode, NTag, NDescriptions, NDescriptionsItem, NGi, NGrid 
 } from 'naive-ui'
 import axios from 'axios'
+import { copyText } from '../../utils/clipboard'
 
 const message = useMessage()
 const episodeId = ref('')
@@ -83,10 +84,13 @@ const handleLookup = async () => {
   }
 }
 
-const copyTmdb = () => {
+const copyTmdb = async () => {
   if (result.value) {
-    navigator.clipboard.writeText(result.value.tmdb_id)
-    message.info('TMDB ID 已复制')
+    if (await copyText(result.value.tmdb_id)) {
+      message.info('TMDB ID 已复制')
+    } else {
+      message.error('复制失败')
+    }
   }
 }
 </script>

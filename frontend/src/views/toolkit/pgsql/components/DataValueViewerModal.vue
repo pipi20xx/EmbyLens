@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { NModal, NSpace, NButton, useMessage } from 'naive-ui'
+import { copyText } from '../../../../utils/clipboard'
 
 const props = defineProps<{
   show: boolean
@@ -59,9 +60,12 @@ const formattedContent = computed(() => {
   return String(val)
 })
 
-const copyToClipboard = () => {
-  navigator.clipboard.writeText(formattedContent.value)
-  message.success('已复制到剪贴板')
+const copyToClipboard = async () => {
+  if (await copyText(formattedContent.value)) {
+    message.success('已复制到剪贴板')
+  } else {
+    message.error('复制失败')
+  }
 }
 </script>
 

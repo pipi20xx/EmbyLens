@@ -89,6 +89,7 @@ import { ref, onMounted, reactive, computed } from 'vue'
 import { NCard, NSpace, NButton, NPageHeader, NEmpty, NH3, NText, NIcon, useMessage, NForm, NFormItem, NInput, NInputGroup, NGrid, NFormItemGi, NSwitch, NInputNumber, NCheckbox, NSelect, NAlert } from 'naive-ui'
 import { SyncOutlined as SyncIcon, AddOutlined as AddIcon } from '@vicons/material'
 import axios from 'axios'
+import { copyText } from '../../../utils/clipboard'
 
 import TaskPanel from './components/TaskPanel.vue'
 import RuleCard from './components/RuleCard.vue'
@@ -129,31 +130,11 @@ const saveWH = async () => {
   message.success('Webhook 配置已更新')
 }
 
-const copyUrl = () => {
-  const text = webhookUrl.value
-  
-  // 优先尝试现代 API
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(() => {
-      message.success('URL 已成功复制到剪贴板')
-    })
+const copyUrl = async () => {
+  if (await copyText(webhookUrl.value)) {
+    message.success('URL 已成功复制到剪贴板')
   } else {
-    // 兼容性回退方案 (针对 HTTP/IP 环境)
-    const textArea = document.createElement("textarea")
-    textArea.value = text
-    textArea.style.position = "fixed"
-    textArea.style.opacity = "0"
-    document.body.appendChild(textArea)
-    textArea.focus()
-    textArea.select()
-    try {
-      const successful = document.execCommand('copy')
-      if (successful) message.success('URL 已成功复制 (兼容模式)')
-      else message.error('复制失败，请手动选取')
-    } catch (err) {
-      message.error('浏览器不支持自动复制')
-    }
-    document.body.removeChild(textArea)
+    message.error('复制失败，请手动选取')
   }
 }
 

@@ -124,6 +124,7 @@ import {
   NDataTable, NTag, NCode, NModal
 } from 'naive-ui'
 import axios from 'axios'
+import { copyText } from '../../utils/clipboard'
 
 const message = useMessage()
 const loadingLogs = ref(false)
@@ -240,9 +241,12 @@ const generateNewToken = async () => {
   } catch (err) { message.error('生成 Token 失败') }
 }
 
-const copyToken = () => {
-  navigator.clipboard.writeText(config.api_token)
-  message.info('Token 已复制到剪贴板')
+const copyToken = async () => {
+  if (await copyText(config.api_token)) {
+    message.info('Token 已复制到剪贴板')
+  } else {
+    message.error('复制失败，请手动复制')
+  }
 }
 
 const fetchLogs = async () => {

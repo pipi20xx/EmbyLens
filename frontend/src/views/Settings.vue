@@ -147,6 +147,7 @@ import {
 } from '@vicons/material'
 import axios from 'axios'
 import { servers, activeServerId, fetchServers, activateServer } from '../store/serverStore'
+import { copyElementContent } from '../utils/clipboard'
 import EmbyServerModal from '../components/EmbyServerModal.vue'
 
 const message = useMessage()
@@ -229,14 +230,14 @@ const handleSaveGlobal = async () => {
 }
 
 const copyConfig = () => {
-  const config = JSON.stringify(globalConfig, null, 2)
-  const textArea = document.createElement("textarea")
-  textArea.value = config
-  document.body.appendChild(textArea)
-  textArea.select()
-  document.execCommand('copy')
-  document.body.removeChild(textArea)
-  message.info('配置快照已复制')
+  // 尝试优先获取 n-code 内部的 pre 标签
+  const selector = document.querySelector('.debug-code-wrapper pre') ? '.debug-code-wrapper pre' : '.debug-code-wrapper'
+  
+  if (copyElementContent(selector)) {
+    message.info('配置快照已复制')
+  } else {
+    message.error('复制失败')
+  }
 }
 </script>
 

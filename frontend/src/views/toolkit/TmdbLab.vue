@@ -259,6 +259,7 @@ import {
   LocalOfferOutlined as TagIcon
 } from '@vicons/material'
 import axios from 'axios'
+import { copyElementContent } from '../../utils/clipboard'
 
 const message = useMessage()
 const activeTab = ref('search')
@@ -467,18 +468,12 @@ const fetchFullEpisode = async (ep: any) => {
 }
 
 const copyRawJson = () => {
-  const text = JSON.stringify(jsonModal.data, null, 2)
-  const textArea = document.createElement("textarea")
-  textArea.value = text
-  document.body.appendChild(textArea)
-  textArea.select()
-  try {
-    document.execCommand('copy')
+  const selector = document.querySelector('.json-code-wrapper pre') ? '.json-code-wrapper pre' : '.json-code-wrapper'
+  if (copyElementContent(selector)) {
     message.success('已复制到剪贴板')
-  } catch (err) {
+  } else {
     message.error('复制失败')
   }
-  document.body.removeChild(textArea)
 }
 </script>
 

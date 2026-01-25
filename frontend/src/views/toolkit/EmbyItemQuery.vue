@@ -45,6 +45,7 @@ import {
   NInputGroupLabel, NCode, NTag, NEmpty, NP 
 } from 'naive-ui'
 import axios from 'axios'
+import { copyElementContent } from '../../utils/clipboard'
 
 const message = useMessage()
 const itemId = ref('')
@@ -72,30 +73,11 @@ const fetchInfo = async () => {
 }
 
 const copyData = () => {
-  if (itemData.value) {
-    const text = JSON.stringify(itemData.value, null, 2);
-    if (copyToClipboard(text)) {
-      message.success('JSON 已复制到剪贴板');
-    }
-  }
-}
-
-const copyToClipboard = (text: string) => {
-  const textArea = document.createElement("textarea");
-  textArea.value = text;
-  textArea.style.position = "fixed";
-  textArea.style.left = "-9999px";
-  textArea.style.top = "0";
-  document.body.appendChild(textArea);
-  textArea.focus();
-  textArea.select();
-  try {
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textArea);
-    return successful;
-  } catch (err) {
-    document.body.removeChild(textArea);
-    return false;
+  const selector = document.querySelector('.json-viewer pre') ? '.json-viewer pre' : '.json-viewer'
+  if (copyElementContent(selector)) {
+    message.success('JSON 已复制到剪贴板')
+  } else {
+    message.error('复制失败')
   }
 }
 </script>

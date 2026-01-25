@@ -64,6 +64,7 @@ import {
   DeleteSweepRound as ClearIcon 
 } from '@vicons/material'
 import axios from 'axios'
+import { copyElementContent } from '../../utils/clipboard'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -109,11 +110,12 @@ const showJson = (payload: any) => {
 }
 
 const copyPayload = () => {
-  const text = JSON.stringify(selectedPayload.value, null, 2)
-  const textArea = document.createElement("textarea")
-  textArea.value = text; document.body.appendChild(textArea); textArea.select()
-  document.execCommand('copy'); document.body.removeChild(textArea)
-  message.success('已复制到剪贴板')
+  const selector = document.querySelector('.json-code-wrapper pre') ? '.json-code-wrapper pre' : '.json-code-wrapper'
+  if (copyElementContent(selector)) {
+    message.success('已复制到剪贴板')
+  } else {
+    message.error('复制失败')
+  }
 }
 
 const columns = [
