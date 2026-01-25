@@ -344,6 +344,13 @@ async def export_navigation():
                     fpath = os.path.join(ICON_DIR, file)
                     if os.path.isfile(fpath):
                         zf.write(fpath, os.path.join("nav_icons", file))
+            
+            # 3. 写入背景目录
+            if os.path.exists(BG_DIR):
+                for file in os.listdir(BG_DIR):
+                    fpath = os.path.join(BG_DIR, file)
+                    if os.path.isfile(fpath):
+                        zf.write(fpath, os.path.join("nav_backgrounds", file))
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return FileResponse(
@@ -375,10 +382,17 @@ async def import_navigation(file: UploadFile = File(...)):
                 for fname in os.listdir(zip_icons_path):
                     shutil.copy2(os.path.join(zip_icons_path, fname), os.path.join(ICON_DIR, fname))
             
-            # 2. 覆盖配置
+            # 2. 搬运背景
+            zip_bgs_path = os.path.join(temp_dir, "nav_backgrounds")
+            if os.path.exists(zip_bgs_path):
+                for fname in os.listdir(zip_bgs_path):
+                    shutil.copy2(os.path.join(zip_bgs_path, fname), os.path.join(BG_DIR, fname))
+            
+            # 3. 覆盖配置
             shutil.copy2(os.path.join(temp_dir, "navigation.json"), nav_service.NAV_FILE)
             
         nav_service.cleanup_orphaned_icons() 
+        nav_service.cleanup_orphaned_backgrounds()
         return {"message": "全量恢复成功"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

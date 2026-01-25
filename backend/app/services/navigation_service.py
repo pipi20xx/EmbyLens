@@ -213,3 +213,30 @@ def cleanup_orphaned_icons():
     if cleaned_count > 0:
         print(f"[Cleanup] Removed {cleaned_count} orphaned icons.")
     return cleaned_count
+
+def cleanup_orphaned_backgrounds():
+    """清理没有被使用的自定义背景文件"""
+    data = get_nav_data()
+    # 1. 收集正在使用的背景
+    used_bgs = set()
+    bg_url = data.get("settings", {}).get("background_url")
+    if bg_url and bg_url.startswith("/nav_backgrounds/"):
+        used_bgs.add(os.path.basename(bg_url))
+        
+    # 2. 扫描物理目录
+    bg_dir = "/app/data/nav_backgrounds"
+    if not os.path.exists(bg_dir):
+        return 0
+        
+    cleaned_count = 0
+    for filename in os.listdir(bg_dir):
+        if filename not in used_bgs:
+            try:
+                os.remove(os.path.join(bg_dir, filename))
+                cleaned_count += 1
+            except Exception:
+                pass
+    
+    if cleaned_count > 0:
+        print(f"[Cleanup] Removed {cleaned_count} orphaned backgrounds.")
+    return cleaned_count

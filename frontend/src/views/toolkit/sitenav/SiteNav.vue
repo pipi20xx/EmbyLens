@@ -44,16 +44,15 @@ const baseRandomApiUrl = computed(() => {
   const mode = navSettings.value.wallpaper_mode
   const type = navSettings.value.wallpaper_type || 'scenery'
   const res = navSettings.value.wallpaper_resolution || '1920x1080'
-  const seed = wallpaperSeed.value
   let [width, height] = res.split('x')
   if (res === 'UHD' || res === '3840x2160') { width = '3840'; height = '2160'; }
   if (res === '2K' || res === '2560x1440') { width = '2560'; height = '1440'; }
 
   if (mode === 'unsplash') {
-    if (type === 'anime') return `https://www.loliapi.com/acg/pc/?v=${seed}`
-    if (type === 'scenery') return `https://picsum.photos/${width}/${height}?nature,landscape&sig=${seed}`
-    if (type === 'minimalist') return `https://picsum.photos/${width}/${height}?minimalist,abstract&sig=${seed}`
-    return `https://picsum.photos/${width}/${height}?random=${seed}`
+    if (type === 'anime') return `https://www.loliapi.com/acg/pc/`
+    if (type === 'scenery') return `https://picsum.photos/${width}/${height}?nature,landscape`
+    if (type === 'minimalist') return `https://picsum.photos/${width}/${height}?minimalist,abstract`
+    return `https://picsum.photos/${width}/${height}`
   }
   return ''
 })
@@ -70,8 +69,14 @@ const computedBgUrl = computed(() => {
 })
 
 // 监听配置变化，触发预解析
-watch(() => [navSettings.value.wallpaper_mode, navSettings.value.wallpaper_type, navSettings.value.wallpaper_resolution], ([mode]) => {
+watch(() => [
+  navSettings.value.wallpaper_mode, 
+  navSettings.value.wallpaper_type, 
+  navSettings.value.wallpaper_resolution,
+  navSettings.value.wallpaper_keyword
+], ([mode], [oldMode]) => {
   if (mode === 'unsplash') {
+    // 只有当模式切换到 unsplash，或者在 unsplash 模式下其它关键参数改变时才刷新
     nextTick(() => refreshWallpaper(baseRandomApiUrl.value))
   }
 }, { immediate: true })
@@ -383,7 +388,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
 
           @uploadBg="uploadBackground" @updateSettings="updateNavSettings"
 
-          @resetSettings="resetNavSettings" @refreshWallpaper="() => refreshWallpaper(baseRandomApiUrl)"
+          @resetSettings="resetNavSettings" @refreshWallpaper="() => refreshWallpaper(baseRandomApiUrl, true)"
 
           @saveWallpaper="() => saveCurrentWallpaper(computedBgUrl)"
 

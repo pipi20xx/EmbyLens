@@ -70,22 +70,51 @@ export function useSiteNav() {
     configProviderProps: { theme: darkTheme }
   })
 
-  const refreshWallpaper = async (apiUrl?: string) => {
-    wallpaperLoading.value = true
-    wallpaperSeed.value = Date.now()
-    
-    if (apiUrl) {
-      try {
-        // 预先请求一次获取最终重定向地址
-        const res = await fetch(apiUrl, { method: 'GET' })
-        if (res.url) {
-          resolvedWallpaperUrl.value = res.url
-        }
-      } catch (e) {
-        resolvedWallpaperUrl.value = '' // 出错则回退
-      }
-    } else {
+  const refreshWallpaper = async (apiUrl?: string, forceRefresh = false) => {
+    if (!apiUrl) {
       resolvedWallpaperUrl.value = ''
+      return
+    }
+
+    // 处理随机种子，如果没有提供种子则使用当前时间戳
+    const seed = Date.now()
+    const finalUrl = apiUrl.includes('?') 
+      ? `${apiUrl}&_seed=${seed}` 
+      : `${apiUrl}?_seed=${seed}`
+
+    // 缓存逻辑：如果不是强制刷新，尝试从 localStorage 读取
+    const cacheKey = `lens_wallpaper_cache_${apiUrl}`
+    if (!forceRefresh) {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        try {
+          const { url, expiry } = JSON.parse(cached)
+          if (expiry > Date.now()) {
+            resolvedWallpaperUrl.value = url
+            return
+          }
+        } catch (e) {
+          localStorage.removeItem(cacheKey)
+        }
+      }
+    }
+
+    wallpaperLoading.value = true
+    wallpaperSeed.value = seed
+    
+    try {
+      // 预先请求一次获取最终重定向地址
+      const res = await fetch(finalUrl, { method: 'GET' })
+      if (res.url) {
+        resolvedWallpaperUrl.value = res.url
+        // 写入缓存，默认缓存 1 小时
+        localStorage.setItem(cacheKey, JSON.stringify({
+          url: res.url,
+          expiry: Date.now() + 3600 * 1000
+        }))
+      }
+    } catch (e) {
+      resolvedWallpaperUrl.value = '' // 出错则回退
     }
 
     wallpaperLoading.value = false
@@ -165,10 +194,11 @@ export function useSiteNav() {
       })
       navSettings.value = { ...navSettings.value, ...settings }
       
-      // 切换模式、类型或更新关键词时，刷新随机种子
-      const refreshKeys = ['wallpaper_mode', 'wallpaper_type', 'wallpaper_keyword']
+      // 切换模式、类型、分辨率或更新关键词时，刷新随机种子
+      const refreshKeys = ['wallpaper_mode', 'wallpaper_type', 'wallpaper_keyword', 'wallpaper_resolution']
       if (Object.keys(settings).some(k => refreshKeys.includes(k))) {
-        refreshWallpaper()
+        // 注意：这里需要从外部传入最新的 baseRandomApiUrl.value，或者在此处重新计算
+        // 为了解耦，我们在 SiteNav.vue 的 watch 中处理大部分逻辑
       }
 
       // 如果必应相关参数改变，重新抓取
