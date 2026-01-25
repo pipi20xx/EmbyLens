@@ -4,10 +4,13 @@ import {
 } from 'naive-ui'
 import { 
   ImageOutlined as ImageIcon,
-  PaletteOutlined as PaletteIcon
+  PaletteOutlined as PaletteIcon,
+  RefreshOutlined as RefreshIcon,
+  BookmarkOutlined as SaveIcon
 } from '@vicons/material'
 
 const props = defineProps<{
+  wallpaperLoading?: boolean
   settings: {
     background_url: string
     background_opacity: number
@@ -25,6 +28,7 @@ const props = defineProps<{
     page_title: string
     page_subtitle: string
     wallpaper_mode: string
+    wallpaper_keyword: string
     bing_mkt: string
     bing_index: number
     bing_resolution: string
@@ -39,7 +43,7 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits(['uploadBg', 'updateSettings', 'resetSettings'])
+const emit = defineEmits(['uploadBg', 'updateSettings', 'resetSettings', 'refreshWallpaper', 'saveWallpaper'])
 
 const sizeOptions = [
   { label: '全部填充 (Cover)', value: 'cover' },
@@ -67,6 +71,7 @@ const handleUploadBg = (options: { file: { file: File } }) => {
           >
             <n-radio-button value="custom">自定义上传</n-radio-button>
             <n-radio-button value="bing">必应每日壁纸</n-radio-button>
+            <n-radio-button value="unsplash">Unsplash 随机</n-radio-button>
           </n-radio-group>
 
           <n-divider style="margin: 4px 0" />
@@ -91,11 +96,75 @@ const handleUploadBg = (options: { file: { file: File } }) => {
               </n-button>
             </n-space>
           </div>
+          <div v-else-if="settings.wallpaper_mode === 'unsplash'">
+            <n-space vertical size="medium">
+              <n-text depth="3" style="font-size: 12px;">
+                从高质量随机库获取摄影或动漫作品。
+              </n-text>
+              <div class="setting-item">
+                <span class="label-small">壁纸风格</span>
+                <n-select 
+                  :value="settings.wallpaper_type" 
+                  :options="[
+                    { label: '二次元 / 动漫', value: 'anime' },
+                    { label: '自然风景', value: 'scenery' },
+                    { label: '极简 / 抽象', value: 'minimalist' },
+                    { label: '纯随机 (摄影)', value: 'random' }
+                  ]"
+                  @update:value="val => emit('updateSettings', { wallpaper_type: val })" 
+                />
+              </div>
+
+              <div class="setting-item">
+                <span class="label-small">壁纸分辨率</span>
+                <n-select 
+                  :value="settings.wallpaper_resolution" 
+                  :options="[
+                    { label: '1080P Full HD', value: '1920x1080' },
+                    { label: '2K Quad HD', value: '2560x1440' },
+                    { label: '4K Ultra HD', value: '3840x2160' }
+                  ]"
+                  @update:value="val => emit('updateSettings', { wallpaper_resolution: val })" 
+                />
+              </div>
+
+              <n-space>
+                <n-button 
+                  secondary 
+                  type="primary" 
+                  :loading="wallpaperLoading"
+                  @click="emit('refreshWallpaper')"
+                >
+                  <template #icon><n-icon><RefreshIcon /></n-icon></template>
+                  换一张
+                </n-button>
+                <n-button 
+                  secondary 
+                  type="info" 
+                  @click="emit('saveWallpaper')"
+                >
+                  <template #icon><n-icon><SaveIcon /></n-icon></template>
+                  设为固定背景
+                </n-button>
+              </n-space>
+            </n-space>
+          </div>
           <div v-else>
             <n-space vertical size="medium">
               <n-text depth="3" style="font-size: 12px;">
                 已启用必应每日壁纸。您可以自定义地区和历史日期。
               </n-text>
+
+              <n-button 
+                secondary 
+                type="info" 
+                size="small"
+                style="width: fit-content"
+                @click="emit('saveWallpaper')"
+              >
+                <template #icon><n-icon><SaveIcon /></n-icon></template>
+                固化当前必应壁纸
+              </n-button>
               
               <div class="setting-item">
                 <span class="label-small">壁纸地区 (Market)</span>
@@ -169,7 +238,7 @@ const handleUploadBg = (options: { file: { file: File } }) => {
 
           <n-divider style="margin: 8px 0" />
 
-          <div v-if="settings.background_url || settings.wallpaper_mode === 'bing'" style="margin-top: 8px;">
+          <div v-if="settings.background_url || settings.wallpaper_mode !== 'custom'" style="margin-top: 8px;">
             <div class="setting-item">
               <div class="label-row">
                 <span class="label">填充模式</span>
@@ -207,7 +276,7 @@ const handleUploadBg = (options: { file: { file: File } }) => {
             </div>
           </div>
         </n-space>
-        <div v-if="!settings.background_url && settings.wallpaper_mode !== 'bing'" class="overlay-tip">
+        <div v-if="!settings.background_url && settings.wallpaper_mode === 'custom'" class="overlay-tip">
           请先上传背景图以解锁样式调整
         </div>
       </n-card>
@@ -285,6 +354,16 @@ const handleUploadBg = (options: { file: { file: File } }) => {
               <n-radio-button value="center">居中对齐</n-radio-button>
               <n-radio-button value="right">右对齐</n-radio-button>
             </n-radio-group>
+          </div>
+
+          <div class="setting-item">
+            <n-space justify="space-between" align="center">
+              <span class="label-small" style="margin-bottom: 0">显示分类装饰线</span>
+              <n-switch 
+                :value="settings.show_category_line" 
+                @update:value="val => emit('updateSettings', { show_category_line: val })" 
+              />
+            </n-space>
           </div>
 
           <div class="setting-item">

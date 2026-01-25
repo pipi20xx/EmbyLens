@@ -66,19 +66,26 @@ def save_nav_data(data: Dict[str, Any]):
 def list_categories():
     return get_nav_data()["categories"]
 
-def add_category(name: str):
+def add_category(name: str, icon: Optional[str] = None):
     data = get_nav_data()
     new_id = int(time.time() * 1000)
-    data["categories"].append({"id": new_id, "name": name, "order": len(data["categories"])})
+    data["categories"].append({
+        "id": new_id, 
+        "name": name, 
+        "icon": icon,
+        "order": len(data["categories"])
+    })
     save_nav_data(data)
     return new_id
 
-def update_category(cat_id: int, name: str):
+def update_category(cat_id: int, name: str, icon: Optional[str] = None):
     data = get_nav_data()
-    # 1. 更新分类表中的名称
+    # 1. 更新分类表中的名称和图标
     for cat in data["categories"]:
         if str(cat["id"]) == str(cat_id):
             cat["name"] = name
+            if icon is not None:
+                cat["icon"] = icon
             break
     
     # 2. 联动更新：更新所有属于该分类的站点的冗余名称字段
@@ -171,16 +178,22 @@ def reorder_sites(ordered_ids: List[int]):
     return True
 
 def cleanup_orphaned_icons():
-    """清理没有被任何站点引用的图标文件"""
+    """清理没有被任何站点或分类引用的图标文件"""
     data = get_nav_data()
     # 1. 收集所有正在使用的图标文件名
     used_icons = set()
+    
+    # 检查站点图标
     for site in data.get("sites", []):
         icon_path = site.get("icon")
         if icon_path and icon_path.startswith("/nav_icons/"):
-            # 提取文件名，例如: /nav_icons/abc.png -> abc.png
-            filename = os.path.basename(icon_path)
-            used_icons.add(filename)
+            used_icons.add(os.path.basename(icon_path))
+            
+    # 检查分类图标 (新增逻辑)
+    for cat in data.get("categories", []):
+        cat_icon = cat.get("icon")
+        if cat_icon and cat_icon.startswith("/nav_icons/"):
+            used_icons.add(os.path.basename(cat_icon))
     
     # 2. 扫描物理目录
     icon_dir = "/app/data/nav_icons"

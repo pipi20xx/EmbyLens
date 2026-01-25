@@ -3,6 +3,7 @@ from typing import Optional, List
 
 class CategoryBase(BaseModel):
     name: str
+    icon: Optional[str] = None
     order: Optional[int] = 0
 
 class CategoryCreate(CategoryBase):
@@ -10,6 +11,7 @@ class CategoryCreate(CategoryBase):
 
 class CategoryResponse(CategoryBase):
     id: int
+    icon: Optional[str] = None
     class Config:
         from_attributes = True
 

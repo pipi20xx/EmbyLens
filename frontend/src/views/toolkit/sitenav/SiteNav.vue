@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick, h } from 'vue'
+import { ref, onMounted, computed, nextTick, h, watch } from 'vue'
 import { 
   NSpace, NIcon, NEmpty, NGrid, NGridItem, NButton, 
   NDropdown, NTooltip
@@ -29,7 +29,7 @@ const {
   addCategory, deleteCategory, updateCategory, updateCategoryOrder,
   updateNavSettings, resetNavSettings, uploadBackground, fetchIconFromUrl, 
   exportConfig, importConfig, message, hitokoto, fetchHitokoto,
-  bingInfo, fetchBingWallpaper
+  bingInfo, fetchBingWallpaper, wallpaperSeed, wallpaperLoading, resolvedWallpaperUrl, refreshWallpaper, saveCurrentWallpaper
 } = useSiteNav()
 
 onMounted(() => {
@@ -39,13 +39,42 @@ onMounted(() => {
   fetchHitokoto()
 })
 
-// 计算背景图
+// 原始随机 API 地址计算
+const baseRandomApiUrl = computed(() => {
+  const mode = navSettings.value.wallpaper_mode
+  const type = navSettings.value.wallpaper_type || 'scenery'
+  const res = navSettings.value.wallpaper_resolution || '1920x1080'
+  const seed = wallpaperSeed.value
+  let [width, height] = res.split('x')
+  if (res === 'UHD' || res === '3840x2160') { width = '3840'; height = '2160'; }
+  if (res === '2K' || res === '2560x1440') { width = '2560'; height = '1440'; }
+
+  if (mode === 'unsplash') {
+    if (type === 'anime') return `https://www.loliapi.com/acg/pc/?v=${seed}`
+    if (type === 'scenery') return `https://picsum.photos/${width}/${height}?nature,landscape&sig=${seed}`
+    if (type === 'minimalist') return `https://picsum.photos/${width}/${height}?minimalist,abstract&sig=${seed}`
+    return `https://picsum.photos/${width}/${height}?random=${seed}`
+  }
+  return ''
+})
+
+// 最终显示的背景图 URL
 const computedBgUrl = computed(() => {
-  if (navSettings.value.wallpaper_mode === 'bing') {
-    return bingInfo.value.url
+  const mode = navSettings.value.wallpaper_mode
+  if (mode === 'bing') return bingInfo.value.url
+  if (mode === 'unsplash') {
+    // 优先使用已解析出的静态地址
+    return resolvedWallpaperUrl.value || baseRandomApiUrl.value
   }
   return navSettings.value.background_url
 })
+
+// 监听配置变化，触发预解析
+watch(() => [navSettings.value.wallpaper_mode, navSettings.value.wallpaper_type, navSettings.value.wallpaper_resolution], ([mode]) => {
+  if (mode === 'unsplash') {
+    nextTick(() => refreshWallpaper(baseRandomApiUrl.value))
+  }
+}, { immediate: true })
 // --- 状态管理 ---
 const showEditor = ref(false)
 const showSettings = ref(false)
@@ -162,6 +191,12 @@ const isEmoji = (str: string) => {
   if (str.includes('/') || str.includes('.')) return false
   return /\p{Emoji}/u.test(str) && str.length <= 4
 }
+
+const getCategoryIcon = (categoryId: number) => {
+  const cat = categories.value.find(c => c.id === categoryId)
+  return cat?.icon || ''
+}
+
 const openUrl = (url: string) => window.open(url, '_blank')
 </script>
 
@@ -188,16 +223,22 @@ const openUrl = (url: string) => window.open(url, '_blank')
     <div class="site-nav-background-base"></div>
     
     <!-- 背景层：顶层图片（受透明度和模糊度影响） -->
-    <div 
-      v-if="computedBgUrl"
-      class="site-nav-background-image"
-      :style="{
-        backgroundImage: `url('${computedBgUrl}')`,
-        opacity: navSettings.background_opacity ?? 0.7,
-        filter: `blur(${navSettings.background_blur ?? 0}px)`,
-        backgroundSize: navSettings.background_size || 'cover'
-      }"
-    ></div>
+    <transition name="fade-bg">
+      <div 
+        :key="computedBgUrl"
+        v-if="computedBgUrl"
+        class="site-nav-background-image"
+        :style="{
+          backgroundImage: `url('${computedBgUrl}')`,
+          opacity: navSettings.background_opacity ?? 0.7,
+          filter: `blur(${navSettings.background_blur ?? 0}px)`,
+          backgroundSize: navSettings.background_size || 'cover'
+        }"
+      ></div>
+    </transition>
+
+    <!-- 背景遮罩层：防止壁纸太亮干扰视线 -->
+    <div class="site-nav-overlay"></div>
 
     <!-- 每日一言底部对齐保护层 -->
     <div 
@@ -273,18 +314,35 @@ const openUrl = (url: string) => window.open(url, '_blank')
       <div v-for="group in groupedSites" :key="group.id" class="category-section">
         <div class="category-header" :style="{ 
           justifyContent: navSettings.category_alignment === 'center' ? 'center' : (navSettings.category_alignment === 'right' ? 'flex-end' : 'flex-start'),
-          margin: '0 0 16px 0',
-          paddingLeft: navSettings.category_alignment === 'left' ? '4px' : '0'
+          margin: '0 0 20px 0',
         }">
-          <div class="category-title">{{ group.name }}</div>
+          <div class="category-title-container">
+            <!-- 分类图标 -->
+            <div v-if="getCategoryIcon(group.id)" class="category-icon">
+              <span v-if="isEmoji(getCategoryIcon(group.id))">{{ getCategoryIcon(group.id) }}</span>
+              <img v-else :src="getCategoryIcon(group.id)" />
+            </div>
+            <div class="category-title">{{ group.name }}</div>
+          </div>
+          <div v-if="navSettings.show_category_line" class="category-line"></div>
           <div class="category-action">
             <n-button circle quaternary size="small" @click="handleAddSite(group.id)" class="add-btn">
               <template #icon><n-icon><AddIcon /></n-icon></template>
             </n-button>
           </div>
         </div>
-        <div class="sites-grid-container">
-          <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
+        
+        <transition-group 
+          name="stagger" 
+          tag="div" 
+          class="sites-grid-container"
+        >
+          <div 
+            v-for="(site, index) in group.sites" 
+            :key="site.id" 
+            class="site-item-wrapper"
+            :style="{ '--i': index }"
+          >
             <SiteCard 
               :site="site"
               :styleMode="navSettings.card_style"
@@ -296,7 +354,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
               @contextmenu="handleContextMenu($event, site)"
             />
           </div>
-        </div>
+        </transition-group>
       </div>
     </div>
 
@@ -313,13 +371,25 @@ const openUrl = (url: string) => window.open(url, '_blank')
       @update-icon="icon => { if (editingSite) editingSite.icon = icon }"
     />
 
-    <CategoryManagerModal 
-      v-model:show="showSettings" :categories="categories" :settings="navSettings"
-      @add="addCategory" @delete="deleteCategory" @reorder="updateCategoryOrder"
-      @export="exportConfig" @import="importConfig" @update="updateCategory"
-      @uploadBg="uploadBackground" @updateSettings="updateNavSettings"
-      @resetSettings="resetNavSettings"
-    />
+        <CategoryManagerModal 
+
+          v-model:show="showSettings" :categories="categories" :settings="navSettings"
+
+          :wallpaperLoading="wallpaperLoading"
+
+          @add="(name, icon) => addCategory(name, icon)" @delete="deleteCategory" @reorder="updateCategoryOrder"
+
+          @export="exportConfig" @import="importConfig" @update="(id, name, icon) => updateCategory(id, name, icon)"
+
+          @uploadBg="uploadBackground" @updateSettings="updateNavSettings"
+
+          @resetSettings="resetNavSettings" @refreshWallpaper="() => refreshWallpaper(baseRandomApiUrl)"
+
+          @saveWallpaper="() => saveCurrentWallpaper(computedBgUrl)"
+
+        />
+
+    
   </div>
 </template>
 
@@ -352,62 +422,124 @@ const openUrl = (url: string) => window.open(url, '_blank')
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
+  transition: opacity 1s ease, filter 1s ease;
+}
+
+/* 遮罩层：增加暗角和深度感，保护文字阅读 */
+.site-nav-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%),
+              linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, transparent 20%, transparent 80%, rgba(0, 0, 0, 0.3) 100%);
+  pointer-events: none;
 }
 
 .site-nav-content {
   position: relative;
-  z-index: 2;
+  z-index: 3;
 }
 
 .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; color: var(--nav-text-color); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.page-subtitle { font-size: 12px; color: var(--nav-text-desc-color); margin-bottom: 8px; }
+.page-title { 
+  font-size: 24px; font-weight: 800; color: var(--nav-text-color); 
+  text-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+  letter-spacing: -0.5px;
+}
+.page-subtitle { font-size: 13px; color: var(--nav-text-desc-color); margin-bottom: 8px; opacity: 0.9; }
 
 .hitokoto-container {
   display: inline-flex;
   flex-direction: column;
   margin-top: 12px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
   max-width: 600px;
-}
-.hitokoto-container:hover { opacity: 0.8; }
-.hitokoto-text { font-size: 14px; color: var(--nav-text-color); font-style: italic; opacity: 0.9; }
-.hitokoto-from { font-size: 12px; color: var(--nav-text-desc-color); align-self: flex-end; margin-top: 4px; }
-
-.wallpaper-info-layer {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 5;
-  text-align: right;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.3);
   padding: 8px 12px;
   border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.wp-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
-.wp-copyright { font-size: 11px; color: rgba(255, 255, 255, 0.7); }
+.hitokoto-container:hover { 
+  background: rgba(255, 255, 255, 0.1); 
+  transform: translateY(-2px);
+}
+.hitokoto-text { font-size: 14px; color: var(--nav-text-color); font-style: italic; opacity: 0.95; }
+.hitokoto-from { font-size: 12px; color: var(--nav-text-desc-color); align-self: flex-end; margin-top: 6px; }
 
-.category-section { margin-bottom: 40px; }
+/* 分类标题美化 */
+.category-section { margin-bottom: 48px; }
 .category-header { 
-  display: flex; align-items: center; margin-bottom: 20px; gap: 12px; 
-  padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex; 
+  align-items: center; 
+  gap: 12px;
+  min-height: 32px;
+}
+.category-title-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.category-icon {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.category-icon span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  line-height: 28px;
+}
+.category-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 .category-title { 
-  font-size: 16px; font-weight: 600; color: var(--nav-category-color); 
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3); opacity: 0.9;
-  letter-spacing: 0.5px;
+  font-size: 18px; font-weight: 700; color: var(--nav-category-color); 
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3); opacity: 0.95;
+  white-space: nowrap;
 }
-.category-action { opacity: 0; transition: all 0.2s ease; }
-.category-header:hover .category-action { opacity: 1; transform: translateX(4px); }
+.category-line {
+  height: 1px;
+  flex: 1; /* 只有线条存在时才撑开空间 */
+  background: linear-gradient(to right, var(--nav-category-color), transparent);
+  opacity: 0.2;
+}
+.category-action { opacity: 0; transition: all 0.3s ease; display: flex; align-items: center; }
+.category-header:hover .category-action { opacity: 1; transform: scale(1.1); }
+
+/* Stagger 动画实现 */
+.stagger-enter-active {
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: calc(var(--i) * 0.05s);
+}
+.stagger-enter-from {
+  opacity: 0;
+  transform: translateY(30px) scale(0.9);
+}
+
+/* 背景切换动画 */
+.fade-bg-enter-active, .fade-bg-leave-active {
+  transition: opacity 1.2s ease;
+}
+.fade-bg-enter-from, .fade-bg-leave-to {
+  opacity: 0;
+}
 
 .sites-grid-container {
   display: grid;
-  /* 核心：minmax(200px, 1fr) 让卡片自动填满行内剩余空间，消除左右大空白 */
-  /* auto-fill 确保即使卡片少，也会按列排列，不会强行撑满全屏 */
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
   width: 100%;

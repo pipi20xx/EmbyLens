@@ -80,6 +80,88 @@ async def upload_background(file: UploadFile = File(...)):
     nav_service.update_settings({"background_url": url})
     return {"url": url}
 
+@router.post("/save-remote-bg")
+async def save_remote_background(payload: dict):
+    url = payload.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="URL 不能为空")
+    
+    print(f"[Navigation] Saving remote background: {url}")
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.google.com/'
+    }
+    
+    content = None
+    ctype = "image/jpeg"
+    error_msg = "未知错误"
+    
+    try:
+        # 1. 尝试通过系统定义的代理 Client
+        async with get_async_client(timeout=25.0, use_proxy=True) as client:
+            resp = await client.get(url, headers=headers, follow_redirects=True)
+            if resp.status_code == 200:
+                content = resp.content
+                ctype = resp.headers.get("content-type", "").lower()
+            else:
+                error_msg = f"代理请求失败: {resp.status_code}"
+    except Exception as e:
+        error_msg = f"代理连接异常: {str(e)}"
+        print(f"[Navigation] Save remote bg with proxy failed: {e}")
+
+    if not content:
+        try:
+            # 2. 尝试直接连接
+            async with httpx.AsyncClient(timeout=25.0, verify=False) as client:
+                resp = await client.get(url, headers=headers, follow_redirects=True)
+                if resp.status_code == 200:
+                    content = resp.content
+                    ctype = resp.headers.get("content-type", "").lower()
+                else:
+                    error_msg += f" | 直接请求失败: {resp.status_code}"
+        except Exception as e:
+            error_msg += f" | 直接连接异常: {str(e)}"
+            print(f"[Navigation] Save remote bg direct failed: {e}")
+
+    if not content:
+        # 这里返回 400 提示具体错误原因
+        raise HTTPException(status_code=400, detail=f"无法获取远程图片: {error_msg}")
+
+    try:
+        # 简单识别扩展名
+        ext = ".jpg"
+        if "png" in ctype: ext = ".png"
+        elif "webp" in ctype: ext = ".webp"
+        elif "svg" in ctype: ext = ".svg"
+
+        # 确保目录存在
+        os.makedirs(BG_DIR, exist_ok=True)
+
+        # 清理旧背景
+        for old_file in os.listdir(BG_DIR):
+            try: os.remove(os.path.join(BG_DIR, old_file))
+            except: pass
+
+        filename = f"bg_fixed_{uuid.uuid4().hex[:8]}{ext}"
+        filepath = os.path.join(BG_DIR, filename)
+        
+        with open(filepath, "wb") as f:
+            f.write(content)
+        
+        local_url = f"/nav_backgrounds/{filename}"
+        # 更新配置
+        nav_service.update_settings({
+            "background_url": local_url,
+            "wallpaper_mode": "custom"
+        })
+        print(f"[Navigation] Successfully saved remote background to: {local_url}")
+        return {"url": local_url}
+    except Exception as e:
+        print(f"[Navigation] Final save error: {e}")
+        raise HTTPException(status_code=500, detail=f"保存失败: {str(e)}")
+
 @router.post("/upload-icon")
 async def upload_icon(file: UploadFile = File(...)):
     # 提取扩展名
@@ -176,12 +258,12 @@ async def list_categories():
 
 @router.post("/categories", response_model=CategoryResponse)
 async def create_category(category: CategoryCreate):
-    cat_id = nav_service.add_category(category.name)
-    return {"id": cat_id, "name": category.name, "order": 0}
+    cat_id = nav_service.add_category(category.name, category.icon)
+    return {"id": cat_id, "name": category.name, "icon": category.icon, "order": 0}
 
 @router.put("/categories/{cat_id}")
 async def update_category(cat_id: int, category: CategoryCreate):
-    nav_service.update_category(cat_id, category.name)
+    nav_service.update_category(cat_id, category.name, category.icon)
     return {"message": "Updated"}
 
 @router.delete("/categories/{cat_id}")

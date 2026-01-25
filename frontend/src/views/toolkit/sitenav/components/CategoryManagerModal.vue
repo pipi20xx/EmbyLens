@@ -17,6 +17,7 @@ import DataPanel from './settings/DataPanel.vue'
 const props = defineProps<{
   show: boolean
   categories: Category[]
+  wallpaperLoading?: boolean
   settings: {
     background_url: string
     background_opacity: number
@@ -44,7 +45,7 @@ const props = defineProps<{
 
 const emit = defineEmits([
   'update:show', 'add', 'delete', 'reorder', 
-  'export', 'import', 'update', 'uploadBg', 'updateSettings', 'resetSettings'
+  'export', 'import', 'update', 'uploadBg', 'updateSettings', 'resetSettings', 'refreshWallpaper', 'saveWallpaper'
 ])
 
 // 中转子组件事件
@@ -71,9 +72,12 @@ const handleUploadBg = (file: File) => emit('uploadBg', file)
         </template>
         <AppearancePanel 
           :settings="settings" 
+          :wallpaperLoading="wallpaperLoading"
           @uploadBg="handleUploadBg"
           @updateSettings="s => emit('updateSettings', s)"
           @resetSettings="() => emit('resetSettings')"
+          @refreshWallpaper="() => emit('refreshWallpaper')"
+          @saveWallpaper="() => emit('saveWallpaper')"
         />
       </n-tab-pane>
 
@@ -86,10 +90,10 @@ const handleUploadBg = (file: File) => emit('uploadBg', file)
         </template>
         <CategoryPanel 
           :categories="categories"
-          @add="name => emit('add', name)"
+          @add="(name, icon) => emit('add', name, icon)"
           @delete="id => emit('delete', id)"
           @reorder="ids => emit('reorder', ids)"
-          @update="(id, name) => emit('update', id, name)"
+          @update="(id, name, icon) => emit('update', id, name, icon)"
         />
       </n-tab-pane>
 

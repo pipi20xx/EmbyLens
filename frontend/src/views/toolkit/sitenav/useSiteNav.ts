@@ -4,6 +4,7 @@ import { useMessage, createDiscreteApi, darkTheme } from 'naive-ui'
 export interface Category {
   id: number
   name: string
+  icon?: string
   order: number
 }
 
@@ -35,10 +36,14 @@ const DEFAULT_SETTINGS = {
   text_color: '#ffffff',
   text_description_color: 'rgba(255, 255, 255, 0.7)',
   category_title_color: '#ffffff',
+  show_category_line: true,
   content_max_width: 90,
   page_title: '站点导航',
   page_subtitle: '个性化您的导航面板',
-  wallpaper_mode: 'custom', // 'custom' or 'bing'
+  wallpaper_mode: 'custom', // 'custom', 'bing', 'unsplash'
+  wallpaper_type: 'anime', // 'scenery', 'anime', 'minimalist', 'random'
+  wallpaper_keyword: '',
+  wallpaper_resolution: '1920x1080',
   show_hitokoto: false,
   show_clock: false,
   bing_mkt: 'zh-CN',
@@ -56,11 +61,61 @@ const navSettings = ref({ ...DEFAULT_SETTINGS })
 const loading = ref(false)
 const hitokoto = ref({ text: '', from: '' })
 const bingInfo = ref({ url: '', title: '', copyright: '' })
+const wallpaperSeed = ref(Date.now())
+const wallpaperLoading = ref(false)
+const resolvedWallpaperUrl = ref('')
 
 export function useSiteNav() {
   const { message } = createDiscreteApi(['message'], {
     configProviderProps: { theme: darkTheme }
   })
+
+  const refreshWallpaper = async (apiUrl?: string) => {
+    wallpaperLoading.value = true
+    wallpaperSeed.value = Date.now()
+    
+    if (apiUrl) {
+      try {
+        // 预先请求一次获取最终重定向地址
+        const res = await fetch(apiUrl, { method: 'GET' })
+        if (res.url) {
+          resolvedWallpaperUrl.value = res.url
+        }
+      } catch (e) {
+        resolvedWallpaperUrl.value = '' // 出错则回退
+      }
+    } else {
+      resolvedWallpaperUrl.value = ''
+    }
+
+    wallpaperLoading.value = false
+  }
+
+  const saveCurrentWallpaper = async (url: string) => {
+    if (!url) return
+    try {
+      wallpaperLoading.value = true
+      
+      const res = await fetch('/api/navigation/save-remote-bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }) // 这里的 url 已经是解析后的静态地址了
+      })
+      const data = await res.json()
+      if (res.ok) {
+        navSettings.value.background_url = data.url
+        navSettings.value.wallpaper_mode = 'custom'
+        resolvedWallpaperUrl.value = '' // 保存后清空临时解析地址
+        message.success('已成功保存当前壁纸')
+      } else {
+        message.error(data.detail || '保存失败')
+      }
+    } catch (e) {
+      message.error('保存请求失败')
+    } finally {
+      wallpaperLoading.value = false
+    }
+  }
 
   const fetchHitokoto = async () => {
     try {
@@ -110,6 +165,12 @@ export function useSiteNav() {
       })
       navSettings.value = { ...navSettings.value, ...settings }
       
+      // 切换模式、类型或更新关键词时，刷新随机种子
+      const refreshKeys = ['wallpaper_mode', 'wallpaper_type', 'wallpaper_keyword']
+      if (Object.keys(settings).some(k => refreshKeys.includes(k))) {
+        refreshWallpaper()
+      }
+
       // 如果必应相关参数改变，重新抓取
       const bingKeys = ['wallpaper_mode', 'bing_mkt', 'bing_index', 'bing_resolution']
       if (Object.keys(settings).some(k => bingKeys.includes(k))) {
@@ -165,12 +226,12 @@ export function useSiteNav() {
     }
   }
 
-  const addCategory = async (name: string) => {
+  const addCategory = async (name: string, icon: string = '') => {
     try {
       await fetch('/api/navigation/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, order: categories.value.length })
+        body: JSON.stringify({ name, icon, order: categories.value.length })
       })
       await fetchCategories()
     } catch (e) {
@@ -178,16 +239,19 @@ export function useSiteNav() {
     }
   }
 
-  const updateCategory = async (id: number, name: string) => {
+  const updateCategory = async (id: number, name: string, icon: string = '') => {
     // 1. 立即更新本地状态 (乐观更新)
     const cat = categories.value.find(c => c.id === id)
-    if (cat) cat.name = name
+    if (cat) {
+      cat.name = name
+      cat.icon = icon
+    }
     
     try {
       const response = await fetch(`/api/navigation/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, icon })
       })
       if (!response.ok) throw new Error('Update failed')
       
@@ -342,6 +406,11 @@ export function useSiteNav() {
     updateSiteOrder,
     exportConfig,
     importConfig,
-    message
+    message,
+    wallpaperSeed,
+    wallpaperLoading,
+    resolvedWallpaperUrl,
+    refreshWallpaper,
+    saveCurrentWallpaper
   }
 }
