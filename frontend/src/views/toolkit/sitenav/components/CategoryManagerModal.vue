@@ -26,6 +26,7 @@ const props = defineProps<{
     card_background: string
     card_blur: number
     card_border_color: string
+    card_style: string
     text_color: string
     text_description_color: string
     category_title_color: string

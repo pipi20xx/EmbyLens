@@ -17,6 +17,7 @@ const props = defineProps<{
     card_background: string
     card_blur: number
     card_border_color: string
+    card_style: string
     text_color: string
     text_description_color: string
     category_title_color: string
@@ -334,6 +335,28 @@ const handleUploadBg = (options: { file: { file: File } }) => {
               :min="0" :max="100" :step="1" 
               @update:value="val => emit('updateSettings', { header_margin_bottom: val })" 
             />
+          </div>
+        </n-space>
+      </n-card>
+
+      <!-- 卡片样式高级设置 -->
+      <n-card embedded :bordered="false" size="small">
+        <template #header>
+          <n-text depth="3" style="font-size: 13px;">卡片风格</n-text>
+        </template>
+        <n-space vertical size="large">
+          <div class="setting-item">
+            <n-radio-group 
+              :value="settings.card_style" 
+              @update:value="val => emit('updateSettings', { card_style: val })"
+              name="card_style"
+            >
+              <n-space>
+                <n-radio-button value="glass">毛玻璃 (默认)</n-radio-button>
+                <n-radio-button value="liquid">水玻璃 (高度透明)</n-radio-button>
+                <n-radio-button value="pure">极简 (纯净)</n-radio-button>
+              </n-space>
+            </n-radio-group>
           </div>
         </n-space>
       </n-card>

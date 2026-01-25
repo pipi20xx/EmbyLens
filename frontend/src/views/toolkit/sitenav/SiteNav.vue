@@ -21,6 +21,7 @@ import { isHomeEntry } from '../../../store/navigationStore'
 import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
 import NavClock from './components/NavClock.vue'
+import SiteCard from './components/SiteCard.vue'
 
 const { 
   sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
@@ -284,27 +285,16 @@ const openUrl = (url: string) => window.open(url, '_blank')
         </div>
         <div class="sites-grid-container">
           <div v-for="site in group.sites" :key="site.id" class="site-item-wrapper">
-            <div 
-              class="site-card" 
-              :class="{ 'is-dragging': dragItem === site.id }"
-              draggable="true"
+            <SiteCard 
+              :site="site"
+              :styleMode="navSettings.card_style"
+              :isDragging="dragItem === site.id"
               @dragstart="onDragStart(site.id)"
-              @dragover.prevent
               @dragenter="onDragEnter(site.id)"
               @dragend="onDragEnd"
               @click="openUrl(site.url)"
               @contextmenu="handleContextMenu($event, site)"
-            >
-              <div class="site-icon-wrapper">
-                <span v-if="isEmoji(site.icon)" class="emoji-icon">{{ site.icon }}</span>
-                <img v-else-if="site.icon" :src="site.icon" class="image-icon" />
-                <n-icon v-else size="20" :component="LinkIcon" />
-              </div>
-              <div class="site-info">
-                <div class="site-name">{{ site.title }}</div>
-                <div class="site-desc" v-if="site.description">{{ site.description }}</div>
-              </div>
-            </div>
+            />
           </div>
         </div>
       </div>
@@ -414,65 +404,15 @@ const openUrl = (url: string) => window.open(url, '_blank')
 .category-action { opacity: 0; transition: all 0.2s ease; }
 .category-header:hover .category-action { opacity: 1; transform: translateX(4px); }
 
-.sites-grid-container { 
-  display: grid; 
+.sites-grid-container {
+  display: grid;
   /* 核心：minmax(200px, 1fr) 让卡片自动填满行内剩余空间，消除左右大空白 */
   /* auto-fill 确保即使卡片少，也会按列排列，不会强行撑满全屏 */
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
-  gap: 20px; 
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
   width: 100%;
 }
 .site-item-wrapper { display: flex; }
-
-.site-card {
-  display: flex; align-items: center; padding: 10px 14px;
-  height: 64px; 
-  width: 100%;
-  /* 限制单张卡片最大宽度，防止只有 1-2 张卡片时拉得太长 */
-  max-width: 280px; 
-  background: var(--nav-card-bg);
-  backdrop-filter: blur(var(--nav-card-blur));
-  border: 1px solid var(--nav-card-border);
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.1);
-  border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-sizing: border-box;
-  overflow: hidden;
-  position: relative;
-}
-.site-card::before {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-  opacity: 0; transition: opacity 0.3s;
-}
-.site-card:hover { 
-  border-color: var(--primary-color); 
-  transform: translateY(-6px); 
-  box-shadow: 0 16px 24px -8px rgba(0, 0, 0, 0.4);
-  background: rgba(255, 255, 255, 0.2);
-}
-.site-card:hover::before { opacity: 1; }
-.site-card.is-dragging { opacity: 0.1; transform: scale(0.9); }
-
-.site-icon-wrapper {
-  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.12); margin-right: 14px; flex-shrink: 0;
-  border-radius: 12px; overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 1;
-}
-.site-card:hover .site-icon-wrapper {
-  transform: scale(1.1) rotate(5deg);
-  background: rgba(255, 255, 255, 0.2);
-}
-.image-icon { width: 100%; height: 100%; object-fit: cover; }
-.emoji-icon { font-size: 28px; line-height: 1; }
-
-.site-info { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; justify-content: center; z-index: 1; }
-.site-name { font-size: 14px; font-weight: 600; color: var(--nav-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; transition: color 0.3s; }
-.site-card:hover .site-name { color: var(--primary-color); }
-.site-desc { font-size: 11px; color: var(--nav-text-desc-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; transition: opacity 0.3s; }
-.site-card:hover .site-desc { opacity: 1; }
 
 .empty-state { margin-top: 100px; }
 </style>

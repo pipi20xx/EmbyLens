@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS = {
   card_background: 'rgba(255, 255, 255, 0.12)',
   card_blur: 16,
   card_border_color: 'rgba(255, 255, 255, 0.15)',
+  card_style: 'glass',
   text_color: '#ffffff',
   text_description_color: 'rgba(255, 255, 255, 0.7)',
   category_title_color: '#ffffff',

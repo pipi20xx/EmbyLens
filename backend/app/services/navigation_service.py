@@ -19,6 +19,7 @@ DEFAULT_NAV = {
         "card_background": "rgba(255, 255, 255, 0.12)",
         "card_blur": 16,
         "card_border_color": "rgba(255, 255, 255, 0.15)",
+        "card_style": "glass",
         "text_color": "#ffffff",
         "text_description_color": "rgba(255, 255, 255, 0.7)",
         "category_title_color": "#ffffff",
@@ -37,7 +38,13 @@ def get_nav_data() -> Dict[str, Any]:
             # 确保基本结构存在
             if "categories" not in data: data["categories"] = DEFAULT_NAV["categories"]
             if "sites" not in data: data["sites"] = []
-            if "settings" not in data: data["settings"] = DEFAULT_NAV["settings"]
+            if "settings" not in data: 
+                data["settings"] = DEFAULT_NAV["settings"]
+            else:
+                # 确保所有默认字段都存在
+                for k, v in DEFAULT_NAV["settings"].items():
+                    if k not in data["settings"]:
+                        data["settings"][k] = v
             return data
     except Exception:
         return DEFAULT_NAV.copy()
