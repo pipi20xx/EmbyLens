@@ -1,6 +1,19 @@
 <template>
   <n-modal :show="show" @update:show="$emit('update:show', $event)" preset="card" :title="task.id ? '编辑备份任务' : '新增备份任务'" style="width: 650px">
     <n-form :model="task" label-placement="left" label-width="120">
+      <!-- 远程任务特殊说明 -->
+      <n-alert v-if="task.host_id && task.host_id !== 'local'" title="远程 SSH 备份模式" type="warning" :bordered="false" style="margin-bottom: 20px">
+        <template #header-extra>
+          <n-tag size="tiny" type="warning" quaternary>Host ID: {{ task.host_id }}</n-tag>
+        </template>
+        <ul style="margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.6">
+          <li><b>数据源：</b>该任务将从远程 Docker 主机拉取文件夹。</li>
+          <li><b>依赖环境：</b>请确保远程主机已安装 <n-text code>tar</n-text> 或 <n-text code>7z</n-text> 命令。</li>
+          <li><b>中转逻辑：</b>Lens 将通过网络执行远程打包并拉取回本地目的地。</li>
+          <li><b>过滤规则：</b>已自动同步 Lens 的精准过滤逻辑，不符合规则的文件不会被打包传输。</li>
+        </ul>
+      </n-alert>
+
       <n-grid :cols="2" :x-gap="12">
         <n-form-item-gi :span="2" label="任务名称">
           <n-input v-model:value="task.name" placeholder="例如：数据库每日备份" />
@@ -41,10 +54,10 @@
           </n-space>
         </n-form-item-gi>
 
-        <n-form-item-gi :span="2" label="源路径">
+        <n-form-item-gi :span="2" :label="task.host_id && task.host_id !== 'local' ? '源路径 (远程)' : '源路径'">
           <n-input-group>
-            <n-input v-model:value="task.src_path" placeholder="/app/data" />
-            <n-button @click="$emit('browse', 'src')">浏览</n-button>
+            <n-input v-model:value="task.src_path" :placeholder="task.host_id && task.host_id !== 'local' ? '远程主机上的绝对路径' : '/app/data'" />
+            <n-button v-if="!task.host_id || task.host_id === 'local'" @click="$emit('browse', 'src')">浏览</n-button>
           </n-input-group>
         </n-form-item-gi>
         
@@ -124,10 +137,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { 
   NModal, NForm, NFormItemGi, NInput, NSelect, NInputGroup, NButton, NSlider, 
-  NText, NDynamicInput, NSpace, NGrid, NDivider, NSwitch, NTimePicker, NInputNumber, NTag 
+  NText, NDynamicInput, NSpace, NGrid, NDivider, NSwitch, NTimePicker, NInputNumber, NTag, NAlert 
 } from 'naive-ui'
 
 const props = defineProps<{
@@ -172,7 +185,6 @@ const presetPatterns = [
 ]
 
 const handleTogglePattern = (pattern: string, checked: boolean) => {
-  // 使用解构赋值确保触发响应式更新
   const patterns = [...props.task.ignore_patterns]
   if (checked) {
     if (!patterns.includes(pattern)) {
@@ -184,7 +196,6 @@ const handleTogglePattern = (pattern: string, checked: boolean) => {
       patterns.splice(index, 1)
     }
   }
-  // 回写给 props 的 task 对象
   props.task.ignore_patterns = patterns
 }
 

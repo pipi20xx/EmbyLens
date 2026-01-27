@@ -83,7 +83,8 @@ const editTask = ref({
   enabled: true,
   schedule_type: 'cron',
   schedule_value: '0 3 * * *',
-  ignore_patterns: []
+  ignore_patterns: [],
+  host_id: 'local'
 })
 
 const handleAddTask = () => {
@@ -100,7 +101,8 @@ const handleAddTask = () => {
     enabled: true,
     schedule_type: 'cron',
     schedule_value: '0 3 * * *',
-    ignore_patterns: []
+    ignore_patterns: [],
+    host_id: 'local'
   }
   showEditModal.value = true
 }

@@ -167,7 +167,7 @@ async def bulk_project_action(host_id: str, action: str = Body(..., embed=True))
         if not path: continue
         
         # 统一处理路径：如果是目录则尝试寻找 yml
-        if not path.endswith(('.yml', '.yaml')):
+        if not path.endswith((".yml", ".yaml")):
             path = os.path.join(path, "docker-compose.yml")
 
         try:
@@ -199,189 +199,61 @@ async def chmod_path(host_id: str, path: str = Body(..., embed=True), mode: Opti
     return {"message": "Success"}
 
 @router.delete("/{host_id}/projects/{name}")
-
 async def delete_project(host_id: str, name: str, path: Optional[str] = None, delete_files: bool = False):
-
     config = get_config()
-
     hosts = config.get("docker_hosts", [])
-
     host_match = next((h for h in hosts if h.get("id") == host_id), None)
-
     service = get_docker_service(host_id)
-
     
-
     if delete_files and path:
-
         project_dir = os.path.dirname(path).rstrip('/')
-
         if len(project_dir) < 5 or project_dir in ["/", "/root", "/home", "/etc", "/var"]:
-
             raise HTTPException(status_code=400, detail="Security Limit: Cannot delete system directories")
-
         
-
         service.exec_command(f"rm -rf '{project_dir}'")
-
         
-
         if host_match and "compose_scan_paths" in host_match:
-
             paths = [p.strip().rstrip('/') for p in host_match["compose_scan_paths"].split(",") if p.strip()]
-
             if project_dir in paths:
-
                 paths = [p for p in paths if p != project_dir]
-
                 host_match["compose_scan_paths"] = ",".join(paths)
-
                 save_config(config)
-
-
 
     return {"message": "Removed"}
 
-
-
 @router.post("/{host_id}/projects/{name}/create-backup-task")
-
-
-
 async def create_project_backup_task(host_id: str, name: str, path: str = Body(..., embed=True)):
-
-
-
     """为 Compose 项目创建备份任务"""
-
-
-
     import uuid
-
-
-
     from app.services.backup_service import BackupService
-
-
-
     
-
-
-
     config = get_config()
-
-
-
     tasks = config.get("backup_tasks", [])
-
-
-
     
-
-
-
     # 确定源路径（项目文件夹）
-
-
-
     src_path = os.path.dirname(path)
-
-
-
     
-
-
-
     # 默认备份目的地：data/backups/remote_compose
-
-
-
     dst_path = os.path.abspath("data/backups/remote_compose")
-
-
-
+    if not os.path.exists(dst_path):
+        os.makedirs(dst_path, exist_ok=True)
     
-
-
-
     new_task = {
-
-
-
         "id": str(uuid.uuid4())[:8],
-
-
-
         "name": f"Compose: {name}",
-
-
-
         "mode": "7z" if host_id == "local" else "tar", 
-
-
-
         "src_path": src_path,
-
-
-
         "dst_path": dst_path,
-
-
-
         "enabled": True,
-
-
-
         "schedule_type": "cron",
-
-
-
         "schedule_value": "0 3 * * *", # 默认凌晨3点
-
-
-
         "host_id": host_id,
-
-
-
         "ignore_patterns": ["node_modules", ".git", "__pycache__"]
-
-
-
     }
-
-
-
     
-
-
-
     tasks.append(new_task)
-
-
-
     config["backup_tasks"] = tasks
-
-
-
     save_config(config)
-
-
-
     
-
-
-
     await BackupService.reload_tasks()
-
-
-
     return new_task
-
-
-
-
-
-    
-
-    
