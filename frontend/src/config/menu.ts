@@ -20,6 +20,7 @@ import {
   SyncAltOutlined as WebhookIcon,
   StorageOutlined as PostgresIcon,
   BackupOutlined as BackupIcon,
+  CloudUploadOutlined as BuildIcon,
   NotificationsOutlined as NotificationIcon,
   AdminPanelSettingsOutlined as SecurityIcon,
   PersonOutlined as ProfileIcon
@@ -55,6 +56,7 @@ export const menuOptions: MenuOption[] = [
   { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
   { label: '终端管理', key: 'TerminalManagerView', icon: renderIcon(ConsoleIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
+  { label: '镜像构建与推送', key: 'ImageBuilderView', icon: renderIcon(BuildIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
   { label: '数据备份管理', key: 'BackupManagerView', icon: renderIcon(BackupIcon) },
   { label: '通知消息中心', key: 'NotificationManagerView', icon: renderIcon(NotificationIcon) },

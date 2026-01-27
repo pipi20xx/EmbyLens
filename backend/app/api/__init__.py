@@ -21,6 +21,7 @@ from .auth import router as auth_router
 from .backup import router as backup_router
 from .notification import router as notification_router
 from .terminal import router as terminal_router
+from app.modules.image_builder import router as image_builder_router
 
 router = APIRouter()
 
@@ -46,6 +47,7 @@ router.include_router(docker_router, prefix="/docker", tags=["Docker"])
 router.include_router(compose_router, prefix="/docker/compose", tags=["DockerCompose"])
 router.include_router(pgsql_router, prefix="/pgsql", tags=["PostgreSQL"])
 router.include_router(navigation_router, prefix="/navigation", tags=["Navigation"])
+router.include_router(image_builder_router, prefix="/image-builder", tags=["ImageBuilder"])
 
 @router.get("/status")
 async def get_status():

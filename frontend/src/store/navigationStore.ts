@@ -65,6 +65,7 @@ const defaultSettings: MenuSetting[] = [
   { key: 'AutoTagsView', visible: true },
   { key: 'TerminalManagerView', visible: true },
   { key: 'DockerManagerView', visible: true },
+  { key: 'ImageBuilderView', visible: true },
   { key: 'PostgresManagerView', visible: true },
   { key: 'BackupManagerView', visible: true },
   { key: 'NotificationManagerView', visible: true },

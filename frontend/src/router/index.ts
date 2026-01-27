@@ -42,6 +42,11 @@ const router = createRouter({
       component: () => import('../views/toolkit/DockerManager.vue'),
     },
     {
+      path: '/toolkit/image-builder',
+      name: 'ImageBuilderView',
+      component: () => import('../views/toolkit/ImageBuilder.vue'),
+    },
+    {
       path: '/toolkit/tmdb-lab',
       name: 'TmdbLab',
       component: () => import('../views/toolkit/TmdbLab.vue'),
