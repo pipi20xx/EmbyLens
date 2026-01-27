@@ -3,7 +3,10 @@
     <n-space vertical>
       <n-space justify="space-between">
         <n-button type="primary" @click="openCreateModal">新建项目</n-button>
-        <n-button @click="fetchProjects">刷新列表</n-button>
+        <n-space>
+          <n-button @click="fetchProjects">刷新列表</n-button>
+          <n-button type="error" ghost @click="handleClearAllLogs">清空所有记录</n-button>
+        </n-space>
       </n-space>
 
       <n-data-table
@@ -12,6 +15,7 @@
         :loading="loading"
         :bordered="false"
         size="small"
+        scroll-x="1200"
       />
     </n-space>
 
@@ -80,7 +84,7 @@
 import { ref, onMounted, h, reactive } from 'vue'
 import {
   NSpace, NButton, NDataTable, NModal, NForm, NFormItem, NInput, NSelect,
-  NCheckbox, useMessage, useDialog, NTag, NEmpty, NCheckboxGroup, NInputGroup
+  NCheckbox, useMessage, useDialog, NTag, NCheckboxGroup, NInputGroup
 } from 'naive-ui'
 import axios from 'axios'
 import BuildHistory from './BuildHistory.vue'
@@ -89,7 +93,7 @@ const message = useMessage()
 const dialog = useDialog()
 
 const projects = ref([])
-const registries = ref([])
+const registries = ref<any[]>([])
 const proxies = ref([])
 const hostOptions = ref([])
 const loading = ref(false)
@@ -114,9 +118,13 @@ const registryOptions = ref([])
 const proxyOptions = ref([])
 
 const columns = [
-  { title: '项目名称', key: 'name' },
-  { title: '远程镜像名', key: 'repo_image_name' },
-  { title: '平台', key: 'platforms', width: 180, render(row: any) {
+  { title: '项目名称', key: 'name', minWidth: 120 },
+  { title: '目标仓库', key: 'registry_id', width: 150, render(row: any) {
+    const reg = registries.value.find(r => r.id === row.registry_id)
+    return reg ? h(NTag, { size: 'small', type: 'warning', ghost: true }, { default: () => reg.name }) : h('span', { style: 'color: #666' }, '默认仓库')
+  }},
+  { title: '远程镜像名', key: 'repo_image_name', minWidth: 180 },
+  { title: '平台', key: 'platforms', width: 160, render(row: any) {
     return h(NSpace, { size: 'small' }, {
       default: () => (row.platforms || '').split(',').map((p: string) => h(NTag, { size: 'small', type: 'info', ghost: true }, { default: () => p }))
     })
@@ -124,10 +132,11 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 320,
+    width: 420,
+    fixed: 'right',
     render(row: any) {
       if (!projectTags[row.id]) projectTags[row.id] = 'latest'
-      return h(NSpace, { align: 'center' }, {
+      return h(NSpace, { align: 'center', wrap: false }, {
         default: () => [
           h(NInputGroup, null, {
             default: () => [
@@ -161,6 +170,7 @@ const fetchOptions = async () => {
     const [regRes, proxRes, hostRes] = await Promise.all([
       axios.get('/api/image-builder/registries'), axios.get('/api/image-builder/proxies'), axios.get('/api/docker/hosts')
     ])
+    registries.value = regRes.data
     registryOptions.value = regRes.data.map((r: any) => ({ label: r.name, value: r.id }))
     proxyOptions.value = proxRes.data.map((p: any) => ({ label: p.name, value: p.id }))
     hostOptions.value = hostRes.data.map((h: any) => ({ label: h.name, value: h.id }))
@@ -217,9 +227,24 @@ const directBuild = async (row: any) => {
   try {
     await axios.post(`/api/image-builder/projects/${row.id}/build`, { tag: tag })
     message.success(`任务 [${tag}] 已在后台启动，完成后将通过通知告知`)
-  } catch (e) {
-    message.error('启动构建失败')
-  }
+  } catch (e) { message.error('启动构建失败') }
+}
+
+const handleClearAllLogs = () => {
+  dialog.error({
+    title: '确认清空',
+    content: '该操作将彻底删除所有项目的构建历史及物理日志文件，且不可恢复。是否继续？',
+    positiveText: '确定清空',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await axios.delete('/api/image-builder/tasks')
+        message.success('历史记录已全部清空')
+      } catch (e) {
+        message.error('清空失败')
+      }
+    }
+  })
 }
 
 onMounted(() => { fetchProjects(); fetchOptions() })

@@ -107,6 +107,11 @@ async def delete_proxy(proxy_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Proxy not found")
     return {"status": "success"}
 
+@router.delete("/tasks")
+async def delete_all_task_logs(db: AsyncSession = Depends(get_db)):
+    await Service.delete_all_task_logs(db)
+    return {"status": "success"}
+
 @router.get("/system-info")
 async def get_system_info(host_id: str):
     return await Service.get_system_info(host_id)

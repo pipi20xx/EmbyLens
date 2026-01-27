@@ -336,6 +336,19 @@ class ImageBuilderService:
         return True
 
     @staticmethod
+    async def delete_all_task_logs(db: AsyncSession):
+        # 1. 删除所有数据库记录
+        await db.execute(delete(models.BuildTaskLog))
+        await db.commit()
+        
+        # 2. 清理所有物理日志文件
+        import glob
+        for log_file in glob.glob(str(BUILD_LOG_DIR / "*.log")):
+            try: os.remove(log_file)
+            except: pass
+        return True
+
+    @staticmethod
     def run_docker_task_sync(task_id: str, project_dict: dict, tag_input: str, cred_dict: Optional[dict], proxy_dict: Optional[dict], host_config: dict):
         log_file_path = BUILD_LOG_DIR / f"{task_id}.log"
         def log_to_file(message: str):

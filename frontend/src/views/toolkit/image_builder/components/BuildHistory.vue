@@ -10,9 +10,11 @@
     />
     
     <!-- 内层日志查看器 -->
-    <n-modal v-model:show="showLog" preset="card" title="详细日志" style="width: 900px; margin-top: 50px;">
-      <div class="log-container">
-        <pre>{{ currentLog }}</pre>
+    <n-modal v-model:show="showLog" preset="card" title="详细日志" style="width: 90%; max-width: 1200px; height: 96vh;">
+      <div class="log-container-wrapper">
+        <div class="log-container">
+          <pre>{{ currentLog }}</pre>
+        </div>
       </div>
     </n-modal>
   </n-modal>
@@ -138,14 +140,20 @@ const deleteLog = (taskId: string) => {
 </script>
 
 <style scoped>
+.log-container-wrapper {
+  height: calc(96vh - 120px); /* 减去 Header 和 Padding 的高度 */
+  overflow: hidden;
+}
+
 .log-container {
   background: #1e1e1e;
   color: #d4d4d4;
   padding: 12px;
   border-radius: 4px;
-  max-height: 600px;
+  height: 100%;
   overflow-y: auto;
   font-family: monospace;
   white-space: pre-wrap;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>
