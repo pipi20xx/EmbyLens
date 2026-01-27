@@ -319,7 +319,6 @@ class ImageBuilderService:
         
         # 2. Create specialized builder
         logs.append("正在清理并重建专用构建器 (lens-builder)...")
-        # 强制删除旧的，以便应用新的代理设置
         service.exec_command("docker buildx rm lens-builder")
         
         create_cmd = f"docker buildx create --name lens-builder --driver docker-container --driver-opt network=host {proxy_env} --use"
@@ -359,6 +358,16 @@ class ImageBuilderService:
         await db.commit()
 
     @staticmethod
+    async def delete_task_log(db: AsyncSession, task_id: str):
+        await db.execute(delete(models.BuildTaskLog).where(models.BuildTaskLog.id == task_id))
+        await db.commit()
+        log_path = BUILD_LOG_DIR / f"{task_id}.log"
+        if log_path.exists():
+            try: os.remove(log_path)
+            except: pass
+        return True
+
+    @staticmethod
     def run_docker_task_sync(task_id: str, project_dict: dict, tag_input: str, cred_dict: Optional[dict], proxy_dict: Optional[dict], host_config: dict):
         log_file_path = BUILD_LOG_DIR / f"{task_id}.log"
         
@@ -374,20 +383,55 @@ class ImageBuilderService:
         platforms = [plat.strip() for plat in p.get('platforms', 'linux/amd64').split(',') if plat.strip()]
         
         final_status = "FAILED"
+        temp_builder_name = ""
+        temp_config_path = f"/tmp/lens-buildkit-{task_id[:8]}.toml"
+
         try:
             log_to_file(f"✅ 远程构建任务已启动... (主机: {host_config.get('name')})")
             
-            # 1. Login
+            # --- 1. 正在准备构建环境 ---
+            log_to_file(f"\n--- 正在准备构建环境 ---")
+            reg_url = p.get('registry_url', 'docker.io')
+            if "://" in reg_url:
+                reg_host = urlparse(reg_url).netloc
+            else:
+                reg_host = urlparse(f"https://{reg_url}").netloc
+                if not reg_host: reg_host = reg_url.split('/')[0]
+
+            is_https = p.get('is_https', True)
+            builder_to_use = "default"
+
+            if not is_https:
+                log_to_file(f"--- 🛠️ 检测到 HTTP 仓库，正在配置 BuildKit 信任列表: {reg_host} ---")
+                config_content = f'[registry."{reg_host}"]\n  http = true\n  insecure = true\n'
+                if service.write_file(temp_config_path, config_content):
+                    temp_builder_name = f"lens-task-{task_id[:8]}"
+                    create_cmd = f"docker buildx create --name {temp_builder_name} --driver docker-container --driver-opt network=host --config {temp_config_path}"
+                    res = service.exec_command(create_cmd)
+                    if res["success"]:
+                        builder_to_use = temp_builder_name
+                        log_to_file(f"--- 🚀 构建模式: HTTP 专用容器构建 (Builder: {builder_to_use}, Driver: docker-container) ---")
+                    else:
+                        log_to_file(f"⚠️ 模式切换失败: 无法创建专用构建器，将回退至默认模式: {res['stderr']}")
+            else:
+                check_builder = service.exec_command("docker buildx inspect lens-builder", log_error=False)
+                if check_builder["success"]:
+                    builder_to_use = "lens-builder"
+                    log_to_file(f"--- 🚀 构建模式: 专用容器构建 (Builder: lens-builder, Driver: docker-container) ---")
+                else:
+                    log_to_file(f"--- 💻 构建模式: 宿主机原生构建 (Builder: default, Driver: docker) ---")
+
+            # --- 2. 仓库登录 ---
             if cred_dict:
-                log_to_file(f"--- 正在远程登录仓库: {cred_dict.get('registry_url')} ---")
-                login_cmd = f"echo \"{cred_dict['encrypted_password']}\" | docker login -u \"{cred_dict['username']}\" --password-stdin {cred_dict.get('registry_url', '')}"
+                log_to_file(f"--- 正在远程登录仓库: {reg_url} ---")
+                login_cmd = f"echo \"{cred_dict['encrypted_password']}\" | docker login -u \"{cred_dict['username']}\" --password-stdin {reg_url}"
                 res = service.exec_command(login_cmd)
                 if not res["success"]:
                     log_to_file(f"❌ 登录失败: {res['stderr']}")
                 else:
                     log_to_file("--- 登录成功 ---")
 
-            # 2. Proxy & Build
+            # --- 3. 准备构建命令 ---
             build_args = []
             if proxy_dict:
                 url = proxy_dict['url']
@@ -396,21 +440,11 @@ class ImageBuilderService:
                     netloc = f"{proxy_dict['username']}:{proxy_dict['password']}@{parsed.netloc}"
                     url = urlunparse(parsed._replace(netloc=netloc))
                 
-                log_to_file(f"--- 🚀 注入代理: {proxy_dict['url']} ---")
+                log_to_file(f"--- 🚀 注入构建代理: {proxy_dict['url']} ---")
                 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
                     build_args.append(f"--build-arg {key}={url}")
 
-            # Prepare tags
-            reg_url = p.get('registry_url', 'docker.io')
-            if "://" in reg_url:
-                reg_host = urlparse(reg_url).netloc
-            else:
-                reg_host = urlparse(f"https://{reg_url}").netloc
-                if not reg_host: reg_host = reg_url.split('/')[0]
-
-            is_dockerhub = reg_host in ["docker.io", "index.docker.io", "registry-1.docker.io", ""]
-            
-            if is_dockerhub:
+            if reg_host in ["docker.io", "index.docker.io", "registry-1.docker.io", ""]:
                 repo_base = p['repo_image_name']
                 log_to_file(f"--- 目标仓库判定为: Docker Hub ---")
             else:
@@ -429,18 +463,6 @@ class ImageBuilderService:
             else:
                 cache_args.append("--no-cache")
                 log_to_file("--- ⚡ 缓存策略: 强制无缓存构建 ---")
-
-            # Unify build logic
-            log_to_file(f"\n--- 正在准备构建环境 ---")
-            
-            # 自动探测构建器
-            builder_to_use = "default"
-            check_builder = service.exec_command("docker buildx inspect lens-builder", log_error=False)
-            if check_builder["success"]:
-                builder_to_use = "lens-builder"
-                log_to_file(f"--- 🚀 构建模式: 专用容器构建 (Builder: lens-builder, Driver: docker-container) ---")
-            else:
-                log_to_file(f"--- 💻 构建模式: 宿主机原生构建 (Builder: default, Driver: docker) ---")
 
             log_to_file(f"--- 开始远程构建与推送 (平台: {','.join(platforms)}, Tags: {' / '.join(tags)}) ---")
             build_cmd = f"docker buildx build --builder {builder_to_use} --platform {','.join(platforms)} -f {p['dockerfile_path']} {tag_args} {' '.join(build_args)} {' '.join(cache_args)} --push ."
@@ -484,9 +506,37 @@ class ImageBuilderService:
             else:
                 log_to_file("\n--- ❌ 构建任务失败 ---")
 
+            # --- 4. 发送全局通知与控制台广播 ---
+            try:
+                from app.services.notification_service import NotificationService
+                from app.utils.logger import logger
+                
+                status_text = "成功" if final_status == "SUCCESS" else "失败"
+                summary = f"镜像构建{status_text}: {p['name']} ({repo_base}:{tags[0]})"
+                logger.info(f"🚀 [镜像构建] {summary} | 主机: {host_config.get('name')}")
+                
+                asyncio.run(NotificationService.emit(
+                    event="image_builder.task_completed",
+                    title="Lens 镜像构建任务报告",
+                    message=(
+                        f"项目名称: {p['name']}\n目标镜像: {repo_base}\n标签版本: {', '.join(tags)}\n"
+                        f"构建主机: {host_config.get('name')}\n最终状态: {status_text}\n"
+                        f"结束时间: {datetime.now().strftime('%H:%M:%S')}"
+                    )
+                ))
+            except Exception: pass
+
         except Exception as e:
             log_to_file(f"\n--- ❌ 发生严重错误 ---\n{e}")
         finally:
+            # --- 5. 环境清理 (非常重要) ---
+            if temp_builder_name:
+                log_to_file(f"--- 🧹 正在清理临时构建环境: {temp_builder_name} ---")
+                service.exec_command(f"docker buildx rm {temp_builder_name}", log_error=False)
+            if os.path.exists(temp_config_path):
+                try: os.remove(temp_config_path)
+                except: pass
+            service.exec_command(f"rm -f {temp_config_path}", log_error=False)
             log_to_file(TASK_LOG_SENTINEL)
             
         return final_status

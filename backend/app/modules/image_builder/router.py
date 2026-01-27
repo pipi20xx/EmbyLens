@@ -132,3 +132,8 @@ async def get_task_log_content(task_id: str):
         return {"content": "Log file not found."}
     with open(log_path, "r", encoding="utf-8") as f:
         return {"content": f.read()}
+
+@router.delete("/tasks/{task_id}")
+async def delete_task_log(task_id: str, db: AsyncSession = Depends(get_db)):
+    await Service.delete_task_log(db, task_id)
+    return {"status": "success"}
