@@ -142,21 +142,59 @@ class BackupService:
                     raise Exception(f"找不到远程主机配置: {host_id}")
                 
                 service = DockerService(host_config)
-                remote_tmp_tar = f"/tmp/lens_bk_{task_id}_{timestamp}.tar.gz"
                 
-                logger.info(f"📦 [Backup] 正在远程打包: {src} -> {remote_tmp_tar}")
-                # 远程执行 tar
-                # -C 进入目录，. 打包内容
-                tar_cmd = f"tar -czf {remote_tmp_tar} -C {src} ."
-                res = service.exec_command(tar_cmd)
-                if not res["success"]:
-                    raise Exception(f"远程打包失败: {res['stderr']}")
+                # 1. 获取远程所有文件列表 (相对路径)
+                logger.info(f"🔍 [Backup] 正在扫描远程文件列表...")
+                find_res = service.exec_command(f"find . -type f", cwd=src)
+                if not find_res["success"]:
+                    raise Exception(f"无法扫描远程目录: {find_res['stderr']}")
+                
+                all_remote_paths = find_res["stdout"].strip().split("\n")
+                all_remote_paths = [p[2:] if p.startswith("./") else p for p in all_remote_paths]
 
-                # 下载到本地
-                local_tmp_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.tar.gz")
-                logger.info(f"🚚 [Backup] 正在拉取远程备份文件到本地...")
+                # 2. 使用 BackupFilter 在本地进行精准过滤
+                from app.utils.backup_filter import BackupFilter
+                flt = BackupFilter(task.get("ignore_patterns", []))
+                allowed_paths = flt.filter_paths(all_remote_paths)
                 
-                # 实现远程下载逻辑 (利用 SFTP)
+                if not allowed_paths:
+                    raise Exception("过滤后没有发现需要备份的文件")
+
+                # 3. 将清单上传到远程
+                remote_list_file = f"/tmp/lens_list_{task_id}.txt"
+                list_content = "\n".join(allowed_paths)
+                if not service.write_file(remote_list_file, list_content):
+                    raise Exception("无法上传备份清单到远程主机")
+
+                # 4. 根据清单进行打包
+                mode = task.get("mode", "tar")
+                password = task.get("password")
+                
+                if mode == "7z":
+                    ext = ".7z"
+                    remote_tmp_file = f"/tmp/lens_bk_{task_id}_{timestamp}.7z"
+                    backup_cmd = f"cd {src} && 7z a {remote_tmp_file} @{remote_list_file}"
+                    if password:
+                        backup_cmd += f" -p{password} -mhe=on"
+                else:
+                    ext = ".tar.gz"
+                    remote_tmp_file = f"/tmp/lens_bk_{task_id}_{timestamp}.tar.gz"
+                    backup_cmd = f"tar -czf {remote_tmp_file} -C {src} -T {remote_list_file}"
+
+                logger.info(f"📦 [Backup] 正在远程执行精准打包 ({mode})...")
+                res = service.exec_command(backup_cmd)
+                service.exec_command(f"rm {remote_list_file}") # 清理清单
+
+                if not res["success"]:
+                    err_msg = res["stderr"]
+                    if mode == "7z" and "not found" in err_msg.lower():
+                        err_msg = "远程主机未安装 7zip，请安装或改用 tar 模式。"
+                    raise Exception(f"远程打包失败: {err_msg}")
+
+                # 5. 下载到本地
+                local_tmp_path = os.path.join(dst_dir, f"{base_name}_{timestamp}{ext}")
+                logger.info(f"🚚 [Backup] 正在拉取远程备份文件 ({mode}) 到本地...")
+                
                 def download_remote():
                     import paramiko
                     ssh = paramiko.SSHClient()
@@ -167,8 +205,8 @@ class BackupService:
                                     username=host_config.get("ssh_user"), 
                                     password=host_config.get("ssh_pass"))
                         sftp = ssh.open_sftp()
-                        sftp.get(remote_tmp_tar, local_tmp_path)
-                        sftp.remove(remote_tmp_tar) # 清理远程临时文件
+                        sftp.get(remote_tmp_file, local_tmp_path)
+                        sftp.remove(remote_tmp_file) # 清理远程临时文件
                         sftp.close()
                         return True
                     except Exception as de:

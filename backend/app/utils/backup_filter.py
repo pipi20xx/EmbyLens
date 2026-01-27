@@ -59,3 +59,13 @@ class BackupFilter:
                         f.write(rel_path + '\n')
                         count += 1
         return count
+
+    def filter_paths(self, paths: List[str]) -> List[str]:
+        """过滤给定的路径列表，返回符合条件的路径"""
+        result = []
+        for p in paths:
+            if not p or p.strip() == "": continue
+            # 过滤掉不符合条件的路径
+            if not self.is_ignored(p):
+                result.append(p)
+        return result

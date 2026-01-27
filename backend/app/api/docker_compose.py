@@ -246,68 +246,142 @@ async def delete_project(host_id: str, name: str, path: Optional[str] = None, de
 
 @router.post("/{host_id}/projects/{name}/create-backup-task")
 
+
+
 async def create_project_backup_task(host_id: str, name: str, path: str = Body(..., embed=True)):
+
+
 
     """为 Compose 项目创建备份任务"""
 
+
+
     import uuid
+
+
 
     from app.services.backup_service import BackupService
 
+
+
     
+
+
 
     config = get_config()
 
+
+
     tasks = config.get("backup_tasks", [])
 
+
+
     
+
+
 
     # 确定源路径（项目文件夹）
 
+
+
     src_path = os.path.dirname(path)
 
+
+
     
+
+
 
     # 默认备份目的地：data/backups/remote_compose
 
+
+
     dst_path = os.path.abspath("data/backups/remote_compose")
 
+
+
     
+
+
 
     new_task = {
 
+
+
         "id": str(uuid.uuid4())[:8],
+
+
 
         "name": f"Compose: {name}",
 
-        "mode": "tar", # 远程备份目前强制使用 tar 打包模式
+
+
+        "mode": "7z" if host_id == "local" else "tar", 
+
+
 
         "src_path": src_path,
 
+
+
         "dst_path": dst_path,
+
+
 
         "enabled": True,
 
+
+
         "schedule_type": "cron",
+
+
 
         "schedule_value": "0 3 * * *", # 默认凌晨3点
 
+
+
         "host_id": host_id,
+
+
 
         "ignore_patterns": ["node_modules", ".git", "__pycache__"]
 
+
+
     }
 
+
+
     
+
+
 
     tasks.append(new_task)
 
+
+
     config["backup_tasks"] = tasks
+
+
 
     save_config(config)
 
+
+
     
+
+
 
     await BackupService.reload_tasks()
 
+
+
     return new_task
+
+
+
+
+
+    
+
+    
