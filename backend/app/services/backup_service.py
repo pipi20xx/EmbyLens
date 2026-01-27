@@ -293,20 +293,6 @@ class BackupService:
             await NotificationService.emit(event, title, msg)
         except Exception as e:
             logger.warning(f"⚠️ [Backup] 发送通知失败: {e}")
-        
-        duration = time.time() - start_time
-        logger.info(f"🏁 [Backup] 任务 {task.get('name')} 执行完毕 (耗时: {duration:.1f}s, 状态: {'成功' if success else '失败'})")
-
-        # 发送通知
-        event = "backup.success" if success else "backup.failed"
-        title = "备份成功" if success else "备份失败"
-        msg = f"任务: {task.get('name')}\n模式: {task.get('mode')}\n耗时: {duration:.1f}s"
-        if not success:
-            msg += f"\n错误: {message}"
-        else:
-            msg += f"\n大小: {total_size:.2f} MB"
-            
-        await NotificationService.emit(event, title, msg)
 
     @classmethod
     async def run_restore_task(cls, history_id: int, clear_dst: bool = False):
