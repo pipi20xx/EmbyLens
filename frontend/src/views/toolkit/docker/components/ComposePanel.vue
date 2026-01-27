@@ -4,6 +4,16 @@
       <n-space justify="space-between" v-if="hostId">
         <n-space>
           <n-button type="primary" @click="handleCreateProject">新建项目</n-button>
+          <n-input
+            v-model:value="searchQuery"
+            placeholder="搜索项目名称或路径..."
+            clearable
+            style="width: 250px"
+          >
+            <template #prefix>
+              <n-icon><SearchIcon /></n-icon>
+            </template>
+          </n-input>
         </n-space>
         <n-button-group>
           <n-button type="success" secondary @click="handleBulkAction('up')">全部启动/更新</n-button>
@@ -13,7 +23,7 @@
       
       <n-data-table
         :columns="columns"
-        :data="projects"
+        :data="filteredProjects"
         :loading="loading"
         :pagination="{ pageSize: 15 }"
       />
@@ -85,7 +95,8 @@ import {
   DeleteOutlined as DeleteIcon,
   PlayCircleOutlined as StartIcon,
   StopCircleOutlined as StopIcon,
-  CloudDownloadOutlined as PullIcon
+  CloudDownloadOutlined as PullIcon,
+  SearchOutlined as SearchIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
@@ -104,6 +115,16 @@ const dialog = useDialog()
 const projects = ref<any[]>([])
 const loading = ref(false)
 const loadingActions = ref<Record<string, boolean>>({})
+const searchQuery = ref('')
+
+const filteredProjects = computed(() => {
+  if (!searchQuery.value) return projects.value
+  const query = searchQuery.value.toLowerCase()
+  return projects.value.filter((p: any) => 
+    p.name.toLowerCase().includes(query) || 
+    (p.config_file || p.path || '').toLowerCase().includes(query)
+  )
+})
 
 // ... (keep the rest of existing ref declarations) ...
 const showComposeModal = ref(false)

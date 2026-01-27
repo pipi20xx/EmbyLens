@@ -1,19 +1,32 @@
 <template>
   <div class="container-panel">
-    <n-space style="margin-bottom: 12px">
-      <n-button type="primary" secondary @click="fetchContainers" :loading="loading">
-        <template #icon><n-icon><RefreshIcon /></n-icon></template>
-        刷新列表
-      </n-button>
-      <n-button type="error" secondary @click="handlePruneContainers" :loading="loadingPrune">
-        <template #icon><n-icon><DeleteIcon /></n-icon></template>
-        清理停止的容器
-      </n-button>
+    <n-space style="margin-bottom: 12px" align="center" justify="space-between">
+      <n-space>
+        <n-button type="primary" secondary @click="fetchContainers" :loading="loading">
+          <template #icon><n-icon><RefreshIcon /></n-icon></template>
+          刷新列表
+        </n-button>
+        <n-button type="error" secondary @click="handlePruneContainers" :loading="loadingPrune">
+          <template #icon><n-icon><DeleteIcon /></n-icon></template>
+          清理停止的容器
+        </n-button>
+      </n-space>
+      
+      <n-input
+        v-model:value="searchQuery"
+        placeholder="搜索容器名称或镜像..."
+        clearable
+        style="width: 250px"
+      >
+        <template #prefix>
+          <n-icon><SearchIcon /></n-icon>
+        </template>
+      </n-input>
     </n-space>
 
     <n-data-table
       :columns="columns"
-      :data="containers"
+      :data="filteredContainers"
       :loading="loading"
       :pagination="{ pageSize: 15 }"
     />
@@ -63,9 +76,11 @@ import {
   TerminalOutlined as LogIcon,
   CodeOutlined as TerminalIcon,
   AutorenewOutlined as RefreshIcon,
-  SystemUpdateAltOutlined as UpdateIcon
+  SystemUpdateAltOutlined as UpdateIcon,
+  SearchOutlined as SearchIcon
 } from '@vicons/material'
 import axios from 'axios'
+import { computed } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
 import TerminalModal from './TerminalModal.vue'
 
@@ -79,7 +94,17 @@ const dialog = useDialog()
 const containers = ref([])
 const loading = ref(false)
 const loadingPrune = ref(false)
+const searchQuery = ref('')
 const updateInfo = ref<Record<string, any>>({})
+
+const filteredContainers = computed(() => {
+  if (!searchQuery.value) return containers.value
+  const query = searchQuery.value.toLowerCase()
+  return containers.value.filter((c: any) => 
+    c.name.toLowerCase().includes(query) || 
+    c.image.toLowerCase().includes(query)
+  )
+})
 const loadingActions = ref<Record<string, boolean>>({})
 const containerSettings = ref<Record<string, any>>({})
 const containerLogs = ref('')
