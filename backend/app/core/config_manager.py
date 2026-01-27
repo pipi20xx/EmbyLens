@@ -52,7 +52,11 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "bots": []
     },
-    "menu_settings": []
+    "menu_settings": [],
+    "build_projects": [],
+    "build_registries": [],
+    "build_credentials": [],
+    "build_proxies": []
 }
 
 def get_config() -> Dict[str, Any]:
