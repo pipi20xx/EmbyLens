@@ -148,6 +148,18 @@
           </n-space>
         </n-card>
       </n-gi>
+
+      <n-gi>
+        <n-card title="容器清理" size="small">
+          <n-space vertical size="large">
+            <n-text depth="3">清理所有处于停止状态的 Docker 容器。</n-text>
+            <div style="height: 24px"></div> <!-- 保持高度对齐 -->
+            <n-button type="error" secondary :loading="loading.containers" @click="handlePruneContainers">
+              开始清理停止的容器
+            </n-button>
+          </n-space>
+        </n-card>
+      </n-gi>
     </n-grid>
 
     <!-- 结果弹窗 -->
@@ -205,7 +217,7 @@ const props = defineProps({
 
 const message = useMessage()
 const dialog = useDialog()
-const loading = ref({ images: false, cache: false, daemon: false })
+const loading = ref({ images: false, cache: false, containers: false, daemon: false })
 const showResult = ref(false)
 const showRawModal = ref(false)
 const rawJsonContent = ref('')
@@ -414,10 +426,8 @@ const handlePruneImages = async () => {
           dangling: imageOptions.value.dangling,
           all_unused: imageOptions.value.all
         })
-        resultOutput.value = res.data.stdout || '清理完成。'
-        showResult.value = true
-        message.success('镜像清理成功')
-      } catch (e) { message.error('清理失败') }
+        message.success(res.data.message || '镜像清理任务已启动')
+      } catch (e) { message.error('请求失败') }
       finally { loading.value.images = false }
     }
   })
@@ -434,11 +444,27 @@ const handlePruneCache = async () => {
       loading.value.cache = true
       try {
         const res = await axios.post(`/api/docker/${props.hostId}/prune-cache`)
-        resultOutput.value = res.data.stdout || '清理完成。'
-        showResult.value = true
-        message.success('缓存清理成功')
-      } catch (e) { message.error('清理失败') }
+        message.success(res.data.message || '缓存清理任务已启动')
+      } catch (e) { message.error('请求失败') }
       finally { loading.value.cache = false }
+    }
+  })
+}
+
+const handlePruneContainers = async () => {
+  if (!props.hostId) return
+  dialog.warning({
+    title: '确认清理容器',
+    content: '此操作将永久删除所有处于停止状态的容器。',
+    positiveText: '确认',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      loading.value.containers = true
+      try {
+        const res = await axios.post(`/api/docker/${props.hostId}/prune-containers`)
+        message.success(res.data.message || '容器清理任务已启动')
+      } catch (e) { message.error('请求失败') }
+      finally { loading.value.containers = false }
     }
   })
 }

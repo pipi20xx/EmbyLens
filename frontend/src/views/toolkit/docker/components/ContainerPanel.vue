@@ -5,6 +5,10 @@
         <template #icon><n-icon><RefreshIcon /></n-icon></template>
         刷新列表
       </n-button>
+      <n-button type="error" secondary @click="handlePruneContainers" :loading="loadingPrune">
+        <template #icon><n-icon><DeleteIcon /></n-icon></template>
+        清理停止的容器
+      </n-button>
     </n-space>
 
     <n-data-table
@@ -74,6 +78,7 @@ const message = useMessage()
 const dialog = useDialog()
 const containers = ref([])
 const loading = ref(false)
+const loadingPrune = ref(false)
 const updateInfo = ref<Record<string, any>>({})
 const loadingActions = ref<Record<string, boolean>>({})
 const containerSettings = ref<Record<string, any>>({})
@@ -144,6 +149,29 @@ const handleDelete = (row: any) => {
     positiveText: '确认删除',
     negativeText: '取消',
     onPositiveClick: () => handleAction(row.id, 'remove')
+  })
+}
+
+const handlePruneContainers = async () => {
+  if (!props.hostId) return
+  dialog.warning({
+    title: '确认清理容器',
+    content: '此操作将永久删除所有处于停止状态的容器。',
+    positiveText: '确认',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      loadingPrune.value = true
+      try {
+        const res = await axios.post(`/api/docker/${props.hostId}/prune-containers`)
+        message.success(res.data.message || '容器清理任务已启动')
+        // 既然是后台清理，列表刷新可能看不到即时效果，但我们还是刷一下
+        setTimeout(fetchContainers, 3000)
+      } catch (e) {
+        message.error('请求失败')
+      } finally {
+        loadingPrune.value = false
+      }
+    }
   })
 }
 

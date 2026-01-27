@@ -255,26 +255,61 @@ async def test_connection(host_id: str):
         logger.error(f"💔 [Docker] 主机连接测试失败: {host_id}")
     return {"status": "ok" if is_ok else "error"}
 
+async def run_cleanup_background(host_id: str, cmd: str, task_name: str):
+    """在后台执行清理任务并发送通知"""
+    logger.info(f"🧹 [Docker] 开始执行后台清理任务: {task_name} (Host: {host_id})")
+    
+    # 获取主机名用于通知
+    config = get_config()
+    hosts = config.get("docker_hosts", [])
+    host_name = next((h.get("name") for h in hosts if h.get("id") == host_id), host_id)
+    
+    # 异步执行耗时命令
+    def execute():
+        service = get_docker_service(host_id)
+        return service.exec_command(cmd)
+    
+    res = await asyncio.to_thread(execute)
+    
+    # 准备通知内容
+    status = "成功" if res["success"] else "失败"
+    message = f"主机: {host_name}\n任务: {task_name}\n状态: {status}\n\n"
+    if res["stdout"]:
+        message += f"输出详情:\n{res['stdout'][-500:]}" # 仅保留最后500字符
+    if res["stderr"]:
+        message += f"\n错误详情:\n{res['stderr']}"
+
+    await NotificationService.emit(
+        event="docker.cleanup",
+        title=f"Docker {task_name}完成",
+        message=message
+    )
+    logger.info(f"✨ [Docker] 后台清理任务完成: {task_name}")
+
 @router.post("/{host_id}/prune-images")
 async def prune_images(host_id: str, dangling: bool = Body(True, embed=True), all_unused: bool = Body(False, embed=True)):
     """清理镜像"""
-    service = get_docker_service(host_id)
     # 构建命令
     cmd = "docker image prune -f"
     if all_unused:
         cmd = "docker image prune -a -f"
     elif not dangling:
-        return {"message": "No action taken", "stdout": ""}
+        return {"message": "未选择清理选项"}
         
-    res = service.exec_command(cmd)
-    return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
+    asyncio.create_task(run_cleanup_background(host_id, cmd, "镜像清理"))
+    return {"message": "镜像清理任务已在后台启动，完成后将通过通知告知您"}
 
 @router.post("/{host_id}/prune-cache")
 async def prune_cache(host_id: str):
     """清理构建缓存"""
-    service = get_docker_service(host_id)
-    res = service.exec_command("docker builder prune -f")
-    return {"success": res["success"], "stdout": res["stdout"], "stderr": res["stderr"]}
+    asyncio.create_task(run_cleanup_background(host_id, "docker builder prune -f", "构建缓存清理"))
+    return {"message": "构建缓存清理任务已在后台启动，完成后将通过通知告知您"}
+
+@router.post("/{host_id}/prune-containers")
+async def prune_containers(host_id: str):
+    """清理停止的容器"""
+    asyncio.create_task(run_cleanup_background(host_id, "docker container prune -f", "容器清理"))
+    return {"message": "容器清理任务已在后台启动，完成后将通过通知告知您"}
 
 @router.get("/{host_id}/system-info")
 async def get_system_info(host_id: str):
