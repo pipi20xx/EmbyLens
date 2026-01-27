@@ -96,7 +96,8 @@ import {
   PlayCircleOutlined as StartIcon,
   StopCircleOutlined as StopIcon,
   CloudDownloadOutlined as PullIcon,
-  SearchOutlined as SearchIcon
+  SearchOutlined as SearchIcon,
+  BackupTableRound as BackupIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
@@ -285,12 +286,35 @@ const columns: DataTableColumns<any> = [
           h(NButton, { size: 'tiny', type: 'error', secondary: true, onClick: () => deleteProject(row) }, { 
             icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
             default: () => '删除' 
+          }),
+          h(NButton, { size: 'tiny', type: 'info', quaternary: true, onClick: () => createBackupTask(row) }, { 
+            icon: () => h(NIcon, null, { default: () => h(BackupIcon) }),
+            default: () => '备份' 
           })
         ]
       })
     }
   }
 ]
+
+const createBackupTask = (p: any) => {
+  dialog.info({
+    title: '创建备份任务',
+    content: `确定要为项目 ${p.name} 创建一个自动备份任务吗？该任务将定期备份整个项目文件夹并拉取到 Lens 本地服务器。`,
+    positiveText: '确认创建',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await axios.post(`/api/docker/compose/${props.hostId}/projects/${p.name}/create-backup-task`, { 
+          path: p.config_file || p.path 
+        })
+        message.success('备份任务已创建，可前往“数据备份管理”进行详细配置')
+      } catch (e: any) {
+        message.error('创建失败: ' + (e.response?.data?.detail || '未知错误'))
+      }
+    }
+  })
+}
 
 // 路径记忆逻辑
 const baseSavePath = ref('/opt/docker-compose')

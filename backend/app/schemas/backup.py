@@ -18,6 +18,9 @@ class BackupTaskSchema(BaseModel):
     storage_type: str = "ssd" # 'ssd', 'hdd', 'cloud'
     compression_level: int = 1 # 1-9
     sync_strategy: str = "mirror" # 'mirror', 'incremental'
+    
+    # 远程备份支持
+    host_id: Optional[str] = "local" # 对应 docker_hosts 中的 id
 
 class BackupHistorySchema(BaseModel):
     id: int

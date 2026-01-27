@@ -53,7 +53,16 @@ const formatSchedule = (row: any) => {
 }
 
 const columns = [
-  { title: '任务名称', key: 'name' },
+  { 
+    title: '任务名称', 
+    key: 'name',
+    render: (row) => h(NSpace, { align: 'center', size: 4 }, {
+      default: () => [
+        h('span', null, row.name),
+        row.host_id && row.host_id !== 'local' ? h(NTag, { type: 'warning', size: 'tiny', bordered: false, quaternary: true }, { default: () => '远程' }) : null
+      ]
+    })
+  },
   { 
     title: '模式', 
     key: 'mode', 

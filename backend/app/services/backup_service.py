@@ -88,6 +88,7 @@ class BackupService:
     @classmethod
     async def run_backup_task(cls, task_id: str):
         """执行备份任务的核心入口"""
+        from app.services.docker_service import DockerService
         config = get_config()
         tasks = config.get("backup_tasks", [])
         task = next((t for t in tasks if t.get("id") == task_id), None)
@@ -96,7 +97,10 @@ class BackupService:
             logger.error(f"❌ [Backup] 找不到任务 ID: {task_id}")
             return
 
-        # 1. 初始化执行记录 (快速提交，释放连接)
+        host_id = task.get("host_id", "local")
+        is_remote = host_id != "local"
+
+        # 1. 初始化执行记录
         history_id = None
         try:
             async with AsyncSessionLocal() as db:
@@ -112,10 +116,9 @@ class BackupService:
                 history_id = history.id
         except Exception as e:
             logger.error(f"❌ [Backup] 创建执行记录失败: {e}")
-            # 即使记录创建失败，备份仍尝试运行，但无法在 UI 显示进度
 
         start_time = time.time()
-        logger.info(f"🚀 [Backup] 开始执行备份任务: {task.get('name')}")
+        logger.info(f"🚀 [Backup] 开始执行备份任务: {task.get('name')} ({'远程' if is_remote else '本地'})")
         
         success = False
         message = ""
@@ -126,42 +129,91 @@ class BackupService:
             mode = task.get("mode", "7z")
             src = task.get("src_path")
             dst_dir = task.get("dst_path")
-            
-            if not os.path.exists(src):
-                raise Exception(f"源路径不存在: {src}")
-            
             os.makedirs(dst_dir, exist_ok=True)
             
-            # 生成文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             base_name = os.path.basename(src.rstrip("/"))
+
+            if is_remote:
+                # --- 远程备份逻辑 ---
+                hosts = config.get("docker_hosts", [])
+                host_config = next((h for h in hosts if h.get("id") == host_id), None)
+                if not host_config:
+                    raise Exception(f"找不到远程主机配置: {host_id}")
+                
+                service = DockerService(host_config)
+                remote_tmp_tar = f"/tmp/lens_bk_{task_id}_{timestamp}.tar.gz"
+                
+                logger.info(f"📦 [Backup] 正在远程打包: {src} -> {remote_tmp_tar}")
+                # 远程执行 tar
+                # -C 进入目录，. 打包内容
+                tar_cmd = f"tar -czf {remote_tmp_tar} -C {src} ."
+                res = service.exec_command(tar_cmd)
+                if not res["success"]:
+                    raise Exception(f"远程打包失败: {res['stderr']}")
+
+                # 下载到本地
+                local_tmp_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.tar.gz")
+                logger.info(f"🚚 [Backup] 正在拉取远程备份文件到本地...")
+                
+                # 实现远程下载逻辑 (利用 SFTP)
+                def download_remote():
+                    import paramiko
+                    ssh = paramiko.SSHClient()
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    try:
+                        ssh.connect(host_config.get("ssh_host"), 
+                                    port=host_config.get("ssh_port", 22), 
+                                    username=host_config.get("ssh_user"), 
+                                    password=host_config.get("ssh_pass"))
+                        sftp = ssh.open_sftp()
+                        sftp.get(remote_tmp_tar, local_tmp_path)
+                        sftp.remove(remote_tmp_tar) # 清理远程临时文件
+                        sftp.close()
+                        return True
+                    except Exception as de:
+                        logger.error(f"SFTP Download Error: {de}")
+                        return False
+                    finally:
+                        ssh.close()
+
+                if await asyncio.to_thread(download_remote):
+                    output_path = local_tmp_path
+                    success = True
+                    message = "远程备份完成"
+                else:
+                    raise Exception("从远程服务器拉取文件失败")
+
+            else:
+                # --- 原有本地备份逻辑 ---
+                if not os.path.exists(src):
+                    raise Exception(f"源路径不存在: {src}")
+                
+                if mode == "7z":
+                    output_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.7z")
+                    success, message = await asyncio.to_thread(
+                        cls._run_7z,
+                        src, output_path, 
+                        password=task.get("password"), 
+                        ignore_patterns=task.get("ignore_patterns"),
+                        level=task.get("compression_level", 1),
+                        storage_type=task.get("storage_type", "ssd")
+                    )
+                elif mode == "tar":
+                    output_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.tar.gz")
+                    success, message = await asyncio.to_thread(cls._run_tar, src, output_path, task.get("ignore_patterns"))
+                elif mode == "sync":
+                    output_path = os.path.join(dst_dir, base_name)
+                    success, message = await asyncio.to_thread(
+                        cls._run_sync,
+                        src, output_path, 
+                        ignore_patterns=task.get("ignore_patterns"),
+                        storage_type=task.get("storage_type", "ssd"),
+                        strategy=task.get("sync_strategy", "mirror")
+                    )
             
-            if mode == "7z":
-                output_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.7z")
-                success, message = await asyncio.to_thread(
-                    cls._run_7z,
-                    src, output_path, 
-                    password=task.get("password"), 
-                    ignore_patterns=task.get("ignore_patterns"),
-                    level=task.get("compression_level", 1),
-                    storage_type=task.get("storage_type", "ssd")
-                )
-            elif mode == "tar":
-                output_path = os.path.join(dst_dir, f"{base_name}_{timestamp}.tar.gz")
-                success, message = await asyncio.to_thread(cls._run_tar, src, output_path, task.get("ignore_patterns"))
-            elif mode == "sync":
-                output_path = os.path.join(dst_dir, base_name)
-                success, message = await asyncio.to_thread(
-                    cls._run_sync,
-                    src, output_path, 
-                    ignore_patterns=task.get("ignore_patterns"),
-                    storage_type=task.get("storage_type", "ssd"),
-                    strategy=task.get("sync_strategy", "mirror")
-                )
-            
-            if success and output_path:
-                if mode != "sync" and os.path.exists(output_path):
-                    total_size = os.path.getsize(output_path) / (1024 * 1024) # MB
+            if success and output_path and os.path.exists(output_path):
+                total_size = os.path.getsize(output_path) / (1024 * 1024) # MB
             
         except Exception as e:
             success = False
