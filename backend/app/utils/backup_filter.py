@@ -14,9 +14,11 @@ class BackupFilter:
         p = pattern.replace('\\', '/')
         # 转义正则特殊字符，但保留 * 和 ?
         p = re.escape(p).replace(r'\*', '.*').replace(r'\?', '.')
-        # 确保目录匹配逻辑：如果模式不含 /，则匹配文件名；如果含 /，则匹配路径
+        # 改进：支持路径片段匹配
+        # 如果模式不含 /，则匹配文件名或路径中的任何一级目录名
+        # 例如 .git 将匹配 .git/config 或 src/.git/HEAD
         if '/' not in pattern:
-            return re.compile(f"(^|/){p}$", re.IGNORECASE)
+            return re.compile(f"(^|/){p}(/|$)", re.IGNORECASE)
         return re.compile(f"^{p}", re.IGNORECASE)
 
     def is_ignored(self, path: str, is_dir: bool = False) -> bool:
