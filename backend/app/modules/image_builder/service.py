@@ -7,6 +7,7 @@ import hashlib
 import tempfile
 import docker
 import paramiko
+import requests
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -86,6 +87,16 @@ class ImageBuilderService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def update_registry(db: AsyncSession, registry_id: str, registry_in: schemas.RegistryUpdate) -> Optional[models.BuildRegistry]:
+        db_registry = await ImageBuilderService.get_registry(db, registry_id)
+        if not db_registry: return None
+        update_data = registry_in.dict(exclude_unset=True)
+        for key, value in update_data.items(): setattr(db_registry, key, value)
+        await db.commit()
+        await db.refresh(db_registry)
+        return db_registry
+
+    @staticmethod
     async def delete_registry(db: AsyncSession, registry_id: str) -> bool:
         db_registry = await ImageBuilderService.get_registry(db, registry_id)
         if not db_registry:
@@ -93,6 +104,55 @@ class ImageBuilderService:
         await db.delete(db_registry)
         await db.commit()
         return True
+
+    @staticmethod
+    async def test_registry(db: AsyncSession, registry_id: str):
+        registry = await ImageBuilderService.get_registry(db, registry_id)
+        if not registry:
+            return {"success": False, "message": "仓库配置不存在"}
+        
+        credential = None
+        if registry.credential_id:
+            credential = await ImageBuilderService.get_credential(db, registry.credential_id)
+        
+        # 1. 构造强制协议的 URL
+        raw_url = registry.url.replace("https://", "").replace("http://", "")
+        protocol = "https" if registry.is_https else "http"
+        api_url = f"{protocol}://{raw_url.rstrip('/')}/v2/"
+
+        # 2. 强一致性协议检测
+        try:
+            # 尝试连接用户选择的协议
+            requests.get(api_url, timeout=5, verify=False)
+        except Exception:
+            # 如果用户选了 HTTPS 但失败了，探测一下是不是其实只支持 HTTP
+            if registry.is_https:
+                try:
+                    http_test_url = f"http://{raw_url.rstrip('/')}/v2/"
+                    h_resp = requests.get(http_test_url, timeout=3)
+                    if h_resp.status_code in [200, 401]:
+                        return {"success": False, "message": f"❌ 协议不匹配: 该仓库似乎只支持 HTTP，请切换设置"}
+                except:
+                    pass
+            return {"success": False, "message": f"连接失败: 无法通过 {protocol.upper()} 访问该地址"}
+
+        # 3. 登录验证逻辑
+        if credential:
+            config = get_config()
+            hosts = config.get("docker_hosts", [])
+            host_config = hosts[0] if hosts else {"type": "local", "name": "Local Host"}
+            service = DockerService(host_config)
+            
+            login_cmd = f"echo \"{credential.encrypted_password}\" | docker login -u \"{credential.username}\" --password-stdin {raw_url}"
+            res = service.exec_command(login_cmd, log_error=False)
+            
+            if res["success"]:
+                return {"success": True, "message": f"✅ 登录成功: 协议和凭据均已验证"}
+            else:
+                err = res["stderr"] or res["stdout"]
+                return {"success": False, "message": f"鉴权失败: {err[:200]}"}
+        else:
+            return {"success": True, "message": f"✅ 连接成功 ({protocol.upper()}): 该地址有效"}
 
     # --- Credential CRUD ---
     @staticmethod
@@ -117,6 +177,20 @@ class ImageBuilderService:
     async def get_credential(db: AsyncSession, cred_id: str) -> Optional[models.BuildCredential]:
         result = await db.execute(select(models.BuildCredential).where(models.BuildCredential.id == cred_id))
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def update_credential(db: AsyncSession, cred_id: str, cred_in: schemas.CredentialUpdate) -> Optional[models.BuildCredential]:
+        db_cred = await ImageBuilderService.get_credential(db, cred_id)
+        if not db_cred: return None
+        update_data = cred_in.dict(exclude_unset=True)
+        if 'password' in update_data:
+            if update_data['password']: # 有输入新密码
+                db_cred.encrypted_password = update_data['password']
+            del update_data['password']
+        for key, value in update_data.items(): setattr(db_cred, key, value)
+        await db.commit()
+        await db.refresh(db_cred)
+        return db_cred
 
     @staticmethod
     async def delete_credential(db: AsyncSession, cred_id: str) -> bool:
@@ -145,6 +219,16 @@ class ImageBuilderService:
     async def get_proxy(db: AsyncSession, proxy_id: str) -> Optional[models.BuildProxy]:
         result = await db.execute(select(models.BuildProxy).where(models.BuildProxy.id == proxy_id))
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def update_proxy(db: AsyncSession, proxy_id: str, proxy_in: schemas.ProxyUpdate) -> Optional[models.BuildProxy]:
+        db_proxy = await ImageBuilderService.get_proxy(db, proxy_id)
+        if not db_proxy: return None
+        update_data = proxy_in.dict(exclude_unset=True)
+        for key, value in update_data.items(): setattr(db_proxy, key, value)
+        await db.commit()
+        await db.refresh(db_proxy)
+        return db_proxy
 
     @staticmethod
     async def delete_proxy(db: AsyncSession, proxy_id: str) -> bool:
@@ -202,7 +286,7 @@ class ImageBuilderService:
         return info
 
     @staticmethod
-    async def setup_buildx_env(host_id: str):
+    async def setup_buildx_env(host_id: str, proxy_id: Optional[str] = None):
         config = get_config()
         hosts = config.get("docker_hosts", [])
         host_config = next((h for h in hosts if h.get("id") == host_id), None)
@@ -212,22 +296,35 @@ class ImageBuilderService:
         service = DockerService(host_config)
         logs = []
         
+        # 获取代理配置
+        proxy_env = ""
+        if proxy_id:
+            from app.db.session import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                proxy = await ImageBuilderService.get_proxy(db, proxy_id)
+                if proxy:
+                    url = proxy.url
+                    if proxy.username and proxy.password:
+                        parsed = urlparse(url)
+                        netloc = f"{proxy.username}:{proxy.password}@{parsed.netloc}"
+                        url = urlunparse(parsed._replace(netloc=netloc))
+                    # 构造 buildx create 的环境变量参数
+                    proxy_env = f"--driver-opt env.http_proxy={url} --driver-opt env.https_proxy={url} --driver-opt env.no_proxy=localhost,127.0.0.1"
+                    logs.append(f"--- 绑定构建代理: {proxy.url} ---")
+
         # 1. Install QEMU binfmt handlers
         logs.append("正在安装 QEMU 多架构仿真支持...")
         res = service.exec_command("docker run --privileged --rm tonistiigi/binfmt --install all")
         logs.append(res["stdout"] + res["stderr"])
         
         # 2. Create specialized builder
-        logs.append("正在创建/启动专用构建器 (lens-builder)...")
-        # 检查是否已存在
-        check = service.exec_command("docker buildx inspect lens-builder")
-        if not check["success"]:
-            create_cmd = "docker buildx create --name lens-builder --driver docker-container --driver-opt network=host --use"
-            res = service.exec_command(create_cmd)
-            logs.append(res["stdout"] + res["stderr"])
-        else:
-            service.exec_command("docker buildx use lens-builder")
-            logs.append("专用构建器已存在，已切换为当前使用。 সন")
+        logs.append("正在清理并重建专用构建器 (lens-builder)...")
+        # 强制删除旧的，以便应用新的代理设置
+        service.exec_command("docker buildx rm lens-builder")
+        
+        create_cmd = f"docker buildx create --name lens-builder --driver docker-container --driver-opt network=host {proxy_env} --use"
+        res = service.exec_command(create_cmd)
+        logs.append(res["stdout"] + res["stderr"])
             
         # 3. Bootstrap
         service.exec_command("docker buildx inspect --bootstrap")
@@ -275,11 +372,10 @@ class ImageBuilderService:
 
         p = project_dict
         platforms = [plat.strip() for plat in p.get('platforms', 'linux/amd64').split(',') if plat.strip()]
-        use_buildx = len(platforms) > 1
-
+        
         final_status = "FAILED"
         try:
-            log_to_file(f"✅ 远程构建任务已启动... (主机: {host_config.get('name')}, 模式: {'Buildx' if use_buildx else '标准'})")
+            log_to_file(f"✅ 远程构建任务已启动... (主机: {host_config.get('name')})")
             
             # 1. Login
             if cred_dict:
@@ -306,15 +402,11 @@ class ImageBuilderService:
 
             # Prepare tags
             reg_url = p.get('registry_url', 'docker.io')
-            
-            # 改进的解析逻辑
             if "://" in reg_url:
                 reg_host = urlparse(reg_url).netloc
             else:
-                # 尝试解析带端口的 IP 或域名
                 reg_host = urlparse(f"https://{reg_url}").netloc
-                if not reg_host:
-                    reg_host = reg_url.split('/')[0]
+                if not reg_host: reg_host = reg_url.split('/')[0]
 
             is_dockerhub = reg_host in ["docker.io", "index.docker.io", "registry-1.docker.io", ""]
             
@@ -322,7 +414,6 @@ class ImageBuilderService:
                 repo_base = p['repo_image_name']
                 log_to_file(f"--- 目标仓库判定为: Docker Hub ---")
             else:
-                # 确保 repo_base 包含完整的 registry 地址
                 repo_base = f"{reg_host}/{p['repo_image_name']}".replace("//", "/")
                 log_to_file(f"--- 目标仓库判定为私有仓库: {reg_host} ---")
             
@@ -331,7 +422,6 @@ class ImageBuilderService:
             # Cache Strategy
             cache_args = []
             if not p.get('no_cache'):
-                # 尝试复用远程 Registry 缓存，并以内联模式导出新缓存
                 primary_tag = tags[0]
                 cache_args.append(f"--cache-from=type=registry,ref={repo_base}:{primary_tag}")
                 cache_args.append("--cache-to=type=inline")
@@ -340,11 +430,20 @@ class ImageBuilderService:
                 cache_args.append("--no-cache")
                 log_to_file("--- ⚡ 缓存策略: 强制无缓存构建 ---")
 
-            # 统一使用 buildx build 以获得更好的缓存和推送支持
-            log_to_file(f"\n--- 开始远程构建与推送 (平台: {','.join(platforms)}, Tags: {' / '.join(tags)}) ---")
-            build_cmd = f"docker buildx build --platform {','.join(platforms)} -f {p['dockerfile_path']} {tag_args} {' '.join(build_args)} {' '.join(cache_args)} --push ."
+            # Unify build logic
+            log_to_file(f"\n--- 正在准备构建环境 ---")
             
-            # Execute build in build_context
+            # 自动探测构建器
+            builder_to_use = "default"
+            check_builder = service.exec_command("docker buildx inspect lens-builder", log_error=False)
+            if check_builder["success"]:
+                builder_to_use = "lens-builder"
+                log_to_file(f"--- 🚀 构建模式: 专用容器构建 (Builder: lens-builder, Driver: docker-container) ---")
+            else:
+                log_to_file(f"--- 💻 构建模式: 宿主机原生构建 (Builder: default, Driver: docker) ---")
+
+            log_to_file(f"--- 开始远程构建与推送 (平台: {','.join(platforms)}, Tags: {' / '.join(tags)}) ---")
+            build_cmd = f"docker buildx build --builder {builder_to_use} --platform {','.join(platforms)} -f {p['dockerfile_path']} {tag_args} {' '.join(build_args)} {' '.join(cache_args)} --push ."
             log_to_file(f"执行命令: {build_cmd}")
             
             if host_config.get("type") == "ssh":
@@ -358,24 +457,27 @@ class ImageBuilderService:
                 
                 while not stdout.channel.exit_status_ready():
                     if stdout.channel.recv_ready():
-                        line = stdout.channel.recv(1024).decode('utf-8', 'ignore')
-                        log_to_file(line)
+                        log_to_file(stdout.channel.recv(1024).decode('utf-8', 'ignore'))
                     if stderr.channel.recv_stderr_ready():
-                        line = stderr.channel.recv_stderr(1024).decode('utf-8', 'ignore')
-                        log_to_file(line)
+                        log_to_file(stderr.channel.recv_stderr(1024).decode('utf-8', 'ignore'))
                     import time
-                    time.sleep(0.1) if not stdout.channel.exit_status_ready() else None
+                    time.sleep(0.1)
+                
+                while stdout.channel.recv_ready():
+                    log_to_file(stdout.channel.recv(1024).decode('utf-8', 'ignore'))
+                while stderr.channel.recv_stderr_ready():
+                    log_to_file(stderr.channel.recv_stderr(1024).decode('utf-8', 'ignore'))
                 
                 exit_status = stdout.channel.recv_exit_status()
-                if exit_status == 0:
-                    final_status = "SUCCESS"
+                log_to_file(f"--- 进程退出，退出码: {exit_status} ---")
+                if exit_status == 0: final_status = "SUCCESS"
                 ssh.close()
             else:
                 res = service.exec_command(build_cmd, cwd=p['build_context'])
                 log_to_file(res["stdout"])
                 log_to_file(res["stderr"])
-                if res["success"]:
-                    final_status = "SUCCESS"
+                log_to_file(f"--- 本地进程执行完毕，结果: {'成功' if res['success'] else '失败'} ---")
+                if res["success"]: final_status = "SUCCESS"
 
             if final_status == "SUCCESS":
                 log_to_file("\n--- ✅ 构建任务成功完成! ---")
@@ -397,65 +499,37 @@ class ImageBuilderService:
         config = get_config()
         hosts = config.get("docker_hosts", [])
         host_config = next((h for h in hosts if h.get("id") == project.host_id), None)
-        if not host_config:
-            host_config = {"type": "local", "name": "Local Host"}
+        if not host_config: host_config = {"type": "local", "name": "Local Host"}
 
-        registry = None
-        if project.registry_id:
-            registry = await ImageBuilderService.get_registry(db, project.registry_id)
-        
-        credential = None
-        if registry and registry.credential_id:
-            credential = await ImageBuilderService.get_credential(db, registry.credential_id)
-        
-        proxy = None
-        if project.proxy_id:
-            proxy = await ImageBuilderService.get_proxy(db, project.proxy_id)
+        registry = await ImageBuilderService.get_registry(db, project.registry_id) if project.registry_id else None
+        credential = await ImageBuilderService.get_credential(db, registry.credential_id) if registry and registry.credential_id else None
+        proxy = await ImageBuilderService.get_proxy(db, project.proxy_id) if project.proxy_id else None
         
         task_id = await ImageBuilderService.create_task_log(db, project_id, tag)
         
         project_dict = {
-            "name": project.name,
-            "build_context": project.build_context,
-            "dockerfile_path": project.dockerfile_path,
-            "local_image_name": project.local_image_name,
-            "repo_image_name": project.repo_image_name,
-            "no_cache": project.no_cache,
-            "auto_cleanup": project.auto_cleanup,
-            "platforms": project.platforms,
+            "name": project.name, "build_context": project.build_context,
+            "dockerfile_path": project.dockerfile_path, "local_image_name": project.local_image_name,
+            "repo_image_name": project.repo_image_name, "no_cache": project.no_cache,
+            "auto_cleanup": project.auto_cleanup, "platforms": project.platforms,
             "registry_url": registry.url if registry else "docker.io",
             "is_https": registry.is_https if registry else True
         }
         
-        cred_dict = None
-        if credential:
-            cred_dict = {
-                "username": credential.username,
-                "encrypted_password": credential.encrypted_password,
-                "registry_url": registry.url if registry else "docker.io"
-            }
-            
-        proxy_dict = {
-            "url": proxy.url,
-            "username": proxy.username,
-            "password": proxy.password
-        } if proxy else None
+        cred_dict = {"username": credential.username, "encrypted_password": credential.encrypted_password, "registry_url": registry.url} if credential else None
+        proxy_dict = {"url": proxy.url, "username": proxy.username, "password": proxy.password} if proxy else None
 
         def task_wrapper():
             from app.db.session import AsyncSessionLocal
             import asyncio
-            
             status = ImageBuilderService.run_docker_task_sync(task_id, project_dict, tag, cred_dict, proxy_dict, host_config)
-            
             async def update_db():
                 async with AsyncSessionLocal() as new_db:
                     await ImageBuilderService.update_task_status(new_db, task_id, status)
-            
             try:
                 loop = asyncio.new_event_loop()
                 loop.run_until_complete(update_db())
-            except:
-                pass
+            except: pass
 
         asyncio.create_task(asyncio.to_thread(task_wrapper))
         return task_id

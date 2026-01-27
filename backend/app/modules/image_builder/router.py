@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from app.db.session import get_db
 from . import schemas, models, service
 
@@ -46,12 +46,22 @@ async def get_registries(db: AsyncSession = Depends(get_db)):
 async def create_registry(registry: schemas.RegistryCreate, db: AsyncSession = Depends(get_db)):
     return await Service.create_registry(db, registry)
 
+@router.put("/registries/{registry_id}", response_model=schemas.Registry)
+async def update_registry(registry_id: str, registry_in: schemas.RegistryUpdate, db: AsyncSession = Depends(get_db)):
+    registry = await Service.update_registry(db, registry_id, registry_in)
+    if not registry: raise HTTPException(status_code=404, detail="Registry not found")
+    return registry
+
 @router.delete("/registries/{registry_id}")
 async def delete_registry(registry_id: str, db: AsyncSession = Depends(get_db)):
     success = await Service.delete_registry(db, registry_id)
     if not success:
         raise HTTPException(status_code=404, detail="Registry not found")
     return {"status": "success"}
+
+@router.post("/registries/{registry_id}/test")
+async def test_registry(registry_id: str, db: AsyncSession = Depends(get_db)):
+    return await Service.test_registry(db, registry_id)
 
 # --- Credential Endpoints ---
 @router.get("/credentials", response_model=List[schemas.Credential])
@@ -61,6 +71,12 @@ async def get_credentials(db: AsyncSession = Depends(get_db)):
 @router.post("/credentials", response_model=schemas.Credential)
 async def create_credential(cred: schemas.CredentialCreate, db: AsyncSession = Depends(get_db)):
     return await Service.create_credential(db, cred)
+
+@router.put("/credentials/{cred_id}", response_model=schemas.Credential)
+async def update_credential(cred_id: str, cred_in: schemas.CredentialUpdate, db: AsyncSession = Depends(get_db)):
+    cred = await Service.update_credential(db, cred_id, cred_in)
+    if not cred: raise HTTPException(status_code=404, detail="Credential not found")
+    return cred
 
 @router.delete("/credentials/{cred_id}")
 async def delete_credential(cred_id: str, db: AsyncSession = Depends(get_db)):
@@ -78,6 +94,12 @@ async def get_proxies(db: AsyncSession = Depends(get_db)):
 async def create_proxy(proxy: schemas.ProxyCreate, db: AsyncSession = Depends(get_db)):
     return await Service.create_proxy(db, proxy)
 
+@router.put("/proxies/{proxy_id}", response_model=schemas.Proxy)
+async def update_proxy(proxy_id: str, proxy_in: schemas.ProxyUpdate, db: AsyncSession = Depends(get_db)):
+    proxy = await Service.update_proxy(db, proxy_id, proxy_in)
+    if not proxy: raise HTTPException(status_code=404, detail="Proxy not found")
+    return proxy
+
 @router.delete("/proxies/{proxy_id}")
 async def delete_proxy(proxy_id: str, db: AsyncSession = Depends(get_db)):
     success = await Service.delete_proxy(db, proxy_id)
@@ -90,8 +112,8 @@ async def get_system_info(host_id: str):
     return await Service.get_system_info(host_id)
 
 @router.post("/setup-env")
-async def setup_env(host_id: str = Body(..., embed=True)):
-    return await Service.setup_buildx_env(host_id)
+async def setup_env(host_id: str = Body(..., embed=True), proxy_id: Optional[str] = Body(None, embed=True)):
+    return await Service.setup_buildx_env(host_id, proxy_id)
 
 # --- Task Endpoints ---
 @router.post("/projects/{project_id}/build")

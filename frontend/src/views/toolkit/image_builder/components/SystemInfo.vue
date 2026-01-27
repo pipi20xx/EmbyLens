@@ -60,14 +60,20 @@
           </n-card>
         </n-gi>
       </n-grid>
-      <n-space justify="center" style="margin-top: 20px" size="large">
-        <n-button @click="fetchInfo" :loading="loading" secondary type="primary">手动刷新环境状态</n-button>
-        <n-button @click="handleRepair" :loading="fixing" type="warning" ghost>
-          <template #icon>
-            <n-icon><RepairIcon /></n-icon>
-          </template>
-          一键初始化/修复构建环境
-        </n-button>
+      <n-space vertical size="small" align="center" style="margin-top: 20px">
+        <n-space align="center">
+          <n-text depth="3">初始化环境时绑定代理:</n-text>
+          <n-select v-model:value="selectedProxyId" :options="proxyOptions" placeholder="不使用代理" clearable style="width: 200px" size="small" />
+        </n-space>
+        <n-space justify="center" size="large">
+          <n-button @click="fetchInfo" :loading="loading" secondary type="primary">手动刷新环境状态</n-button>
+          <n-button @click="handleRepair" :loading="fixing" type="warning" ghost>
+            <template #icon>
+              <n-icon><RepairIcon /></n-icon>
+            </template>
+            一键初始化/修复构建环境
+          </n-button>
+        </n-space>
       </n-space>
     </n-space>
   </div>
@@ -99,11 +105,18 @@ const loading = ref(false)
 const fixing = ref(false)
 const selectedHostId = ref(null)
 const hostOptions = ref([])
+const proxyOptions = ref([])
+const selectedProxyId = ref(null)
 
 const fetchHosts = async () => {
   try {
-    const res = await axios.get('/api/docker/hosts')
-    hostOptions.value = res.data.map((h: any) => ({ label: h.name, value: h.id }))
+    const [hRes, pRes] = await Promise.all([
+      axios.get('/api/docker/hosts'),
+      axios.get('/api/image-builder/proxies')
+    ])
+    hostOptions.value = hRes.data.map((h: any) => ({ label: h.name, value: h.id }))
+    proxyOptions.value = pRes.data.map((p: any) => ({ label: p.name, value: p.id }))
+    
     if (hostOptions.value.length > 0 && !selectedHostId.value) {
       selectedHostId.value = hostOptions.value[0].value
       fetchInfo()
@@ -135,7 +148,10 @@ const handleRepair = () => {
     onPositiveClick: async () => {
       fixing.value = true
       try {
-        const res = await axios.post('/api/image-builder/setup-env', { host_id: selectedHostId.value })
+        const res = await axios.post('/api/image-builder/setup-env', { 
+          host_id: selectedHostId.value,
+          proxy_id: selectedProxyId.value
+        })
         if (res.data.success) {
           message.success('构建环境初始化成功')
           fetchInfo()
