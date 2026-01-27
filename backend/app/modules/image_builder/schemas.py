@@ -17,6 +17,7 @@ class CredentialUpdate(BaseModel):
 
 class Credential(CredentialBase):
     id: str
+    encrypted_password: str
     class Config:
         from_attributes = True
 

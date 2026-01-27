@@ -280,7 +280,8 @@ import {
   TerminalRound as TerminalIcon,
   AdminPanelSettingsRound as SecurityIcon,
   PersonOutlineRound as ProfileIcon,
-  NotificationsActiveRound as NotificationIcon
+  NotificationsActiveRound as NotificationIcon,
+  CloudUploadRound as BuildIcon
 } from '@vicons/material'
 import { currentViewKey } from '../store/navigationStore'
 
@@ -419,6 +420,12 @@ const otherTools = [
     key: 'DockerManagerView', 
     icon: markRaw(DockerIcon), 
     desc: '本地与远程 Docker 容器运维' 
+  },
+  { 
+    label: '镜像构建与推送', 
+    key: 'ImageBuilderView', 
+    icon: markRaw(BuildIcon), 
+    desc: '多架构镜像构建、推送与远程缓存' 
   },
   { 
     label: '系统终端管理', 

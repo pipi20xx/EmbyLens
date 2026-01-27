@@ -42,8 +42,8 @@
     </n-modal>
 
     <!-- Credential Modal -->
-    <n-modal v-model:show="showCredModal" preset="card" :title="editCredMode ? '编辑凭据' : '添加凭据'" style="width: 450px">
-      <n-form :model="credForm" label-placement="left" label-width="100">
+    <n-modal v-model:show="showCredModal" preset="card" :title="editCredMode ? '编辑凭据' : '添加凭据'" style="width: 600px">
+      <n-form :model="credForm" label-placement="left" label-width="120">
         <n-form-item label="名称">
           <n-input v-model:value="credForm.name" placeholder="例如: my-docker-hub-login" />
         </n-form-item>
@@ -51,7 +51,7 @@
           <n-input v-model:value="credForm.username" />
         </n-form-item>
         <n-form-item label="密码/Token">
-          <n-input v-model:value="credForm.password" type="password" show-password-on="click" :placeholder="editCredMode ? '留空表示不修改' : ''" />
+          <n-input v-model:value="credForm.password" placeholder="请输入密码或仓库 Token" />
         </n-form-item>
         <n-space justify="end">
           <n-button @click="showCredModal = false">取消</n-button>
@@ -167,7 +167,11 @@ const openCredModal = (row: any = null) => {
   if (row) {
     editCredMode.value = true
     currentCredId.value = row.id
-    credForm.value = { name: row.name, username: row.username, password: '' }
+    credForm.value = { 
+      name: row.name, 
+      username: row.username, 
+      password: row.encrypted_password || '' 
+    }
   } else {
     editCredMode.value = false
     credForm.value = { name: '', username: '', password: '' }
