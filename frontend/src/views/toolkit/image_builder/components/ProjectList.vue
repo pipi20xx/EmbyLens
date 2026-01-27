@@ -201,6 +201,7 @@ const saveProject = async () => {
   try {
     if (editMode.value) { await axios.put(`/api/image-builder/projects/${currentProjectId.value}`, form.value) }
     else { await axios.post('/api/image-builder/projects', form.value) }
+    message.success('保存成功')
     showModal.value = false
     fetchProjects()
   } catch (e) { message.error('保存失败') }

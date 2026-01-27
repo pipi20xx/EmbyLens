@@ -83,6 +83,7 @@ class ProjectCreate(ProjectBase):
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
+    host_id: Optional[str] = None
     build_context: Optional[str] = None
     dockerfile_path: Optional[str] = None
     local_image_name: Optional[str] = None
