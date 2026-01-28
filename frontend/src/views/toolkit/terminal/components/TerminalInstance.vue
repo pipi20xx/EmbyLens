@@ -31,7 +31,9 @@ const initTerminal = () => {
   term = new Terminal({
     cursorBlink: true,
     fontSize: 14,
+    lineHeight: 1.2,
     fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    convertEol: true,
     theme: { 
       background: bodyColor, 
       foreground: textColor,

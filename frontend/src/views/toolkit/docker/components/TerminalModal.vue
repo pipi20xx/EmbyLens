@@ -47,6 +47,8 @@ const initTerminal = () => {
     cursorBlink: true,
     fontFamily: '"Fira Code", monospace',
     fontSize: 14,
+    lineHeight: 1.2,
+    convertEol: true,
     theme: {
       background: '#1e1e1e'
     }
