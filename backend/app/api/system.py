@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends, HTTPException, Request
+from fastapi import APIRouter, Query, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import PlainTextResponse, HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
@@ -14,6 +14,7 @@ from datetime import datetime
 import os
 import secrets
 import asyncio
+import json
 
 router = APIRouter()
 
@@ -513,5 +514,42 @@ async def export_log_by_date(date: str):
     lines.reverse()
 
     return "\n".join(lines)
+
+
+
+@router.get("/config/export", summary="导出全局配置")
+async def export_config():
+    """导出 config.json"""
+    config = get_config()
+    # 返回格式化的 JSON
+    return PlainTextResponse(
+        json.dumps(config, indent=4, ensure_ascii=False),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=lens_config_{datetime.now().strftime('%Y%m%d')}.json"}
+    )
+
+@router.post("/config/import", summary="导入全局配置")
+async def import_config(file: UploadFile = File(...)):
+    """导入并覆盖 config.json"""
+    try:
+        content = await file.read()
+        new_config = json.loads(content)
+        
+        if not isinstance(new_config, dict):
+            raise HTTPException(status_code=400, detail="无效的配置文件格式")
+            
+        from app.core.config_manager import save_config
+        save_config(new_config)
+        
+        # 触发关键服务的重载
+        from app.services.backup_service import BackupService
+        await BackupService.reload_tasks()
+        
+        return {"message": "配置已导入，部分服务已重载"}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="JSON 解析失败")
+    except Exception as e:
+        logger.error(f"导入配置失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

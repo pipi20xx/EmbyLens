@@ -110,7 +110,34 @@
             </template>
           </n-card>
 
-          <!-- 4. 调试：全局配置快照 -->
+          <!-- 4. 配置备份与恢复 -->
+          <n-card title="配置备份与恢复" size="small" segmented>
+            <template #header-extra>
+              <n-icon size="20" color="var(--primary-color)"><BackupIcon /></n-icon>
+            </template>
+            <n-space justify="space-between" align="center">
+              <n-text depth="3">您可以导出当前的全局配置文件 (config.json) 进行备份，或在迁移环境时导入旧配置。</n-text>
+              <n-space>
+                <n-button secondary @click="handleExportConfig">
+                  <template #icon><n-icon><ExportIcon /></n-icon></template>
+                  导出配置
+                </n-button>
+                <n-button type="primary" ghost @click="triggerImportConfig">
+                  <template #icon><n-icon><ImportIcon /></n-icon></template>
+                  导入配置
+                </n-button>
+                <input 
+                  type="file" 
+                  ref="fileInputRef" 
+                  style="display: none" 
+                  accept=".json" 
+                  @change="handleImportConfig" 
+                />
+              </n-space>
+            </n-space>
+          </n-card>
+
+          <!-- 5. 调试：全局配置快照 -->
           <n-card title="调试：全局配置快照" embedded :bordered="false">
             <template #header-extra>
               <n-button quaternary size="tiny" @click="copyConfig">复制 JSON</n-button>
@@ -143,7 +170,10 @@ import {
   DnsOutlined as ServerIcon,
   ApiOutlined as ApiIcon,
   LanguageOutlined as ProxyIcon,
-  AddOutlined as AddIcon
+  AddOutlined as AddIcon,
+  CloudDownloadOutlined as ExportIcon,
+  CloudUploadOutlined as ImportIcon,
+  SaveAsOutlined as BackupIcon
 } from '@vicons/material'
 import axios from 'axios'
 import { servers, activeServerId, fetchServers, activateServer } from '../store/serverStore'
@@ -154,6 +184,7 @@ const message = useMessage()
 const savingGlobal = ref(false)
 const showServerModal = ref(false)
 const editingServer = ref(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const globalConfig = reactive({
   tmdb_api_key: '',
@@ -164,6 +195,35 @@ const globalConfig = reactive({
     exclude_emby: true
   }
 })
+
+const handleExportConfig = () => {
+  window.open('/api/system/config/export', '_blank')
+}
+
+const triggerImportConfig = () => {
+  fileInputRef.value?.click()
+}
+
+const handleImportConfig = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  
+  const file = input.files[0]
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  try {
+    await axios.post('/api/system/config/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    message.success('配置导入成功，页面将刷新以应用更改')
+    setTimeout(() => location.reload(), 1500)
+  } catch (e: any) {
+    message.error('导入失败: ' + (e.response?.data?.detail || '未知错误'))
+  } finally {
+    input.value = '' // reset
+  }
+}
 
 const fetchCurrent = async () => {
   await fetchServers()
