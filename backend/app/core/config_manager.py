@@ -81,19 +81,16 @@ def normalize_config(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             # 关键防御：如果默认值是字典，但原始数据是 null，则保留默认字典
             if isinstance(full_config[key], dict):
                 if isinstance(val, dict):
-                    # 进行二级合并，确保子字段完整
-                    sub = full_config[key]
-                    # 注意：这里我们只合并一级字典，如果有多级嵌套可能需要递归，
-                    # 但目前 DEFAULT_CONFIG 最深只有一级字典（如 proxy, webhook），
-                    # 所以 update 是安全的。
-                    # 如果需要更深度的合并，可以改进。
-                    # 但为了防止旧配置缺失新加的子字段：
-                    for sub_key, sub_val in sub.items():
-                        if sub_key in val:
-                             # 如果子值是 None，是否要覆盖？这里假设 val 中的值是有效的
-                             if val[sub_key] is not None:
-                                 sub[sub_key] = val[sub_key]
-                    full_config[key] = sub
+                    if not full_config[key]:
+                        # 如果默认值是空字典，直接接受全部数据 (动态字典)
+                        full_config[key] = val
+                    else:
+                        # 进行二级合并，确保子字段完整
+                        sub = copy.deepcopy(full_config[key])
+                        for k, v in val.items():
+                            if v is not None:
+                                sub[k] = v
+                        full_config[key] = sub
                 else:
                     # 原始数据非法（如为 null 或类型不对），维持默认值
                     pass
