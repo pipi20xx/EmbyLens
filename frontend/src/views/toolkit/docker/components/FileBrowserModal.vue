@@ -38,7 +38,15 @@
               >
                 设为扫描路径
               </n-button>
-              <n-button v-else size="small" tertiary @click.stop="viewFile(item.path)">查看</n-button>
+
+              <n-button 
+                v-if="item.is_dir"
+                size="small" type="info" quaternary @click.stop="createBackup(item)"
+              >
+                设为SSH备份
+              </n-button>
+
+              <n-button v-if="!item.is_dir" size="small" tertiary @click.stop="viewFile(item.path)">查看</n-button>
             </n-space>
           </template>
         </n-list-item>
@@ -110,7 +118,7 @@
 import { ref, watch, computed, reactive } from 'vue'
 import { 
   NModal, NSpace, NBreadcrumb, NBreadcrumbItem, NList, NListItem, NText, NButton, 
-  NIcon, NForm, NFormItem, NInput, NCheckbox, NTable, NGrid, NGi, NInputGroup, NInputGroupLabel, useMessage 
+  NIcon, NForm, NFormItem, NInput, NCheckbox, NTable, NGrid, NGi, NInputGroup, NInputGroupLabel, useMessage, useDialog 
 } from 'naive-ui'
 import { 
   FolderOutlined as FolderIcon,
@@ -128,6 +136,7 @@ const props = defineProps<{
 const emit = defineEmits(['update:show', 'select', 'remove'])
 
 const message = useMessage()
+const dialog = useDialog()
 const items = ref<any[]>([])
 const currentPath = ref('/')
 const show = ref(props.show)
@@ -147,6 +156,25 @@ const permissionForm = reactive({
   is_dir: false,
   recursive: false
 })
+
+const createBackup = (item: any) => {
+  dialog.info({
+    title: '创建 SSH 备份',
+    content: `确定要为文件夹 ${item.name} 创建一个 SSH 自动备份任务吗？`,
+    positiveText: '确认创建',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await axios.post(`/api/docker/compose/${props.hostId}/create-folder-backup`, { 
+          path: item.path 
+        })
+        message.success('备份任务已创建')
+      } catch (e: any) {
+        message.error('创建失败: ' + (e.response?.data?.detail || '未知错误'))
+      }
+    }
+  })
+}
 
 const permMatrix = reactive({
   owner: { read: true, write: true, execute: true },

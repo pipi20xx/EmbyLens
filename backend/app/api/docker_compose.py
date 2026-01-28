@@ -257,3 +257,42 @@ async def create_project_backup_task(host_id: str, name: str, path: str = Body(.
     
     await BackupService.reload_tasks()
     return new_task
+
+@router.post("/{host_id}/create-folder-backup")
+async def create_folder_backup(host_id: str, path: str = Body(..., embed=True), name: Optional[str] = Body(None, embed=True)):
+    """为指定文件夹创建备份任务"""
+    import uuid
+    from app.services.backup_service import BackupService
+    
+    config = get_config()
+    tasks = config.get("backup_tasks", [])
+    
+    # path implies the directory to backup
+    src_path = path
+    folder_name = os.path.basename(path.rstrip('/'))
+    task_name = name or f"Folder: {folder_name}"
+    
+    # 默认备份目的地：data/backups/ssh_folders
+    dst_path = os.path.abspath("data/backups/ssh_folders")
+    if not os.path.exists(dst_path):
+        os.makedirs(dst_path, exist_ok=True)
+    
+    new_task = {
+        "id": str(uuid.uuid4())[:8],
+        "name": task_name,
+        "mode": "7z" if host_id == "local" else "tar", 
+        "src_path": src_path,
+        "dst_path": dst_path,
+        "enabled": True,
+        "schedule_type": "cron",
+        "schedule_value": "0 3 * * *", # 默认凌晨3点
+        "host_id": host_id,
+        "ignore_patterns": ["node_modules", ".git", "__pycache__"]
+    }
+    
+    tasks.append(new_task)
+    config["backup_tasks"] = tasks
+    save_config(config)
+    
+    await BackupService.reload_tasks()
+    return new_task
