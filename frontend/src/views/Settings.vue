@@ -38,10 +38,11 @@
                     <n-space>
                       <n-button size="tiny" secondary @click="openEditModal(s)">配置</n-button>
                       <n-button v-if="s.id !== activeServerId" size="tiny" type="primary" secondary @click="handleActivate(s.id)">激活</n-button>
-                      <n-popconfirm @positive-click="handleDelete(s.id)" title="确定要删除此服务器配置吗？">
+                      <n-popconfirm @positive-click="handleDelete(s.id)" positive-text="确认" negative-text="取消">
                         <template #trigger>
                           <n-button size="tiny" type="error" quaternary>删除</n-button>
                         </template>
+                        确定要删除此服务器配置吗？
                       </n-popconfirm>
                     </n-space>
                   </td>
