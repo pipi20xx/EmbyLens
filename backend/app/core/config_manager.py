@@ -1,5 +1,6 @@
 import json
 import os
+import copy
 from typing import Dict, Any
 
 CONFIG_FILE = "data/config.json"
@@ -59,67 +60,89 @@ DEFAULT_CONFIG = {
     "build_proxies": []
 }
 
-def get_config() -> Dict[str, Any]:
-    """从 config.json 读取配置，强制执行深度类型检查，防止 null 值破坏前端"""
-    full_config = DEFAULT_CONFIG.copy()
+def normalize_config(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    标准化配置数据：
+    1. 确保所有字段都存在且类型正确（基于 DEFAULT_CONFIG）。
+    2. 处理旧版本数据的兼容性迁移。
+    3. 剔除不在默认配置中的未知字段（可选，目前保留严格结构）。
+    """
+    if not raw_data or not isinstance(raw_data, dict):
+        return copy.deepcopy(DEFAULT_CONFIG)
+
+    #以此为基准，确保结构完整
+    full_config = copy.deepcopy(DEFAULT_CONFIG)
+
+    # 基础字段合并
+    for key in full_config.keys():
+        if key in raw_data:
+            val = raw_data[key]
+            
+            # 关键防御：如果默认值是字典，但原始数据是 null，则保留默认字典
+            if isinstance(full_config[key], dict):
+                if isinstance(val, dict):
+                    # 进行二级合并，确保子字段完整
+                    sub = full_config[key]
+                    # 注意：这里我们只合并一级字典，如果有多级嵌套可能需要递归，
+                    # 但目前 DEFAULT_CONFIG 最深只有一级字典（如 proxy, webhook），
+                    # 所以 update 是安全的。
+                    # 如果需要更深度的合并，可以改进。
+                    # 但为了防止旧配置缺失新加的子字段：
+                    for sub_key, sub_val in sub.items():
+                        if sub_key in val:
+                             # 如果子值是 None，是否要覆盖？这里假设 val 中的值是有效的
+                             if val[sub_key] is not None:
+                                 sub[sub_key] = val[sub_key]
+                    full_config[key] = sub
+                else:
+                    # 原始数据非法（如为 null 或类型不对），维持默认值
+                    pass
+            elif isinstance(full_config[key], list):
+                if isinstance(val, list):
+                    full_config[key] = val
+                else:
+                    full_config[key] = []
+            else:
+                full_config[key] = val if val is not None else full_config[key]
+
+    # 兼容性迁移逻辑：如果 emby_servers 为空，但存在旧的 url/api_key 配置，则迁移至列表
+    if not full_config.get("emby_servers") and full_config.get("url"):
+        import uuid
+        server_id = str(uuid.uuid4())
+        old_server = {
+            "id": server_id,
+            "name": full_config.get("name", "默认服务器"),
+            "url": full_config.get("url"),
+            "api_key": full_config.get("api_key"),
+            "user_id": full_config.get("user_id"),
+            "username": full_config.get("username"),
+            "password": full_config.get("password"),
+            "session_token": full_config.get("session_token")
+        }
+        full_config["emby_servers"] = [old_server]
+        full_config["active_server_id"] = server_id
     
+    return full_config
+
+def get_config() -> Dict[str, Any]:
+    """从 config.json 读取配置，并确保结构完整性"""
     if not os.path.exists(CONFIG_FILE):
-        return full_config
+        return copy.deepcopy(DEFAULT_CONFIG)
     
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
-            if not raw_data or not isinstance(raw_data, dict):
-                return full_config
-            
-            # 基础字段合并
-            for key in full_config.keys():
-                if key in raw_data:
-                    val = raw_data[key]
-                    
-                    # 关键防御：如果默认值是字典，但原始数据是 null，则保留默认字典
-                    if isinstance(full_config[key], dict):
-                        if isinstance(val, dict):
-                            # 进行二级合并
-                            sub = full_config[key].copy()
-                            sub.update(val)
-                            full_config[key] = sub
-                        else:
-                            # 原始数据非法（如为 null），维持默认值
-                            pass
-                    elif isinstance(full_config[key], list):
-                        if isinstance(val, list):
-                            full_config[key] = val
-                        else:
-                            full_config[key] = []
-                    else:
-                        full_config[key] = val if val is not None else full_config[key]
-            
-            # 兼容性迁移逻辑：如果 emby_servers 为空，但存在旧的 url/api_key 配置，则迁移至列表
-            if not full_config.get("emby_servers") and full_config.get("url"):
-                import uuid
-                server_id = str(uuid.uuid4())
-                old_server = {
-                    "id": server_id,
-                    "name": full_config.get("name", "默认服务器"),
-                    "url": full_config.get("url"),
-                    "api_key": full_config.get("api_key"),
-                    "user_id": full_config.get("user_id"),
-                    "username": full_config.get("username"),
-                    "password": full_config.get("password"),
-                    "session_token": full_config.get("session_token")
-                }
-                full_config["emby_servers"] = [old_server]
-                full_config["active_server_id"] = server_id
-                # 迁移后立即保存
-                save_config(full_config)
-                        
-            return full_config
+            return normalize_config(raw_data)
     except Exception:
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
 def save_config(config_data: Dict[str, Any]):
     """将配置保存到 config.json，保存前确保没有非法 null"""
+    from app.utils.config_backup import auto_backup_file
+    
+    # 自动备份旧版本
+    auto_backup_file(CONFIG_FILE)
+    
     os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=4, ensure_ascii=False)

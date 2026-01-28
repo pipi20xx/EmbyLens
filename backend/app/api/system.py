@@ -533,19 +533,22 @@ async def import_config(file: UploadFile = File(...)):
     """导入并覆盖 config.json"""
     try:
         content = await file.read()
-        new_config = json.loads(content)
+        raw_config = json.loads(content)
         
-        if not isinstance(new_config, dict):
+        if not isinstance(raw_config, dict):
             raise HTTPException(status_code=400, detail="无效的配置文件格式")
             
-        from app.core.config_manager import save_config
+        from app.core.config_manager import save_config, normalize_config
+        
+        # 使用标准化逻辑处理导入的配置，确保兼容性和完整性
+        new_config = normalize_config(raw_config)
         save_config(new_config)
         
         # 触发关键服务的重载
         from app.services.backup_service import BackupService
         await BackupService.reload_tasks()
         
-        return {"message": "配置已导入，部分服务已重载"}
+        return {"message": "配置已导入，并已执行兼容性检查与服务重载"}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="JSON 解析失败")
     except Exception as e:

@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import copy
 from typing import List, Dict, Any, Optional
 
 NAV_FILE = "data/navigation.json"
@@ -29,25 +30,51 @@ DEFAULT_NAV = {
     }
 }
 
+def normalize_nav_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    标准化导航数据：确保结构完整且兼容新旧版本
+    """
+    if not isinstance(data, dict):
+        return copy.deepcopy(DEFAULT_NAV)
+        
+    full_data = copy.deepcopy(DEFAULT_NAV)
+    
+    # Categories: 如果存在且是列表则采用，否则保持默认
+    if "categories" in data and isinstance(data["categories"], list):
+        full_data["categories"] = data["categories"]
+        
+    # Sites: 同上
+    if "sites" in data and isinstance(data["sites"], list):
+        full_data["sites"] = data["sites"]
+        
+    # Settings: 深度合并
+    if "settings" in data and isinstance(data["settings"], dict):
+        user_settings = data["settings"]
+        # 以默认设置为底板
+        merged_settings = full_data["settings"]
+        
+        # 覆盖用户设置
+        merged_settings.update(user_settings)
+        
+        # 确保所有默认键都存在（防御 update 中可能存在的 null 值覆盖默认值的情况，虽不常见）
+        defaults = DEFAULT_NAV["settings"]
+        for k, v in defaults.items():
+            if merged_settings.get(k) is None and v is not None:
+                 merged_settings[k] = v
+                 
+        full_data["settings"] = merged_settings
+
+    return full_data
+
 def get_nav_data() -> Dict[str, Any]:
     if not os.path.exists(NAV_FILE):
-        return DEFAULT_NAV.copy()
+        return copy.deepcopy(DEFAULT_NAV)
     try:
         with open(NAV_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # 确保基本结构存在
-            if "categories" not in data: data["categories"] = DEFAULT_NAV["categories"]
-            if "sites" not in data: data["sites"] = []
-            if "settings" not in data: 
-                data["settings"] = DEFAULT_NAV["settings"]
-            else:
-                # 确保所有默认字段都存在
-                for k, v in DEFAULT_NAV["settings"].items():
-                    if k not in data["settings"]:
-                        data["settings"][k] = v
-            return data
+            return normalize_nav_data(data)
     except Exception:
-        return DEFAULT_NAV.copy()
+        return copy.deepcopy(DEFAULT_NAV)
 
 # ... (中间函数保持不变)
 
@@ -58,6 +85,11 @@ def update_settings(new_settings: Dict[str, Any]):
     return data["settings"]
 
 def save_nav_data(data: Dict[str, Any]):
+    from app.utils.config_backup import auto_backup_file
+    
+    # 自动备份旧版本
+    auto_backup_file(NAV_FILE)
+
     os.makedirs(os.path.dirname(NAV_FILE), exist_ok=True)
     with open(NAV_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)

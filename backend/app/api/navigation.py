@@ -388,8 +388,14 @@ async def import_navigation(file: UploadFile = File(...)):
                 for fname in os.listdir(zip_bgs_path):
                     shutil.copy2(os.path.join(zip_bgs_path, fname), os.path.join(BG_DIR, fname))
             
-            # 3. 覆盖配置
-            shutil.copy2(os.path.join(temp_dir, "navigation.json"), nav_service.NAV_FILE)
+            # 3. 覆盖配置 (使用 save_nav_data 以触发自动备份和标准化)
+            nav_json_path = os.path.join(temp_dir, "navigation.json")
+            with open(nav_json_path, "r", encoding="utf-8") as f:
+                raw_nav_data = json.load(f)
+            
+            # 标准化数据
+            final_nav_data = nav_service.normalize_nav_data(raw_nav_data)
+            nav_service.save_nav_data(final_nav_data)
             
         nav_service.cleanup_orphaned_icons() 
         nav_service.cleanup_orphaned_backgrounds()
