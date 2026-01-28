@@ -35,7 +35,7 @@
             
             <n-space>
               <n-button type="warning" ghost @click="openAutoUpdateModal">计划设置</n-button>
-              <n-button type="info" ghost @click="showBrowserModal = true" :disabled="!selectedHostId" v-if="activeTab === 'compose'">扫描外部目录</n-button>
+              <n-button type="info" ghost @click="showBrowserModal = true" :disabled="!selectedHostId" v-if="activeTab === 'compose'">文件夹浏览器</n-button>
               <n-button type="info" ghost @click="refreshAll" :loading="refreshing">全部刷新</n-button>
             </n-space>
           </n-space>
