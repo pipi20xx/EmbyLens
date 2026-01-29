@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { menuLayout, MenuGroup } from '../../store/navigationStore'
+import { menuLayout, MenuGroup, defaultLayout } from '../../store/navigationStore'
 import { allMenuItems } from '../../config/menu'
 
 export function useMenuEditor() {
@@ -23,6 +23,10 @@ export function useMenuEditor() {
   // 动态更新功能池（当 menuLayout 变化时）
   const refreshUnallocated = () => {
     unallocatedItems.value = allMenuItems.filter(m => !allocatedItemKeys.value.has(m.key as string))
+  }
+
+  const resetToDefault = () => {
+    menuLayout.value = JSON.parse(JSON.stringify(defaultLayout))
   }
 
   const addNewGroup = () => {
@@ -78,6 +82,7 @@ export function useMenuEditor() {
     removeItemFromGroup,
     refreshUnallocated,
     onPoolToPrimary,
-    addItemAsPrimary
+    addItemAsPrimary,
+    resetToDefault
   }
 }

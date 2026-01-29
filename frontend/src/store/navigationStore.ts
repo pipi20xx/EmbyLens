@@ -54,7 +54,7 @@ export interface MenuGroup {
 
 const MENU_LAYOUT_KEY = 'lens_menu_layout_v2'
 
-const defaultLayout: MenuGroup[] = [
+export const defaultLayout: MenuGroup[] = [
   {
     key: 'group-overview',
     label: '概览控制',
@@ -130,19 +130,17 @@ export const menuSettings = computed(() => {
 })
 
 // 保存设置到后端
-const saveMenuLayoutToBackend = async (layout: MenuGroup[]) => {
-  try {
-    const axios = (await import('axios')).default
-    await axios.post('/api/system/config', {
-      configs: [
-        {
-          key: 'menu_layout_v2',
-          value: JSON.stringify(layout),
-          description: '导航菜单自定义布局'
-        }
-      ]
-    })
-  } catch (err) { }
+export const saveMenuLayoutToBackend = async (layout: MenuGroup[]) => {
+  const axios = (await import('axios')).default
+  return await axios.post('/api/system/config', {
+    configs: [
+      {
+        key: 'menu_layout_v2',
+        value: JSON.stringify(layout),
+        description: '导航菜单自定义布局'
+      }
+    ]
+  })
 }
 
 // 从后端初始化
@@ -165,7 +163,7 @@ export const initMenuSettingsFromBackend = async () => {
 watch(menuLayout, (val) => {
   localStorage.setItem(MENU_LAYOUT_KEY, JSON.stringify(val))
   if (isLoggedIn.value) {
-    saveMenuLayoutToBackend(val)
+    saveMenuLayoutToBackend(val).catch(() => {})
   }
 }, { deep: true })
 
