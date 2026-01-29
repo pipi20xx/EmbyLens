@@ -6,7 +6,7 @@ const AUTH_SAVE_KEY = 'lens_access_token'
 
 // 从本地存储恢复上次停留的页面，默认显示仪表盘
 export const currentViewKey = ref(localStorage.getItem(SAVE_KEY) || 'DashboardView')
-export const activeGroupKey = ref(localStorage.getItem('lens_active_group') || 'group-overview')
+export const activeGroupKey = ref(localStorage.getItem('lens_active_group') || 'DashboardView')
 export const isLoggedIn = ref(!!localStorage.getItem(AUTH_SAVE_KEY))
 export const uiAuthEnabled = ref(true)
 export const username = ref(localStorage.getItem('lens_username') || '')
@@ -63,25 +63,34 @@ watch(isHeaderSticky, (val) => {
 
 export const defaultLayout: MenuGroup[] = [
   {
-    key: 'group-overview',
-    label: '概览控制',
+    key: 'DashboardView',
+    label: '管理仪表盘',
     visible: true,
-    type: 'group',
-    items: ['DashboardView', 'SiteNavView']
+    type: 'item',
+    items: []
   },
   {
-    key: 'group-media',
-    label: '媒体工具',
+    key: 'SiteNavView',
+    label: '站点导航页',
     visible: true,
-    type: 'group',
-    items: ['DedupeView', 'TypeManagerView', 'CleanupToolsView', 'LockManagerView', 'AutoTagsView']
+    type: 'item',
+    items: []
   },
   {
-    key: 'group-search',
-    label: '查询探索',
+    key: 'group-emby',
+    label: 'EMBY工具',
     visible: true,
     type: 'group',
-    items: ['EmbyItemQueryView', 'TmdbReverseLookupView', 'TmdbIdSearchView']
+    items: [
+      'EmbyItemQueryView', 
+      'TmdbReverseLookupView', 
+      'TmdbIdSearchView',
+      'DedupeView', 
+      'TypeManagerView', 
+      'CleanupToolsView', 
+      'LockManagerView', 
+      'AutoTagsView'
+    ]
   },
   {
     key: 'group-labs',
@@ -91,8 +100,8 @@ export const defaultLayout: MenuGroup[] = [
     items: ['TmdbLabView', 'BangumiLabView', 'ActorLabView', 'ActorManagerView']
   },
   {
-    key: 'group-system',
-    label: '系统维护',
+    key: 'group-others',
+    label: '其他工具',
     visible: true,
     type: 'group',
     items: ['TerminalManagerView', 'DockerManagerView', 'ImageBuilderView', 'PostgresManagerView', 'BackupManagerView']
@@ -129,9 +138,13 @@ export const menuLayout = ref<MenuGroup[]>(loadMenuLayout())
 export const menuSettings = computed(() => {
   const flat: { key: string, visible: boolean }[] = []
   menuLayout.value.forEach(group => {
-    group.items.forEach(itemKey => {
-      flat.push({ key: itemKey, visible: group.visible })
-    })
+    if (group.type === 'item') {
+      flat.push({ key: group.key, visible: group.visible })
+    } else {
+      group.items.forEach(itemKey => {
+        flat.push({ key: itemKey, visible: group.visible })
+      })
+    }
   })
   return flat
 })
