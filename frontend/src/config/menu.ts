@@ -39,30 +39,108 @@ function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
-export const menuOptions: MenuOption[] = [
+// 原始扁平化菜单项定义（用于引用和基础数据）
+export const allMenuItems: MenuOption[] = [
   { label: '管理仪表盘', key: 'DashboardView', icon: renderIcon(DashboardIcon) },
+  { label: '站点导航页', key: 'SiteNavView', icon: renderIcon(LensIcon) },
+  
   { label: '重复项清理', key: 'DedupeView', icon: renderIcon(DedupeIcon) },
   { label: '类型映射管理', key: 'TypeManagerView', icon: renderIcon(CategoryIcon) },
   { label: '媒体净化清理', key: 'CleanupToolsView', icon: renderIcon(CleanupIcon) },
   { label: '元数据锁定器', key: 'LockManagerView', icon: renderIcon(LockIcon) },
+  { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
+  
   { label: '项目元数据查询', key: 'EmbyItemQueryView', icon: renderIcon(SearchIcon) },
   { label: '剧集 TMDB 反查', key: 'TmdbReverseLookupView', icon: renderIcon(TargetIcon) },
   { label: 'TMDB ID 深度搜索', key: 'TmdbIdSearchView', icon: renderIcon(DeepSearchIcon) },
+  
   { label: 'TMDB 实验中心', key: 'TmdbLabView', icon: renderIcon(LabIcon) },
   { label: 'Bangumi 实验室', key: 'BangumiLabView', icon: renderIcon(LabIcon) },
   { label: 'TMDB 演员实验室', key: 'ActorLabView', icon: renderIcon(ActorLabIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
-  { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
-  { label: '自动标签助手', key: 'AutoTagsView', icon: renderIcon(CategoryIcon) },
+  
   { label: '终端管理', key: 'TerminalManagerView', icon: renderIcon(ConsoleIcon) },
   { label: 'Docker 容器管理', key: 'DockerManagerView', icon: renderIcon(DockerIcon) },
   { label: '镜像构建与推送', key: 'ImageBuilderView', icon: renderIcon(BuildIcon) },
   { label: 'PostgreSQL 管理', key: 'PostgresManagerView', icon: renderIcon(PostgresIcon) },
   { label: '数据备份管理', key: 'BackupManagerView', icon: renderIcon(BackupIcon) },
+  
+  { label: 'Webhook 接收器', key: 'WebhookReceiverView', icon: renderIcon(WebhookIcon) },
   { label: '通知消息中心', key: 'NotificationManagerView', icon: renderIcon(NotificationIcon) },
   { label: '账号安全管理', key: 'AccountManagerView', icon: renderIcon(ProfileIcon) },
   { label: '外部控制体系', key: 'ExternalControlView', icon: renderIcon(SecurityIcon) },
-  { label: '站点导航页', key: 'SiteNavView', icon: renderIcon(LensIcon) },
+]
+
+// 保持对原有 menuOptions 的兼容（为了不破坏现有的 store 逻辑）
+export const menuOptions = allMenuItems
+
+// 侧边栏分组定义
+export const groupedMenuOptions = [
+  {
+    type: 'group',
+    label: '概览控制',
+    key: 'group-overview',
+    children: [
+      allMenuItems.find(i => i.key === 'DashboardView'),
+      allMenuItems.find(i => i.key === 'SiteNavView'),
+    ]
+  },
+  {
+    type: 'group',
+    label: '媒体工具',
+    key: 'group-media',
+    children: [
+      allMenuItems.find(i => i.key === 'DedupeView'),
+      allMenuItems.find(i => i.key === 'TypeManagerView'),
+      allMenuItems.find(i => i.key === 'CleanupToolsView'),
+      allMenuItems.find(i => i.key === 'LockManagerView'),
+      allMenuItems.find(i => i.key === 'AutoTagsView'),
+    ]
+  },
+  {
+    type: 'group',
+    label: '查询探索',
+    key: 'group-search',
+    children: [
+      allMenuItems.find(i => i.key === 'EmbyItemQueryView'),
+      allMenuItems.find(i => i.key === 'TmdbReverseLookupView'),
+      allMenuItems.find(i => i.key === 'TmdbIdSearchView'),
+    ]
+  },
+  {
+    type: 'group',
+    label: '实验室',
+    key: 'group-labs',
+    children: [
+      allMenuItems.find(i => i.key === 'TmdbLabView'),
+      allMenuItems.find(i => i.key === 'BangumiLabView'),
+      allMenuItems.find(i => i.key === 'ActorLabView'),
+      allMenuItems.find(i => i.key === 'ActorManagerView'),
+    ]
+  },
+  {
+    type: 'group',
+    label: '系统维护',
+    key: 'group-system',
+    children: [
+      allMenuItems.find(i => i.key === 'TerminalManagerView'),
+      allMenuItems.find(i => i.key === 'DockerManagerView'),
+      allMenuItems.find(i => i.key === 'ImageBuilderView'),
+      allMenuItems.find(i => i.key === 'PostgresManagerView'),
+      allMenuItems.find(i => i.key === 'BackupManagerView'),
+    ]
+  },
+  {
+    type: 'group',
+    label: '配置中心',
+    key: 'group-config',
+    children: [
+      allMenuItems.find(i => i.key === 'WebhookReceiverView'),
+      allMenuItems.find(i => i.key === 'NotificationManagerView'),
+      allMenuItems.find(i => i.key === 'AccountManagerView'),
+      allMenuItems.find(i => i.key === 'ExternalControlView'),
+    ]
+  }
 ]
 
 export { SettingIcon, ConsoleIcon, ThemeIcon }

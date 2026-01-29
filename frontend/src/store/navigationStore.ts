@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const SAVE_KEY = 'lens_current_view'
 const MENU_SETTINGS_KEY = 'lens_menu_settings'
@@ -6,6 +6,7 @@ const AUTH_SAVE_KEY = 'lens_access_token'
 
 // 从本地存储恢复上次停留的页面，默认显示仪表盘
 export const currentViewKey = ref(localStorage.getItem(SAVE_KEY) || 'DashboardView')
+export const activeGroupKey = ref(localStorage.getItem('lens_active_group') || 'group-overview')
 export const isLoggedIn = ref(!!localStorage.getItem(AUTH_SAVE_KEY))
 export const uiAuthEnabled = ref(true)
 export const username = ref(localStorage.getItem('lens_username') || '')
@@ -42,118 +43,113 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// 菜单设置：包含排序和显示隐藏
-export interface MenuSetting {
+// 菜单布局设置：支持自定义分组和子项归属
+export interface MenuGroup {
   key: string
+  label: string
   visible: boolean
+  items: string[] // 存储子菜单项的 key
 }
 
-const defaultSettings: MenuSetting[] = [
-  { key: 'DashboardView', visible: true },
-  { key: 'DedupeView', visible: true },
-  { key: 'TypeManagerView', visible: true },
-  { key: 'CleanupToolsView', visible: true },
-  { key: 'LockManagerView', visible: true },
-  { key: 'EmbyItemQueryView', visible: true },
-  { key: 'TmdbReverseLookupView', visible: true },
-  { key: 'TmdbIdSearchView', visible: true },
-  { key: 'TmdbLabView', visible: true },
-  { key: 'BangumiLabView', visible: true },
-  { key: 'ActorLabView', visible: true },
-  { key: 'ActorManagerView', visible: true },
-  { key: 'WebhookReceiverView', visible: true },
-  { key: 'AutoTagsView', visible: true },
-  { key: 'TerminalManagerView', visible: true },
-  { key: 'DockerManagerView', visible: true },
-  { key: 'ImageBuilderView', visible: true },
-  { key: 'PostgresManagerView', visible: true },
-  { key: 'BackupManagerView', visible: true },
-  { key: 'NotificationManagerView', visible: true },
-  { key: 'SiteNavView', visible: true },
-  { key: 'ExternalControlView', visible: true },
-  { key: 'AccountManagerView', visible: true }
+const MENU_LAYOUT_KEY = 'lens_menu_layout_v2'
+
+const defaultLayout: MenuGroup[] = [
+  {
+    key: 'group-overview',
+    label: '概览控制',
+    visible: true,
+    items: ['DashboardView', 'SiteNavView']
+  },
+  {
+    key: 'group-media',
+    label: '媒体工具',
+    visible: true,
+    items: ['DedupeView', 'TypeManagerView', 'CleanupToolsView', 'LockManagerView', 'AutoTagsView']
+  },
+  {
+    key: 'group-search',
+    label: '查询探索',
+    visible: true,
+    items: ['EmbyItemQueryView', 'TmdbReverseLookupView', 'TmdbIdSearchView']
+  },
+  {
+    key: 'group-labs',
+    label: '实验室',
+    visible: true,
+    items: ['TmdbLabView', 'BangumiLabView', 'ActorLabView', 'ActorManagerView']
+  },
+  {
+    key: 'group-system',
+    label: '系统维护',
+    visible: true,
+    items: ['TerminalManagerView', 'DockerManagerView', 'ImageBuilderView', 'PostgresManagerView', 'BackupManagerView']
+  },
+  {
+    key: 'group-config',
+    label: '配置中心',
+    visible: true,
+    items: ['WebhookReceiverView', 'NotificationManagerView', 'AccountManagerView', 'ExternalControlView']
+  }
 ]
 
-const loadMenuSettings = (): MenuSetting[] => {
-  const saved = localStorage.getItem(MENU_SETTINGS_KEY)
-  if (!saved) return [...defaultSettings]
+const loadMenuLayout = (): MenuGroup[] => {
+  const saved = localStorage.getItem(MENU_LAYOUT_KEY)
+  if (!saved) return JSON.parse(JSON.stringify(defaultLayout))
   
   try {
-    const parsed: MenuSetting[] = JSON.parse(saved)
-    // 关键逻辑：将缺失的默认项合并到已保存的设置中
-    const missingItems = defaultSettings.filter(
-      def => !parsed.some(item => item.key === def.key)
-    )
-    if (missingItems.length > 0) {
-      return [...parsed, ...missingItems]
-    }
+    const parsed: MenuGroup[] = JSON.parse(saved)
+    // 这里可以添加逻辑：如果新增了功能项但在配置中找不到，可以归入一个“未分类”组
     return parsed
   } catch {
-    return [...defaultSettings]
+    return JSON.parse(JSON.stringify(defaultLayout))
   }
 }
 
-export const menuSettings = ref<MenuSetting[]>(loadMenuSettings())
+export const menuLayout = ref<MenuGroup[]>(loadMenuLayout())
 
-// --- 后端同步逻辑 ---
+// 兼容旧的 menuSettings（如果其他地方还在用）
+export const menuSettings = computed(() => {
+  const flat: { key: string, visible: boolean }[] = []
+  menuLayout.value.forEach(group => {
+    group.items.forEach(itemKey => {
+      flat.push({ key: itemKey, visible: group.visible })
+    })
+  })
+  return flat
+})
 
 // 保存设置到后端
-const saveMenuSettingsToBackend = async (settings: MenuSetting[]) => {
+const saveMenuLayoutToBackend = async (layout: MenuGroup[]) => {
   try {
     const axios = (await import('axios')).default
     await axios.post('/api/system/config', {
       configs: [
         {
-          key: 'menu_settings',
-          value: JSON.stringify(settings),
-          description: '菜单排序与可见性设置'
+          key: 'menu_layout_v2',
+          value: JSON.stringify(layout),
+          description: '导航菜单自定义布局'
         }
       ]
     })
-  } catch (err) {
-    console.error('Failed to sync menu settings to backend', err)
-  }
+  } catch (err) { }
 }
 
-// 从后端初始化设置
+// 从后端初始化
 export const initMenuSettingsFromBackend = async () => {
   try {
     const axios = (await import('axios')).default
     const res = await axios.get('/api/system/config')
-    const saved = res.data.menu_settings
+    const saved = res.data.menu_layout_v2
     if (saved) {
-      const parsed: MenuSetting[] = JSON.parse(saved)
-      // 合并逻辑：以原始 settings 为基础，补充缺失项
-      const merged = [...parsed]
-      defaultSettings.forEach(def => {
-        if (!merged.some(item => item.key === def.key)) {
-          merged.push(def)
-        }
-      })
-      menuSettings.value = merged
+      menuLayout.value = JSON.parse(saved)
     }
-  } catch (err) {
-    console.error('Failed to init menu settings from backend', err)
-  }
+  } catch (err) { }
 }
 
-// 监听变化并自动持久化
-watch(currentViewKey, (val) => {
-  localStorage.setItem(SAVE_KEY, val)
-  
-  // Sync with browser history
-  if (!isPopping && typeof window !== 'undefined') {
-    if (history.state?.lensView !== val) {
-      history.pushState({ lensView: val }, '', '#' + val)
-    }
-  }
-})
-
-watch(menuSettings, (val) => {
-  localStorage.setItem(MENU_SETTINGS_KEY, JSON.stringify(val))
-  // 仅在已登录状态下同步到后端，避免未登录时的请求失败
+watch(menuLayout, (val) => {
+  localStorage.setItem(MENU_LAYOUT_KEY, JSON.stringify(val))
   if (isLoggedIn.value) {
-    saveMenuSettingsToBackend(val)
+    saveMenuLayoutToBackend(val)
   }
 }, { deep: true })
 
