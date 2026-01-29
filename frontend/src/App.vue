@@ -32,10 +32,10 @@ import {
   uiAuthEnabled,
   isHomeEntry,
   menuLayout,
-  menuSettings,
   username,
   logout,
-  initMenuSettingsFromBackend 
+  initMenuSettingsFromBackend,
+  isHeaderSticky
 } from './store/navigationStore'
 import { useTheme } from './hooks/useTheme'
 import { viewMap } from './config/views'
@@ -67,7 +67,6 @@ const currentSubMenuItems = computed(() => {
   const activeGroup = menuLayout.value.find(g => g.key === activeGroupKey.value)
   if (!activeGroup || !activeGroup.items) return []
   
-  // 从 allMenuItems 中匹配详细信息
   return activeGroup.items.map(itemKey => {
     return allMenuItems.find(m => m.key === itemKey)
   }).filter(Boolean) as any[]
@@ -84,18 +83,15 @@ const handleGroupClick = (group: any) => {
   localStorage.setItem('lens_active_group', group.key)
   
   if (group.type === 'item') {
-    // 如果是独立项，直接跳转到该项
     currentViewKey.value = group.key
   } else if (group.items && group.items.length > 0) {
-    // 如果是分组，跳转到第一个子项
     currentViewKey.value = group.items[0]
   }
 }
 
-// 监听 currentViewKey 变化，自动同步所属 Group
+// 监听 currentViewKey 变化
 watch(currentViewKey, (newKey) => {
   for (const group of menuLayout.value) {
-    // 情况 1：它是分组的子项
     if (group.type === 'group' && group.items.includes(newKey as string)) {
       if (activeGroupKey.value !== group.key) {
         activeGroupKey.value = group.key
@@ -103,7 +99,6 @@ watch(currentViewKey, (newKey) => {
       }
       break
     }
-    // 情况 2：它本身就是独立的一级项
     if (group.type === 'item' && group.key === newKey) {
       if (activeGroupKey.value !== group.key) {
         activeGroupKey.value = group.key
@@ -116,20 +111,9 @@ watch(currentViewKey, (newKey) => {
 
 // 用户下拉菜单
 const userDropdownOptions = computed(() => [
-  {
-    label: '个人中心',
-    key: 'AccountManagerView',
-    icon: () => h(NIcon, null, { default: () => h(UserIcon) })
-  },
-  {
-    type: 'divider',
-    key: 'd1'
-  },
-  {
-    label: '退出登录',
-    key: 'logout',
-    icon: () => h(NIcon, null, { default: () => h(LogoutIcon) })
-  }
+  { label: '个人中心', key: 'AccountManagerView', icon: () => h(NIcon, null, { default: () => h(UserIcon) }) },
+  { type: 'divider', key: 'd1' },
+  { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogoutIcon) }) }
 ])
 
 const handleUserSelect = (key: string) => {
@@ -140,7 +124,7 @@ const handleUserSelect = (key: string) => {
   }
 }
 
-// --- Server Switching Logic ---
+// 服务器选择
 const serverOptions = computed(() => {
   return servers.value.map(s => ({
     label: s.name,
@@ -181,9 +165,7 @@ onMounted(async () => {
     const res = await axios.get('/api/auth/status')
     const enabled = res.data.ui_auth_enabled === true || res.data.ui_auth_enabled === 'true'
     uiAuthEnabled.value = enabled
-    if (!enabled) {
-      isLoggedIn.value = true
-    }
+    if (!enabled) { isLoggedIn.value = true }
   } catch (err) { }
 
   if (isLoggedIn.value) {
@@ -202,121 +184,126 @@ const currentView = computed(() => {
     <n-global-style />
     <n-dialog-provider>
       <n-message-provider>
-        <n-layout position="absolute" style="display: flex; flex-direction: column;">
+        <n-layout 
+          position="absolute" 
+          style="display: flex; flex-direction: column;"
+          :native-scrollbar="false"
+        >
           
-          <!-- 第一级：主顶部导航栏 -->
-          <n-layout-header 
-            bordered 
-            class="app-header" 
-            v-if="!shouldHideNav"
+          <!-- 头部导航区域 - 包含一级和二级 -->
+          <div 
+            class="navigation-wrapper" 
+            :class="{ 'sticky-nav': isHeaderSticky && !shouldHideNav }"
           >
-            <div class="header-content">
-              <!-- 左侧：Logo + 服务器 -->
-              <div class="header-left">
-                <div class="logo-box" @click="isLoggedIn && (currentViewKey = 'DashboardView')">
-                  <app-logo :size="28" :theme="currentThemeType" />
-                  <span class="header-title">LENS</span>
+            <!-- 第一级：主顶部导航栏 -->
+            <n-layout-header 
+              bordered 
+              class="app-header" 
+              v-if="!shouldHideNav"
+            >
+              <div class="header-content">
+                <div class="header-left">
+                  <div class="logo-box" @click="isLoggedIn && (currentViewKey = 'DashboardView')">
+                    <app-logo :size="28" :theme="currentThemeType" />
+                    <span class="header-title">LENS</span>
+                  </div>
+                  
+                  <n-dropdown v-if="isLoggedIn" trigger="click" :options="serverOptions" @select="handleServerSelect">
+                    <n-button quaternary size="small" class="server-btn">
+                      <template #icon><n-icon color="var(--primary-color)"><ServerIcon /></n-icon></template>
+                      {{ activeServerName }}
+                    </n-button>
+                  </n-dropdown>
                 </div>
                 
-                <n-dropdown v-if="isLoggedIn" trigger="click" :options="serverOptions" @select="handleServerSelect">
-                  <n-button quaternary size="small" class="server-btn">
-                    <template #icon><n-icon color="var(--primary-color)"><ServerIcon /></n-icon></template>
-                    {{ activeServerName }}
-                  </n-button>
-                </n-dropdown>
-              </div>
-              
-              <!-- 中间：一级分类切换 -->
-              <div class="header-center">
-                <n-space :size="4" v-if="isLoggedIn">
-                  <n-button 
-                    v-for="group in visibleGroups" 
-                    :key="group.key"
-                    quaternary
-                    :type="activeGroupKey === group.key ? 'primary' : 'default'"
-                    class="nav-group-btn"
-                    @click="handleGroupClick(group)"
-                  >
-                    {{ group.label }}
-                  </n-button>
-                </n-space>
-              </div>
+                <div class="header-center">
+                  <n-space :size="4" v-if="isLoggedIn">
+                    <n-button 
+                      v-for="group in visibleGroups" 
+                      :key="group.key"
+                      quaternary
+                      :type="activeGroupKey === group.key ? 'primary' : 'default'"
+                      class="nav-group-btn"
+                      @click="handleGroupClick(group)"
+                    >
+                      {{ group.label }}
+                    </n-button>
+                  </n-space>
+                </div>
 
-              <!-- 右侧：工具栏与状态 -->
-              <div class="header-right">
-                <n-space :size="12" align="center">
-                  <template v-if="isLoggedIn">
-                    <n-tooltip trigger="hover">
-                      <template #trigger>
-                        <n-button circle quaternary size="small" @click="showMenuManager = true">
-                          <template #icon><n-icon><MenuManageIcon /></n-icon></template>
+                <div class="header-right">
+                  <n-space :size="12" align="center">
+                    <template v-if="isLoggedIn">
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-button circle quaternary size="small" @click="showMenuManager = true">
+                            <template #icon><n-icon><MenuManageIcon /></n-icon></template>
+                          </n-button>
+                        </template>
+                        菜单管理
+                      </n-tooltip>
+
+                      <n-dropdown trigger="click" :options="themeOptions" @select="handleThemeSelect">
+                        <n-button circle quaternary size="small">
+                          <template #icon><n-icon><ThemeIcon /></n-icon></template>
                         </n-button>
-                      </template>
-                      菜单管理
-                    </n-tooltip>
-
-                    <n-dropdown trigger="click" :options="themeOptions" @select="handleThemeSelect">
-                      <n-button circle quaternary size="small">
-                        <template #icon><n-icon><ThemeIcon /></n-icon></template>
+                      </n-dropdown>
+                      
+                      <n-button circle quaternary size="small" :type="currentViewKey === 'SettingsView' ? 'primary' : 'default'" @click="currentViewKey = 'SettingsView'">
+                        <template #icon><n-icon><SettingIcon /></n-icon></template>
                       </n-button>
-                    </n-dropdown>
-                    
-                    <n-button circle quaternary size="small" :type="currentViewKey === 'SettingsView' ? 'primary' : 'default'" @click="currentViewKey = 'SettingsView'">
-                      <template #icon><n-icon><SettingIcon /></n-icon></template>
-                    </n-button>
 
-                    <n-button circle quaternary size="small" @click="isLogConsoleOpen = true">
-                      <template #icon><n-icon><ConsoleIcon /></n-icon></template>
-                    </n-button>
+                      <n-button circle quaternary size="small" @click="isLogConsoleOpen = true">
+                        <template #icon><n-icon><ConsoleIcon /></n-icon></template>
+                      </n-button>
 
-                    <n-dropdown trigger="click" :options="userDropdownOptions" @select="handleUserSelect">
-                      <div class="user-info">
-                        <n-avatar round size="small" :style="{ backgroundColor: 'var(--primary-color)' }">
-                          <n-icon><UserIcon /></n-icon>
-                        </n-avatar>
-                        <n-text class="username-text" v-if="username">{{ username }}</n-text>
-                      </div>
-                    </n-dropdown>
-                  </template>
-
-                  <template v-else>
-                    <n-button quaternary size="small" type="primary">未登录</n-button>
-                  </template>
-                </n-space>
-              </div>
-            </div>
-          </n-layout-header>
-
-          <!-- 第二级：副导航栏 (子功能 Tab) -->
-          <div 
-            v-if="isLoggedIn && !shouldHideNav && currentSubMenuItems.length > 0" 
-            class="sub-header"
-          >
-            <n-scrollbar x-scrollable content-style="padding: 0 16px;">
-              <div class="sub-nav-tabs">
-                <div 
-                  v-for="item in currentSubMenuItems" 
-                  :key="item.key"
-                  class="sub-nav-item"
-                  :class="{ 'active': currentViewKey === item.key }"
-                  @click="currentViewKey = item.key"
-                >
-                  <n-icon v-if="item.icon" class="sub-nav-icon"><component :is="item.icon" /></n-icon>
-                  <span class="sub-nav-label">{{ item.label }}</span>
+                      <n-dropdown trigger="click" :options="userDropdownOptions" @select="handleUserSelect">
+                        <div class="user-info">
+                          <n-avatar round size="small" :style="{ backgroundColor: 'var(--primary-color)' }">
+                            <n-icon><UserIcon /></n-icon>
+                          </n-avatar>
+                          <n-text class="username-text" v-if="username">{{ username }}</n-text>
+                        </div>
+                      </n-dropdown>
+                    </template>
+                  </n-space>
                 </div>
               </div>
-            </n-scrollbar>
+            </n-layout-header>
+
+            <!-- 第二级：副导航栏 (子功能 Tab) -->
+            <div 
+              v-if="isLoggedIn && !shouldHideNav && currentSubMenuItems.length > 0" 
+              class="sub-header"
+            >
+              <n-scrollbar x-scrollable content-style="padding: 0 16px;">
+                <div class="sub-nav-tabs">
+                  <div 
+                    v-for="item in currentSubMenuItems" 
+                    :key="item.key"
+                    class="sub-nav-item"
+                    :class="{ 'active': currentViewKey === item.key }"
+                    @click="currentViewKey = item.key"
+                  >
+                    <n-icon v-if="item.icon" class="sub-nav-icon"><component :is="item.icon" /></n-icon>
+                    <span class="sub-nav-label">{{ item.label }}</span>
+                  </div>
+                </div>
+              </n-scrollbar>
+            </div>
           </div>
 
           <!-- 内容区域 -->
-          <n-layout-content :content-style="{
-            padding: shouldHideNav ? '0' : 'var(--space-md)',
-            minHeight: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: (isLoggedIn && currentViewKey === 'SiteNavView') ? 'transparent' : 'var(--app-bg-color)',
-            transition: 'all 0.3s ease'
-          }">
+          <n-layout-content 
+            :content-style="{
+              padding: shouldHideNav ? '0' : 'var(--space-md)',
+              minHeight: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: (isLoggedIn && currentViewKey === 'SiteNavView') ? 'transparent' : 'var(--app-bg-color)',
+              transition: 'all 0.3s ease'
+            }"
+          >
             <div class="view-wrapper">
               <template v-if="isLoggedIn">
                 <transition name="fade" mode="out-in">
@@ -324,14 +311,14 @@ const currentView = computed(() => {
                 </transition>
               </template>
               <template v-else>
-                <div class="login-container">
-                  <LoginView />
-                </div>
+                <div class="login-container"><LoginView /></div>
               </template>
             </div>
           </n-layout-content>
         </n-layout>
 
+        <MenuManagerModal v-model:show="showMenuManager" />
+        
         <n-modal v-model:show="isLogConsoleOpen" transform-origin="center">
           <n-card
             style="width: 90vw; max-width: 1400px; height: 85vh;"
@@ -342,19 +329,28 @@ const currentView = computed(() => {
             <LogConsole @close="isLogConsoleOpen = false" />
           </n-card>
         </n-modal>
-
-        <MenuManagerModal v-model:show="showMenuManager" />
       </n-message-provider>
     </n-dialog-provider>
   </n-config-provider>
 </template>
 
 <style scoped>
+.navigation-wrapper {
+  z-index: 100;
+  width: 100%;
+  background-color: var(--sidebar-bg-color);
+}
+
+.sticky-nav {
+  position: sticky;
+  top: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .app-header {
   height: 56px;
-  background-color: var(--sidebar-bg-color);
+  background-color: transparent;
   backdrop-filter: blur(10px);
-  z-index: 100;
 }
 
 .header-content {
@@ -386,49 +382,16 @@ const currentView = computed(() => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
-  z-index: 99;
 }
 
-.sub-nav-tabs {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  gap: 4px;
-}
-
+.sub-nav-tabs { display: flex; align-items: center; height: 100%; gap: 4px; }
 .sub-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  height: 34px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
-  color: var(--text-color);
-  opacity: 0.7;
-  white-space: nowrap;
+  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 34px;
+  cursor: pointer; border-radius: 6px; transition: all 0.2s; color: var(--text-color);
+  opacity: 0.7; white-space: nowrap;
 }
-
-.sub-nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  opacity: 1;
-}
-
-.sub-nav-item.active {
-  background-color: var(--primary-color-suppl);
-  color: var(--primary-color);
-  opacity: 1;
-  font-weight: 600;
-}
-
-.sub-nav-icon {
-  font-size: 18px;
-}
-
-.sub-nav-label {
-  font-size: 0.9rem;
-}
+.sub-nav-item:hover { background-color: rgba(255, 255, 255, 0.05); opacity: 1; }
+.sub-nav-item.active { background-color: var(--primary-color-suppl); color: var(--primary-color); opacity: 1; font-weight: 600; }
 
 .header-right { flex-shrink: 0; }
 .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 20px; transition: background-color 0.3s; }

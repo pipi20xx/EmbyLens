@@ -19,13 +19,14 @@ import {
   DeleteOutlineOutlined as DeleteIcon,
   LaunchOutlined as ItemIcon,
   ArrowForwardOutlined as QuickAddIcon,
-  SettingsBackupRestoreOutlined as ResetIcon
+  SettingsBackupRestoreOutlined as ResetIcon,
+  PushPinOutlined as StickyIcon
 } from '@vicons/material'
 import draggable from 'vuedraggable'
 
 import GroupCard from './menu-manager/GroupCard.vue'
 import { useMenuEditor } from './menu-manager/useMenuEditor'
-import { saveMenuLayoutToBackend } from '../store/navigationStore'
+import { saveMenuLayoutToBackend, isHeaderSticky } from '../store/navigationStore'
 import { watch, ref } from 'vue'
 
 const props = defineProps<{
@@ -183,7 +184,6 @@ const handleClose = () => {
                 >
                   <template #item="{ element, index }">
                     <div class="primary-node-outer">
-                      <!-- 分类容器 -->
                       <GroupCard 
                         v-if="element.type === 'group'"
                         :group="element"
@@ -195,7 +195,6 @@ const handleClose = () => {
                         @stopEdit="editingGroupIndex = null"
                       />
 
-                      <!-- 独立一级项 -->
                       <div 
                         v-else
                         class="primary-item-node"
@@ -240,17 +239,28 @@ const handleClose = () => {
 
       <template #footer>
         <div class="modal-footer">
-          <n-space justify="end" align="center">
-            <n-text depth="3" size="small" style="margin-right: 12px;">提示：更改会实时自动同步至云端配置</n-text>
-            <n-button 
-              type="primary" 
-              size="large" 
-              style="min-width: 200px;" 
-              :loading="isSaving"
-              @click="handleSaveAndClose"
-            >
-              完成并保存布局
-            </n-button>
+          <n-space justify="space-between" align="center" style="width: 100%;">
+            <!-- 体验增强开关 -->
+            <n-space align="center" :size="20">
+              <div class="footer-setting-item">
+                <n-icon :size="18" style="margin-right: 8px;"><StickyIcon /></n-icon>
+                <n-text style="margin-right: 8px;">导航栏吸顶显示</n-text>
+                <n-switch v-model:value="isHeaderSticky" size="small" />
+              </div>
+            </n-space>
+
+            <n-space align="center">
+              <n-text depth="3" size="small" style="margin-right: 12px;">提示：更改会实时自动同步至云端配置</n-text>
+              <n-button 
+                type="primary" 
+                size="large" 
+                style="min-width: 200px;" 
+                :loading="isSaving"
+                @click="handleSaveAndClose"
+              >
+                完成并保存布局
+              </n-button>
+            </n-space>
           </n-space>
         </div>
       </template>
@@ -377,6 +387,15 @@ const handleClose = () => {
   padding: 16px 24px;
   background-color: rgba(0, 0, 0, 0.2);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.footer-setting-item {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .pool-empty { padding: 40px 20px; text-align: center; color: rgba(255,255,255,0.1); font-style: italic; }

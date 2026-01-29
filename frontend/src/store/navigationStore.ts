@@ -53,6 +53,13 @@ export interface MenuGroup {
 }
 
 const MENU_LAYOUT_KEY = 'lens_menu_layout_v2'
+const STICKY_HEADER_KEY = 'lens_sticky_header'
+
+export const isHeaderSticky = ref(localStorage.getItem(STICKY_HEADER_KEY) === 'true')
+
+watch(isHeaderSticky, (val) => {
+  localStorage.setItem(STICKY_HEADER_KEY, String(val))
+})
 
 export const defaultLayout: MenuGroup[] = [
   {
