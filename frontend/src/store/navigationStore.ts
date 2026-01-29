@@ -48,6 +48,7 @@ export interface MenuGroup {
   key: string
   label: string
   visible: boolean
+  type: 'group' | 'item' // 区分是容器还是独立项
   items: string[] // 存储子菜单项的 key
 }
 
@@ -58,36 +59,42 @@ const defaultLayout: MenuGroup[] = [
     key: 'group-overview',
     label: '概览控制',
     visible: true,
+    type: 'group',
     items: ['DashboardView', 'SiteNavView']
   },
   {
     key: 'group-media',
     label: '媒体工具',
     visible: true,
+    type: 'group',
     items: ['DedupeView', 'TypeManagerView', 'CleanupToolsView', 'LockManagerView', 'AutoTagsView']
   },
   {
     key: 'group-search',
     label: '查询探索',
     visible: true,
+    type: 'group',
     items: ['EmbyItemQueryView', 'TmdbReverseLookupView', 'TmdbIdSearchView']
   },
   {
     key: 'group-labs',
     label: '实验室',
     visible: true,
+    type: 'group',
     items: ['TmdbLabView', 'BangumiLabView', 'ActorLabView', 'ActorManagerView']
   },
   {
     key: 'group-system',
     label: '系统维护',
     visible: true,
+    type: 'group',
     items: ['TerminalManagerView', 'DockerManagerView', 'ImageBuilderView', 'PostgresManagerView', 'BackupManagerView']
   },
   {
     key: 'group-config',
     label: '配置中心',
     visible: true,
+    type: 'group',
     items: ['WebhookReceiverView', 'NotificationManagerView', 'AccountManagerView', 'ExternalControlView']
   }
 ]
@@ -98,8 +105,12 @@ const loadMenuLayout = (): MenuGroup[] => {
   
   try {
     const parsed: MenuGroup[] = JSON.parse(saved)
-    // 这里可以添加逻辑：如果新增了功能项但在配置中找不到，可以归入一个“未分类”组
-    return parsed
+    // 确保每一项都有必要字段，防止渲染崩溃
+    return parsed.map(item => ({
+      ...item,
+      type: item.type || 'group',
+      items: item.items || []
+    }))
   } catch {
     return JSON.parse(JSON.stringify(defaultLayout))
   }
@@ -141,7 +152,12 @@ export const initMenuSettingsFromBackend = async () => {
     const res = await axios.get('/api/system/config')
     const saved = res.data.menu_layout_v2
     if (saved) {
-      menuLayout.value = JSON.parse(saved)
+      const parsed: MenuGroup[] = JSON.parse(saved)
+      menuLayout.value = parsed.map(item => ({
+        ...item,
+        type: item.type || 'group',
+        items: item.items || []
+      }))
     }
   } catch (err) { }
 }

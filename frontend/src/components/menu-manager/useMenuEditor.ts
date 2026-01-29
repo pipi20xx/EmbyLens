@@ -2,34 +2,28 @@ import { ref, computed } from 'vue'
 import { menuLayout, MenuGroup } from '../../store/navigationStore'
 import { allMenuItems } from '../../config/menu'
 
-export interface MenuGroup {
-  key: string
-  label: string
-  visible: boolean
-  type: 'group' | 'item' // 区分是容器还是独立项
-  items: string[]
-}
-
 export function useMenuEditor() {
-  const draggingGroupIndex = ref<number | null>(null)
-  const draggingItem = ref<{ groupIndex: number | null, itemIndex: number | null, key: string } | null>(null)
   const editingGroupIndex = ref<number | null>(null)
 
+  // 计算已分配的项，用于从功能池中排除
   const allocatedItemKeys = computed(() => {
     const keys = new Set<string>()
     menuLayout.value.forEach(g => {
       if (g.type === 'item') {
         keys.add(g.key)
-      } else {
+      } else if (g.items) {
         g.items.forEach(k => keys.add(k))
       }
     })
     return keys
   })
 
-  const unallocatedItems = computed(() => {
-    return allMenuItems.filter(m => !allocatedItemKeys.value.has(m.key as string))
-  })
+  const unallocatedItems = ref([...allMenuItems.filter(m => !allocatedItemKeys.value.has(m.key as string))])
+
+  // 动态更新功能池（当 menuLayout 变化时）
+  const refreshUnallocated = () => {
+    unallocatedItems.value = allMenuItems.filter(m => !allocatedItemKeys.value.has(m.key as string))
+  }
 
   const addNewGroup = () => {
     menuLayout.value.push({
@@ -41,26 +35,6 @@ export function useMenuEditor() {
     })
   }
 
-  // 将功能池的项直接添加为一级菜单
-  const addItemAsPrimary = (itemKey: string, targetIndex?: number) => {
-    const item = allMenuItems.find(m => m.key === itemKey)
-    if (!item) return
-
-    const newPrimary: MenuGroup = {
-      key: item.key as string,
-      label: item.label as string,
-      visible: true,
-      type: 'item',
-      items: []
-    }
-
-    if (typeof targetIndex === 'number') {
-      menuLayout.value.splice(targetIndex, 0, newPrimary)
-    } else {
-      menuLayout.value.push(newPrimary)
-    }
-  }
-
   const removeGroup = (index: number) => {
     menuLayout.value.splice(index, 1)
   }
@@ -69,66 +43,41 @@ export function useMenuEditor() {
     menuLayout.value[groupIndex].items.splice(itemIndex, 1)
   }
 
-  const onGroupDragStart = (index: number) => {
-    draggingGroupIndex.value = index
+  const addItemAsPrimary = (item: any) => {
+    menuLayout.value.push({
+      key: item.key,
+      label: item.label,
+      visible: true,
+      type: 'item',
+      items: []
+    })
   }
 
-  // 处理一级菜单之间的排序（包括 Group 和 Item）
-  const onPrimaryDrop = (targetIndex: number) => {
-    // 情况 A：移动已有的一级菜单
-    if (draggingGroupIndex.value !== null) {
-      const moved = menuLayout.value.splice(draggingGroupIndex.value, 1)[0]
-      menuLayout.value.splice(targetIndex, 0, moved)
-      draggingGroupIndex.value = null
-    } 
-    // 情况 B：从功能池拖入成为一级菜单
-    else if (draggingItem.value && draggingItem.value.groupIndex === null) {
-      addItemAsPrimary(draggingItem.value.key, targetIndex)
-      draggingItem.value = null
-    }
-  }
-
-  const onItemDragStart = (groupIndex: number | null, itemIndex: number | null, key: string) => {
-    draggingItem.value = { groupIndex, itemIndex, key }
-  }
-
-  const onGroupTargetDrop = (targetGroupIndex: number, targetItemIndex?: number) => {
-    if (!draggingItem.value) return
-    const { groupIndex, itemIndex, key } = draggingItem.value
-    
-    // 如果目标是 'item' 类型的一级菜单，则不允许存入子项（或者将其转为 group）
-    if (menuLayout.value[targetGroupIndex].type === 'item') {
-      // 这里的逻辑可以根据习惯定，目前我们只允许往 type='group' 的里扔
-      return
-    }
-
-    if (groupIndex !== null && itemIndex !== null) {
-      menuLayout.value[groupIndex].items.splice(itemIndex, 1)
-    }
-
-    const targetItems = menuLayout.value[targetGroupIndex].items
-    if (!targetItems.includes(key)) {
-      if (typeof targetItemIndex === 'number') {
-        targetItems.splice(targetItemIndex, 0, key)
-      } else {
-        targetItems.push(key)
+  // 处理从功能池拖入一级菜单的行为（Draggable 会自动处理数组，但我们需要确保类型正确）
+  const onPoolToPrimary = (evt: any) => {
+    if (evt.added) {
+      const item = evt.added.element
+      // 将普通菜单项包装成 MenuGroup 结构
+      const idx = evt.added.newIndex
+      menuLayout.value[idx] = {
+        key: item.key,
+        label: item.label,
+        visible: true,
+        type: 'item',
+        items: []
       }
     }
-    draggingItem.value = null
   }
 
   return {
     menuLayout,
     unallocatedItems,
-    draggingGroupIndex,
-    draggingItem,
     editingGroupIndex,
     addNewGroup,
     removeGroup,
     removeItemFromGroup,
-    onGroupDragStart,
-    onPrimaryDrop,
-    onItemDragStart,
-    onGroupTargetDrop
+    refreshUnallocated,
+    onPoolToPrimary,
+    addItemAsPrimary
   }
 }
