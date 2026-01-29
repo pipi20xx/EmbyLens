@@ -3,10 +3,14 @@ import { ref, watch, computed } from 'vue'
 const SAVE_KEY = 'lens_current_view'
 const MENU_SETTINGS_KEY = 'lens_menu_settings'
 const AUTH_SAVE_KEY = 'lens_access_token'
+const ACTIVE_GROUP_KEY = 'lens_active_group'
 
-// 从本地存储恢复上次停留的页面，默认显示仪表盘
-export const currentViewKey = ref(localStorage.getItem(SAVE_KEY) || 'DashboardView')
-export const activeGroupKey = ref(localStorage.getItem('lens_active_group') || 'DashboardView')
+// 1. 初始化状态逻辑
+const initialView = localStorage.getItem(SAVE_KEY) || 'DashboardView'
+const initialGroup = localStorage.getItem(ACTIVE_GROUP_KEY) || 'DashboardView'
+
+export const currentViewKey = ref(initialView)
+export const activeGroupKey = ref(initialGroup)
 export const isLoggedIn = ref(!!localStorage.getItem(AUTH_SAVE_KEY))
 export const uiAuthEnabled = ref(true)
 export const username = ref(localStorage.getItem('lens_username') || '')
@@ -14,42 +18,46 @@ export const username = ref(localStorage.getItem('lens_username') || '')
 export const isLogConsoleOpen = ref(false)
 export const isHomeEntry = ref(false)
 
-// --- History Management (Back/Forward Support) ---
+// --- 2. History Management (支持鼠标侧键 & 浏览器后退) ---
 let isPopping = false
 
 if (typeof window !== 'undefined') {
-  // Ensure we have an initial state
-  const initialKey = localStorage.getItem(SAVE_KEY) || 'DashboardView'
+  // 初始状态注入
   if (!history.state?.lensView) {
-    history.replaceState({ lensView: initialKey }, '', '#' + initialKey)
+    history.replaceState({ lensView: currentViewKey.value }, '', '#' + currentViewKey.value)
   }
 
   window.addEventListener('popstate', (event) => {
-    // Handle history navigation (Back/Forward buttons)
     if (event.state && event.state.lensView) {
       isPopping = true
       currentViewKey.value = event.state.lensView
-      Promise.resolve().then(() => { isPopping = false })
-    } 
-    // Handle manual hash change or hash navigation without state
-    else if (window.location.hash) {
-      const hashKey = window.location.hash.slice(1)
-      if (hashKey && hashKey !== currentViewKey.value) {
-        isPopping = true
-        currentViewKey.value = hashKey
-        Promise.resolve().then(() => { isPopping = false })
-      }
+      // 在当前宏任务结束后重置标志，确保 watch 不会重复 pushState
+      setTimeout(() => { isPopping = false }, 0)
     }
   })
 }
 
-// 菜单布局设置：支持自定义分组和子项归属
+// 监听视图变化：持久化到 LocalStorage 并 同步到浏览器 History
+watch(currentViewKey, (newVal) => {
+  localStorage.setItem(SAVE_KEY, newVal)
+  
+  if (!isPopping) {
+    history.pushState({ lensView: newVal }, '', '#' + newVal)
+  }
+})
+
+// 监听分组变化：持久化
+watch(activeGroupKey, (newVal) => {
+  localStorage.setItem(ACTIVE_GROUP_KEY, newVal)
+})
+
+// --- 3. 菜单布局逻辑 ---
 export interface MenuGroup {
   key: string
   label: string
   visible: boolean
-  type: 'group' | 'item' // 区分是容器还是独立项
-  items: string[] // 存储子菜单项的 key
+  type: 'group' | 'item'
+  items: string[]
 }
 
 const MENU_LAYOUT_KEY = 'lens_menu_layout_v2'
@@ -121,7 +129,6 @@ const loadMenuLayout = (): MenuGroup[] => {
   
   try {
     const parsed: MenuGroup[] = JSON.parse(saved)
-    // 确保每一项都有必要字段，防止渲染崩溃
     return parsed.map(item => ({
       ...item,
       type: item.type || 'group',
@@ -134,7 +141,6 @@ const loadMenuLayout = (): MenuGroup[] => {
 
 export const menuLayout = ref<MenuGroup[]>(loadMenuLayout())
 
-// 兼容旧的 menuSettings（如果其他地方还在用）
 export const menuSettings = computed(() => {
   const flat: { key: string, visible: boolean }[] = []
   menuLayout.value.forEach(group => {
@@ -149,7 +155,6 @@ export const menuSettings = computed(() => {
   return flat
 })
 
-// 保存设置到后端
 export const saveMenuLayoutToBackend = async (layout: MenuGroup[]) => {
   const axios = (await import('axios')).default
   return await axios.post('/api/system/config', {
@@ -163,7 +168,6 @@ export const saveMenuLayoutToBackend = async (layout: MenuGroup[]) => {
   })
 }
 
-// 从后端初始化
 export const initMenuSettingsFromBackend = async () => {
   try {
     const axios = (await import('axios')).default

@@ -278,13 +278,14 @@ const handleClose = () => {
 .editor-container {
   display: flex;
   flex: 1;
-  background-color: #0c0c0e;
+  background-color: var(--app-bg-color);
   overflow: hidden;
 }
 
 .pool-container {
   width: 320px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--border-color);
+  background-color: rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 }
@@ -303,7 +304,7 @@ const handleClose = () => {
 
 .section-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-title {
@@ -316,7 +317,8 @@ const handleClose = () => {
 
 .section-desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-color);
+  opacity: 0.3;
   margin-top: 4px;
 }
 
@@ -331,12 +333,12 @@ const handleClose = () => {
   padding: 12px 14px;
   background-color: rgba(255, 255, 255, 0.03);
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
   cursor: grab;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .pool-item:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(var(--primary-color-rgb), 0.05);
   border-color: var(--primary-color);
   transform: translateX(4px);
 }
@@ -355,7 +357,7 @@ const handleClose = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .editor-content-wrapper {
@@ -373,8 +375,12 @@ const handleClose = () => {
 .primary-item-node {
   padding: 16px 20px;
   background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   border-radius: 14px;
+  transition: all 0.2s;
+}
+.primary-item-node:hover {
+  border-color: var(--primary-color);
 }
 
 .ghost-node {
@@ -385,8 +391,8 @@ const handleClose = () => {
 
 .modal-footer {
   padding: 16px 24px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-color);
 }
 
 .footer-setting-item {
@@ -395,14 +401,14 @@ const handleClose = () => {
   background-color: rgba(255, 255, 255, 0.03);
   padding: 8px 16px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
 }
 
-.pool-empty { padding: 40px 20px; text-align: center; color: rgba(255,255,255,0.1); font-style: italic; }
-.empty-layout { padding: 80px 0; text-align: center; border: 2px dashed rgba(255, 255, 255, 0.05); border-radius: 20px; }
-.empty-text { font-size: 18px; font-weight: 700; color: rgba(255, 255, 255, 0.1); }
+.pool-empty { padding: 40px 20px; text-align: center; color: var(--text-color); opacity: 0.2; font-style: italic; }
+.empty-layout { padding: 80px 0; text-align: center; border: 2px dashed var(--border-color); border-radius: 20px; }
+.empty-text { font-size: 18px; font-weight: 700; color: var(--text-color); opacity: 0.2; }
 
 .item-tag { font-weight: 700; font-size: 15px; padding: 0 20px; }
-.primary-drag-handle { color: rgba(255,255,255,0.15); cursor: grab; font-size: 22px; }
-.primary-drag-handle:hover { color: var(--primary-color); }
+.primary-drag-handle { color: var(--text-color); opacity: 0.2; cursor: grab; font-size: 22px; }
+.primary-drag-handle:hover { color: var(--primary-color); opacity: 1; }
 </style>

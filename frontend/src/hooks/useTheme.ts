@@ -143,10 +143,22 @@ export function useTheme() {
     
     // 动态侧边栏背景
     let sidebarBg = '#121215'
-    if (currentThemeType.value === 'purple') sidebarBg = '#140c1a'
-    if (currentThemeType.value === 'oceanic') sidebarBg = '#0b1120'
-    if (currentThemeType.value === 'crimson') sidebarBg = '#120d0d'
+    let subNavBg = 'rgba(255, 255, 255, 0.03)'
+    if (currentThemeType.value === 'purple') {
+      sidebarBg = '#140c1a'
+      subNavBg = 'rgba(163, 112, 247, 0.05)'
+    }
+    if (currentThemeType.value === 'oceanic') {
+      sidebarBg = '#0b1120'
+      subNavBg = 'rgba(45, 212, 191, 0.05)'
+    }
+    if (currentThemeType.value === 'crimson') {
+      sidebarBg = '#120d0d'
+      subNavBg = 'rgba(251, 113, 133, 0.05)'
+    }
     root.style.setProperty('--sidebar-bg-color', sidebarBg)
+    root.style.setProperty('--nav-bg-color', sidebarBg)
+    root.style.setProperty('--sub-nav-bg-color', subNavBg)
     
     root.style.setProperty('--primary-border-color', `${common.primaryColor}33`) // 20% opacity
   }

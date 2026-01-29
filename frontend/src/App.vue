@@ -378,8 +378,8 @@ const currentView = computed(() => {
 
 .sub-header {
   height: 48px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--sub-nav-bg-color);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
 }
