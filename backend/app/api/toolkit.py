@@ -116,13 +116,16 @@ async def get_hd_icons():
     
     return {"icons": []}
 
-@router.post("/mapper", response_model=MetadataManagerResponse)
-async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(get_db)):
-    service, user_id = await get_emby_context(db)
+from fastapi import APIRouter, Depends, HTTPException, Body, status, BackgroundTasks
+from app.services.notification_service import NotificationService
+
+# ... (GenreMapping and Request models remain same)
+
+async def run_genre_mapper_task(request: GenreMapperRequest, user_id: str):
+    service = get_emby_service()
     processed = 0
     start_time = time.time()
     
-    # 建立映射字典：如果不填 ID，则 Id 值为 None
     mapping_dict = {}
     for m in request.genre_mappings:
         mapping_dict[m.old] = {
@@ -142,9 +145,7 @@ async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(g
             if any(g in mapping_dict for g in genres):
                 processed += 1
                 if not request.dry_run:
-                    # 1. 更新字符串列表
                     full_item["Genres"] = list(set([mapping_dict[g]["Name"] if g in mapping_dict else g for g in genres]))
-                    # 2. 更新对象列表：如果不填 ID，则生成的对象只有 Name
                     new_gi = []
                     for gi in full_item.get("GenreItems", []):
                         gn = gi.get("Name")
@@ -156,8 +157,24 @@ async def genre_mapper(request: GenreMapperRequest, db: AsyncSession = Depends(g
                         else: new_gi.append(gi)
                     full_item["GenreItems"] = new_gi
                     await service.update_item(full_item["Id"], full_item)
-                logger.info(f"┃  ┣ 🎯 {'[预览]' if request.dry_run else '[执行]'} 修改项目: {full_item.get('Name')}")
-    return MetadataManagerResponse(message="操作完成", processed_count=processed, dry_run_active=request.dry_run)
+    
+    duration = time.time() - start_time
+    await NotificationService.emit(
+        "toolkit.genre_mapper", 
+        "类型映射任务完成", 
+        f"处理项目: {processed}\n耗时: {duration:.1f}s\n模式: {'预览' if request.dry_run else '执行'}"
+    )
+
+@router.post("/mapper", response_model=MetadataManagerResponse)
+async def genre_mapper(request: GenreMapperRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    _, user_id = await get_emby_context(db)
+    if request.dry_run:
+        # 预览模式依然同步返回，因为通常预览数量较少或用户需要即时反馈
+        # 但如果是执行模式，必须后台运行
+        pass 
+
+    background_tasks.add_task(run_genre_mapper_task, request, user_id)
+    return MetadataManagerResponse(message="任务已在后台启动，完成后将通过通知告知", processed_count=0, dry_run_active=request.dry_run)
 
 @router.post("/genre_adder", response_model=MetadataManagerResponse)
 async def genre_adder(request: GenreAdderRequest, db: AsyncSession = Depends(get_db)):

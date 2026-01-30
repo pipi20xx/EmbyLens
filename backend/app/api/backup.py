@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 import uuid
 import os
+import asyncio
 
 router = APIRouter()
 
@@ -93,26 +94,32 @@ async def path_browser(path: str = "/"):
     智能路径浏览器：获取指定目录下的文件和文件夹
     只读取元数据，不读取内容，适合网盘
     """
-    if not os.path.exists(path):
-        # 尝试处理常见的挂载点路径，或者返回空
-        return {"current_path": path, "items": [], "error": "Path does not exist"}
-    
-    try:
-        items = []
-        for entry in os.scandir(path):
-            try:
-                is_dir = entry.is_dir()
-                items.append({
-                    "name": entry.name,
-                    "is_dir": is_dir,
-                    "path": entry.path,
-                    "size": 0 if is_dir else entry.stat().st_size
-                })
-            except:
-                continue
+    def scan_path():
+        if not os.path.exists(path):
+            return {"current_path": path, "items": [], "error": "Path does not exist"}
         
-        # 排序：文件夹在前，文件名在后
-        items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-        return {"current_path": path, "items": items}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        items = []
+        try:
+            for entry in os.scandir(path):
+                try:
+                    is_dir = entry.is_dir()
+                    items.append({
+                        "name": entry.name,
+                        "is_dir": is_dir,
+                        "path": entry.path,
+                        "size": 0 if is_dir else entry.stat().st_size
+                    })
+                except:
+                    continue
+            
+            # 排序：文件夹在前，文件名在后
+            items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+            return {"current_path": path, "items": items}
+        except Exception as e:
+            return {"error": str(e)}
+
+    # 在线程池中执行磁盘扫描
+    res = await asyncio.to_thread(scan_path)
+    if "error" in res and res["error"] != "Path does not exist":
+        raise HTTPException(status_code=500, detail=res["error"])
+    return res

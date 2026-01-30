@@ -121,21 +121,40 @@ def normalize_config(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     
     return full_config
 
+import time
+
+_config_cache = None
+_last_load_time = 0
+
 def get_config() -> Dict[str, Any]:
-    """从 config.json 读取配置，并确保结构完整性"""
+    """从 config.json 读取配置，带 1 秒内存缓存"""
+    global _config_cache, _last_load_time
+    
+    now = time.time()
+    if _config_cache is not None and now - _last_load_time < 1:
+        return _config_cache
+
     if not os.path.exists(CONFIG_FILE):
-        return copy.deepcopy(DEFAULT_CONFIG)
+        _config_cache = copy.deepcopy(DEFAULT_CONFIG)
+        _last_load_time = now
+        return _config_cache
     
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
-            return normalize_config(raw_data)
+            _config_cache = normalize_config(raw_data)
+            _last_load_time = now
+            return _config_cache
     except Exception:
         return copy.deepcopy(DEFAULT_CONFIG)
 
 def save_config(config_data: Dict[str, Any]):
-    """将配置保存到 config.json，保存前确保没有非法 null"""
+    """将配置保存到 config.json，并使缓存失效"""
+    global _config_cache
     from app.utils.config_backup import auto_backup_file
+    
+    # 使缓存失效
+    _config_cache = None
     
     # 自动备份旧版本
     auto_backup_file(CONFIG_FILE)

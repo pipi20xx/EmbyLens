@@ -2,7 +2,8 @@ import json
 import os
 import subprocess
 import asyncio
-from datetime import datetime, date, time
+import time
+from datetime import datetime, date, time as dt_time
 from uuid import UUID
 from typing import List, Dict, Any, Tuple, Optional
 import psycopg
@@ -12,6 +13,8 @@ from app.schemas.pgsql import PostgresConfig, ColumnDefinition, BackupInfo
 
 class PostgresService:
     _instances: Dict[str, Any] = {}
+    _backups_cache: Tuple[List[BackupInfo], float] = ([], 0)
+    _databases_cache: Dict[str, Tuple[List[Dict[str, Any]], float]] = {}
 
     @staticmethod
     def _get_backup_dir() -> str:
@@ -21,22 +24,31 @@ class PostgresService:
 
     @classmethod
     async def list_backups(cls) -> List[BackupInfo]:
+        # 5秒缓存
+        if time.time() - cls._backups_cache[1] < 5:
+            return cls._backups_cache[0]
+
         backup_dir = cls._get_backup_dir()
-        backups = []
-        for f in os.listdir(backup_dir):
-            if f.endswith(".bak") or f.endswith(".sql"):
-                path = os.path.join(backup_dir, f)
-                stats = os.stat(path)
-                # Try to extract db_name from filename: dbname_timestamp.bak
-                parts = f.rsplit("_", 1)
-                db_name = parts[0] if len(parts) > 1 else "unknown"
-                backups.append(BackupInfo(
-                    filename=f,
-                    size=stats.st_size,
-                    created_at=datetime.fromtimestamp(stats.st_mtime).isoformat(),
-                    db_name=db_name
-                ))
-        return sorted(backups, key=lambda x: x.created_at, reverse=True)
+        
+        def scan():
+            backups = []
+            for f in os.listdir(backup_dir):
+                if f.endswith(".bak") or f.endswith(".sql"):
+                    path = os.path.join(backup_dir, f)
+                    stats = os.stat(path)
+                    parts = f.rsplit("_", 1)
+                    db_name = parts[0] if len(parts) > 1 else "unknown"
+                    backups.append(BackupInfo(
+                        filename=f,
+                        size=stats.st_size,
+                        created_at=datetime.fromtimestamp(stats.st_mtime).isoformat(),
+                        db_name=db_name
+                    ))
+            return sorted(backups, key=lambda x: x.created_at, reverse=True)
+
+        backups = await asyncio.to_thread(scan)
+        cls._backups_cache = (backups, time.time())
+        return backups
 
     @classmethod
     async def create_backup(cls, config: PostgresConfig, dbname: str):
@@ -148,7 +160,7 @@ class PostgresService:
     @staticmethod
     def json_serializer(obj):
         """处理 Postgres 特殊类型到 JSON 的转换"""
-        if isinstance(obj, (datetime, date, time)):
+        if isinstance(obj, (datetime, date, dt_time)):
             return obj.isoformat()
         if isinstance(obj, UUID):
             return str(obj)
@@ -160,6 +172,12 @@ class PostgresService:
 
     @classmethod
     async def get_databases(cls, config: PostgresConfig) -> List[Dict[str, Any]]:
+        cache_key = cls._get_cache_key(config)
+        if cache_key in cls._databases_cache:
+            data, ts = cls._databases_cache[cache_key]
+            if time.time() - ts < 5:
+                return data
+
         async with await cls.get_connection(config) as conn:
             async with conn.cursor() as cur:
                 await cur.execute("""
@@ -172,10 +190,12 @@ class PostgresService:
                     ORDER BY d.datname ASC;
                 """)
                 rows = await cur.fetchall()
-                return [
+                res = [
                     {"name": r[0], "owner": r[1], "description": r[2]} 
                     for r in rows
                 ]
+                cls._databases_cache[cache_key] = (res, time.time())
+                return res
 
     @classmethod
     async def update_database(cls, config: PostgresConfig, dbname: str, owner: str = None, description: str = None):
@@ -322,7 +342,7 @@ class PostgresService:
                     row_dict = {}
                     for i, col in enumerate(columns):
                         val = row[i]
-                        if isinstance(val, (datetime, date, time, UUID, dict, list)):
+                        if isinstance(val, (datetime, date, dt_time, UUID, dict, list)):
                             row_dict[col.name] = cls.json_serializer(val)
                         else:
                             row_dict[col.name] = val
