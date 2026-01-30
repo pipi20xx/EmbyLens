@@ -1,7 +1,7 @@
 import json
 import asyncio
 from typing import List
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from app.db.session import get_db
@@ -49,8 +49,22 @@ async def delete_host(host_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/commands", response_model=List[QuickCommandRead])
 async def get_commands(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(QuickCommand).order_by(QuickCommand.id.desc()))
+    result = await db.execute(select(QuickCommand).order_by(QuickCommand.sort_order.asc(), QuickCommand.id.desc()))
     return result.scalars().all()
+
+@router.post("/commands/reorder")
+async def reorder_commands(ids: List[int] = Body(...), db: AsyncSession = Depends(get_db)):
+    for index, cmd_id in enumerate(ids):
+        await db.execute(
+            delete(QuickCommand).where(QuickCommand.id == -1) # dummy to use db
+        )
+        # Use a more direct update
+        from sqlalchemy import update
+        await db.execute(
+            update(QuickCommand).where(QuickCommand.id == cmd_id).values(sort_order=index)
+        )
+    await db.commit()
+    return {"status": "success"}
 
 @router.post("/commands", response_model=QuickCommandRead)
 async def create_command(cmd: QuickCommandCreate, db: AsyncSession = Depends(get_db)):

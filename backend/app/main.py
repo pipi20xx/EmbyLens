@@ -136,6 +136,31 @@ async def startup_event():
     from app.core.config_manager import get_config
     current_json_config = get_config()
     
+    # 初始化快捷命令
+    from app.models.terminal import QuickCommand
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(select(QuickCommand))
+        if not res.scalars().first():
+            default_cmds = [
+                {"title": "系统信息", "sort_order": 1, "command": "uname -snrmo"},
+                {"title": "磁盘空间", "sort_order": 2, "command": "df -h"},
+                {"title": "内存占用", "sort_order": 3, "command": "free -m"},
+                {"title": "系统负载", "sort_order": 4, "command": "top"},
+                {"title": "端口占用", "sort_order": 5, "command": "lsof -i -P -n | grep LISTEN"},
+                {"title": "Docker 正在运行", "sort_order": 6, "command": "docker ps"},
+                {"title": "Docker 资源占用", "sort_order": 7, "command": "docker stats --no-stream"},
+                {"title": "Docker 清理虚悬镜像", "sort_order": 8, "command": "docker image prune -f"},
+                {"title": "网络 IP 地址", "sort_order": 9, "command": "hostname -I"},
+                {"title": "修改 root 密码", "sort_order": 10, "command": "passwd root"},
+                {"title": "查看 SSH 配置", "sort_order": 11, "command": "cat /etc/ssh/sshd_config"},
+                {"title": "编辑 SSH 配置", "sort_order": 12, "command": "vi /etc/ssh/sshd_config"},
+                {"title": "重启 SSH 服务", "sort_order": 13, "command": "systemctl restart sshd || systemctl restart ssh"}
+            ]
+            for dc in default_cmds:
+                db.add(QuickCommand(**dc))
+            await db.commit()
+            logger.info(f"已初始化 {len(default_cmds)} 条默认快捷命令")
+
     default_configs = [
         {"key": "ui_auth_enabled", "value": "true", "description": "是否开启前端页面登录校验"},
         {"key": "audit_enabled", "value": "true", "description": "是否开启全局 API 审计日志"},

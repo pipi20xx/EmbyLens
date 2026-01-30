@@ -11,18 +11,27 @@
     </div>
     <n-scrollbar>
       <div class="command-container">
-        <div 
-          v-for="cmd in commands" 
-          :key="cmd.id" 
-          class="command-card"
-          @click="$emit('send', cmd.command, autoEnter)"
+        <draggable 
+          v-model="commands" 
+          item-key="id"
+          handle=".drag-handle"
+          @end="saveOrder"
+          class="draggable-list"
         >
-          <div class="card-header">
-            <span class="cmd-title">{{ cmd.title }}</span>
-                            <n-space :size="4">
-                              <n-button quaternary circle size="tiny" @click.stop="openModal(cmd)">
-                                <template #icon><n-icon :component="EditIcon" /></template>
-                              </n-button>
+          <template #item="{ element: cmd }">
+            <div 
+              class="command-card"
+              @click="$emit('send', cmd.command, autoEnter)"
+            >
+              <div class="card-header">
+                <div class="header-left">
+                  <n-icon :component="DragIcon" class="drag-handle" />
+                  <span class="cmd-title">{{ cmd.title }}</span>
+                </div>
+                <n-space :size="4">
+                  <n-button quaternary circle size="tiny" @click.stop="openModal(cmd)">
+                    <template #icon><n-icon :component="EditIcon" /></template>
+                  </n-button>
                   <n-popconfirm 
                     @positive-click="handleDelete(cmd.id)"
                     positive-text="确定删除"
@@ -39,8 +48,10 @@
               </div>
               <div class="cmd-preview">{{ cmd.command }}</div>
             </div>
-          </div>
-        </n-scrollbar>
+          </template>
+        </draggable>
+      </div>
+    </n-scrollbar>
 
     <!-- 命令弹窗 -->
     <n-modal v-model:show="showModal" preset="card" :title="editingId ? '编辑命令' : '新建命令'" style="width: 400px">
@@ -61,6 +72,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import draggable from 'vuedraggable';
 import { 
   NButton, NIcon, NScrollbar, NModal, NForm, NFormItem, 
   NInput, NSpace, NText, NCheckbox, NEmpty, NPopconfirm 
@@ -68,7 +80,8 @@ import {
 import { 
   AddCircleOutlineOutlined as AddIcon,
   EditOutlined as EditIcon,
-  DeleteOutlineOutlined as DeleteIcon
+  DeleteOutlineOutlined as DeleteIcon,
+  DragIndicatorOutlined as DragIcon
 } from '@vicons/material';
 
 defineEmits(['send']);
@@ -82,6 +95,11 @@ const form = ref({ title: '', command: '' });
 const fetchCommands = async () => {
   const res = await axios.get('/api/terminal/commands');
   commands.value = res.data;
+};
+
+const saveOrder = async () => {
+  const ids = commands.value.map(c => c.id);
+  await axios.post('/api/terminal/commands/reorder', ids);
 };
 
 const openModal = (cmd?: any) => {
@@ -121,6 +139,11 @@ onMounted(fetchCommands);
 .command-card { background: var(--card-bg-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; cursor: pointer; transition: 0.2s; }
 .command-card:hover { border-color: var(--primary-color); background: rgba(255, 255, 255, 0.03); }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.header-left { display: flex; align-items: center; gap: 4px; }
+.drag-handle { cursor: grab; opacity: 0.3; transition: 0.2s; }
+.drag-handle:hover { opacity: 1; color: var(--primary-color); }
+.drag-handle:active { cursor: grabbing; }
+.draggable-list { display: flex; flex-direction: column; gap: 8px; }
 .cmd-title { font-weight: 600; font-size: 13px; color: var(--text-color); }
 .cmd-preview { font-family: monospace; font-size: 11px; color: var(--text-color); opacity: 0.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

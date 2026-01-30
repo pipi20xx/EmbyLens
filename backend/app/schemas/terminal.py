@@ -30,6 +30,7 @@ class QuickCommandBase(BaseModel):
     title: str
     command: str
     description: Optional[str] = None
+    sort_order: Optional[int] = 0
 
 class QuickCommandCreate(QuickCommandBase):
     pass

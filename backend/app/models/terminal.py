@@ -23,4 +23,5 @@ class QuickCommand(Base):
     title = Column(String(100), nullable=False)
     command = Column(Text, nullable=False)
     description = Column(String(255), nullable=True)
+    sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.now)
