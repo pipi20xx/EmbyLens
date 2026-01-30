@@ -173,9 +173,14 @@ def get_docker_service(host_id: str):
     return DockerService(host_config)
 
 @router.get("/{host_id}/containers")
-async def list_containers(host_id: str):
+async def list_containers(host_id: str, details: bool = True):
     service = get_docker_service(host_id)
-    return await asyncio.to_thread(service.list_containers)
+    return await asyncio.to_thread(service.list_containers, details=details)
+
+@router.get("/{host_id}/containers/stats")
+async def get_container_stats(host_id: str):
+    service = get_docker_service(host_id)
+    return await asyncio.to_thread(service.get_containers_stats)
 
 @router.get("/{host_id}/check-image-update")
 async def check_single_image_update(host_id: str, image: str):

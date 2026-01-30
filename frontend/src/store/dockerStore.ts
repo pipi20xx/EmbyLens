@@ -3,6 +3,7 @@ import axios from 'axios'
 
 interface DockerState {
   containers: Record<string, any[]>
+  containerStats: Record<string, Record<string, any>> // { hostId: { containerName: stats } }
   projects: Record<string, any[]>
   loading: Record<string, boolean>
   lastFetched: Record<string, number>
@@ -11,17 +12,18 @@ interface DockerState {
 export const useDockerStore = defineStore('docker', {
   state: (): DockerState => ({
     containers: {},
+    containerStats: {},
     projects: {},
     loading: {},
     lastFetched: {}
   }),
   
   actions: {
-    async fetchContainers(hostId: string, force = false) {
+    async fetchContainers(hostId: string, force = false, details = true) {
       if (!hostId) return
       
       const now = Date.now()
-      const cacheKey = `containers_${hostId}`
+      const cacheKey = `containers_${hostId}_${details}`
       
       if (!force && this.containers[hostId] && now - (this.lastFetched[cacheKey] || 0) < 10000) {
         return
@@ -29,9 +31,14 @@ export const useDockerStore = defineStore('docker', {
 
       this.loading[cacheKey] = true
       try {
-        const res = await axios.get(`/api/docker/${hostId}/containers`)
+        const res = await axios.get(`/api/docker/${hostId}/containers`, { params: { details } })
         this.containers = { ...this.containers, [hostId]: Array.isArray(res.data) ? res.data : [] }
         this.lastFetched[cacheKey] = now
+        
+        // 获取容器列表后，如果开启了增强模式，尝试获取一次 Stats
+        if (details) {
+          this.fetchStats(hostId)
+        }
       } catch (error) {
         console.error('Failed to fetch containers', error)
         if (!this.containers[hostId]) {
@@ -39,6 +46,16 @@ export const useDockerStore = defineStore('docker', {
         }
       } finally {
         this.loading[cacheKey] = false
+      }
+    },
+
+    async fetchStats(hostId: string) {
+      if (!hostId) return
+      try {
+        const res = await axios.get(`/api/docker/${hostId}/containers/stats`)
+        this.containerStats = { ...this.containerStats, [hostId]: res.data }
+      } catch (error) {
+        console.error('Failed to fetch stats', error)
       }
     },
 

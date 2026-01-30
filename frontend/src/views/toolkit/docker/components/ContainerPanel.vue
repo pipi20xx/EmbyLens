@@ -10,6 +10,16 @@
           <template #icon><n-icon><DeleteIcon /></n-icon></template>
           清理停止的容器
         </n-button>
+        <n-space align="center" style="margin-left: 12px">
+          <n-text depth="3">增强监控</n-text>
+          <n-switch v-model:value="enhancedMode" size="small" />
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="16" depth="3" style="cursor: help"><SearchIcon /></n-icon>
+            </template>
+            开启后将实时获取 CPU、内存占用、IP 及运行时间。关闭可降低服务器负担。
+          </n-tooltip>
+        </n-space>
       </n-space>
       
       <n-input
@@ -29,6 +39,7 @@
       :data="filteredContainers"
       :loading="loading"
       :pagination="{ pageSize: 15 }"
+      :scroll-x="1300"
     />
 
     <!-- 日志弹窗 -->
@@ -66,7 +77,7 @@
 
 <script setup lang="ts">
 import { ref, watch, h, reactive, computed } from 'vue'
-import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton, NSwitch } from 'naive-ui'
+import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton, NSwitch, NTooltip } from 'naive-ui'
 import { 
   EditOutlined as EditIcon,
   PlayCircleOutlined as StartIcon,
@@ -77,7 +88,8 @@ import {
   CodeOutlined as TerminalIcon,
   AutorenewOutlined as RefreshIcon,
   SystemUpdateAltOutlined as UpdateIcon,
-  SearchOutlined as SearchIcon
+  SearchOutlined as SearchIcon,
+  UpdateOutlined as AutoModeIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
@@ -94,6 +106,7 @@ const dialog = useDialog()
 const dockerStore = useDockerStore()
 
 const containers = computed(() => dockerStore.containers[props.hostId || ''] || [])
+const containerStats = computed(() => dockerStore.containerStats[props.hostId || ''] || {})
 const loading = computed(() => dockerStore.loading[`containers_${props.hostId}`] || false)
 
 const loadingPrune = ref(false)
@@ -117,6 +130,18 @@ const showSettingsModal = ref(false)
 const showTerminalModal = ref(false)
 const currentContainer = ref({ id: '', name: '', shell: '/bin/bash' })
 const settingsForm = ref({ name: '', custom_port: '', auto_update: false })
+const enhancedMode = ref(localStorage.getItem('lens_docker_enhanced') === 'true')
+
+watch(enhancedMode, (val) => {
+  localStorage.setItem('lens_docker_enhanced', String(val))
+  fetchContainers(true)
+  if (!val && statsTimer) {
+    clearInterval(statsTimer)
+    statsTimer = null
+  } else if (val && !statsTimer) {
+    startStatsTimer()
+  }
+})
 
 // 状态本地化
 const statusMap: Record<string, string> = {
@@ -131,14 +156,32 @@ const statusMap: Record<string, string> = {
 
 const fetchContainers = async (force = false) => {
   if (!props.hostId) return
-  await dockerStore.fetchContainers(props.hostId, force)
+  await dockerStore.fetchContainers(props.hostId, force, enhancedMode.value)
   try {
     const settingsRes = await axios.get('/api/docker/container-settings')
     containerSettings.value = settingsRes.data
   } catch (e) {}
 }
 
-watch(() => props.hostId, () => fetchContainers(), { immediate: true })
+let statsTimer: any = null
+const startStatsTimer = () => {
+  if (statsTimer) clearInterval(statsTimer)
+  if (enhancedMode.value) {
+    statsTimer = setInterval(() => {
+      if (props.hostId) dockerStore.fetchStats(props.hostId)
+    }, 10000)
+  }
+}
+
+watch(() => props.hostId, () => {
+  fetchContainers()
+  startStatsTimer()
+}, { immediate: true })
+
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  if (statsTimer) clearInterval(statsTimer)
+})
 
 const handleAction = async (id: string, action: string) => {
   loadingActions.value[id] = true
@@ -253,103 +296,159 @@ const saveSettings = async () => {
   fetchContainers(true)
 }
 
-const columns: DataTableColumns<any> = [
-  { title: '名称', key: 'name', width: 150, render(row) {
-      const isAuto = containerSettings.value[row.name]?.auto_update
-      return h(NSpace, { size: 4, align: 'center' }, {
-        default: () => [
-          h(NText, null, { default: () => row.name }),
-          isAuto ? h(NTag, { size: 'tiny', type: 'info', quaternary: true }, { default: () => 'AUTO' }) : null
-        ]
-      })
+const columns = computed<DataTableColumns<any>>(() => {
+  const cols: DataTableColumns<any> = [
+    { title: '名称', key: 'name', minWidth: 150, fixed: 'left', render(row) {
+        const isAuto = containerSettings.value[row.name]?.auto_update
+        return h(NSpace, { vertical: true, size: 2 }, {
+          default: () => [
+            h(NSpace, { size: 4, align: 'center' }, {
+              default: () => [
+                h(NText, { strong: true }, { default: () => row.name }),
+                isAuto ? h(NTooltip, null, {
+                  trigger: () => h(NIcon, { size: 16, color: '#18a058', style: 'margin-left: 2px' }, { default: () => h(AutoModeIcon) }),
+                  default: () => '已开启自动更新'
+                }) : null
+              ]
+            }),
+            h(NText, { depth: 3, style: 'font-size: 10px' }, { default: () => row.id })
+          ]
+        })
+      }
+    },
+    { title: '状态', key: 'status', width: 90, render(row) {
+        const text = statusMap[row.status] || row.status
+        return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small', round: true }, { default: () => text })
+      }
     }
-  },
-  { title: '状态', key: 'status', width: 100, render(row) {
-      const text = statusMap[row.status] || row.status
-      return h(NTag, { type: row.status === 'running' ? 'success' : 'error', size: 'small', round: true }, { default: () => text })
-    }
-  },
-  { title: '端口映射', key: 'ports', render(row) {
-      const tags: any[] = []
-      const hostsList = Array.isArray(props.hosts) ? props.hosts : []
-      const currentHost = hostsList.find(h => h && h.id === props.hostId)
-      const targetIp = (!currentHost?.ssh_host || currentHost.ssh_host === '127.0.0.1') ? window.location.hostname : currentHost.ssh_host
-      if (row.ports) {
-        for (const [containerPort, bindings] of Object.entries(row.ports)) {
-          if (bindings && Array.isArray(bindings)) {
-            bindings.forEach((b: any) => {
-              tags.push(h(NButton, { size: 'tiny', type: 'primary', quaternary: true, onClick: () => window.open(`http://${targetIp}:${b.HostPort}`, '_blank') }, { default: () => `${b.HostPort}->${containerPort}` }))
-            })
+  ]
+
+  if (enhancedMode.value) {
+    cols.push(
+      { title: '资源占用', key: 'stats', width: 180, render(row) {
+          const stats = containerStats.value[row.name]
+          if (!stats || row.status !== 'running') return h(NText, { depth: 3 }, { default: () => '--' })
+          return h(NSpace, { vertical: true, size: 2 }, {
+            default: () => [
+              h(NSpace, { justify: 'space-between', style: 'width: 100%' }, {
+                default: () => [
+                  h(NText, { depth: 3, style: 'font-size: 11px' }, { default: () => `CPU: ${stats.cpu}` }),
+                  h(NText, { depth: 3, style: 'font-size: 11px' }, { default: () => `内存: ${stats.mem_perc}` })
+                ]
+              }),
+              h(NText, { depth: 3, style: 'font-size: 10px' }, { default: () => stats.mem })
+            ]
+          })
+        }
+      },
+      { title: 'IP 地址', key: 'ip', width: 120, render(row) {
+          return h(NText, { depth: 2, style: 'font-family: monospace' }, { default: () => row.ip || '--' })
+        }
+      },
+      { title: '运行时间', key: 'uptime', width: 140, render(row) {
+          let uptime = row.uptime || '--'
+          // 处理通过 SSH/Shell 获取的英文状态
+          if (uptime.startsWith('Up ')) {
+            uptime = uptime.replace('Up ', '已运行 ')
+              .replace(' days', ' 天')
+              .replace(' day', ' 天')
+              .replace(' hours', ' 小时')
+              .replace(' hour', ' 小时')
+              .replace(' minutes', ' 分钟')
+              .replace(' minute', ' 分钟')
+              .replace(' seconds', ' 秒')
+              .replace(' second', ' 秒')
           }
+          return h(NText, { depth: 3, style: 'font-size: 12px' }, { default: () => uptime })
         }
       }
-      const customPort = containerSettings.value[row.name]?.custom_port
-      if (customPort) {
-        tags.push(h(NButton, { size: 'tiny', type: 'warning', secondary: true, onClick: () => window.open(`http://${targetIp}:${customPort}`, '_blank') }, { default: () => `${customPort} (自定)` }))
-      }
-      tags.push(h(NButton, { size: 'tiny', circle: true, quaternary: true, onClick: () => openSettingsModal(row.name) }, { default: () => h(NIcon, null, { default: () => h(EditIcon) }) }))
-      return h(NSpace, { size: [4, 4], align: 'center' }, { default: () => tags })
-    }
-  },
-  { title: '镜像', key: 'image', ellipsis: true, render(row) {
-      const info = updateInfo.value[row.image]
-      const isChecking = loadingActions.value[row.image]
-      
-      const elements = [
-        h(NText, { 
-          depth: 3, 
-          style: 'max-width: 150px; cursor: pointer;',
-          onClick: () => checkSingleUpdate(row.image)
-        }, { default: () => row.image })
-      ]
-
-      if (info?.has_update) {
-        elements.push(h(NTag, { size: 'tiny', type: 'error', quaternary: true, style: 'margin-left: 4px' }, { default: () => 'NEW' }))
-      } else if (!info && !isChecking) {
-        elements.push(h(NButton, { 
-          size: 'tiny', 
-          quaternary: true, 
-          circle: true,
-          style: 'margin-left: 4px; opacity: 0.5',
-          onClick: () => checkSingleUpdate(row.image)
-        }, { default: () => h(NIcon, { size: 14 }, { default: () => h(UpdateIcon) }) }))
-      } else if (isChecking) {
-        elements.push(h(NText, { depth: 3, style: 'margin-left: 4px; font-size: 10px' }, { default: () => '...' }))
-      }
-
-      return h(NSpace, { align: 'center', size: 0 }, { default: () => elements })
-    }
-  },
-  { title: '操作', key: 'actions', width: 380, render(row) {
-      const isRunning = row.status === 'running'
-      const hasUpdate = updateInfo.value[row.image]?.has_update
-      return h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'tiny', type: isRunning ? 'error' : 'primary', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, isRunning ? 'stop' : 'start') }, { 
-            icon: () => h(NIcon, null, { default: () => h(isRunning ? StopIcon : StartIcon) }),
-            default: () => isRunning ? '停止' : '启动' 
-          }),
-          h(NButton, { size: 'tiny', type: hasUpdate ? 'error' : 'warning', secondary: !hasUpdate, pulse: hasUpdate, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { 
-            icon: () => h(NIcon, null, { default: () => h(RecreateIcon) }),
-            default: () => hasUpdate ? '发现新镜像' : '更新' 
-          }),
-          h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleDelete(row) }, { 
-            icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
-            default: () => '删除' 
-          }),
-          h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => showLogs(row.id, row.name) }, { 
-            icon: () => h(NIcon, null, { default: () => h(LogIcon) }),
-            default: () => '日志' 
-          }),
-          h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => openTerminal(row) }, { 
-            icon: () => h(NIcon, null, { default: () => h(TerminalIcon) }),
-            default: () => '终端' 
-          })
-        ]
-      })
-    }
+    )
   }
-]
+
+  cols.push(
+    { title: '端口映射', key: 'ports', minWidth: 150, render(row) {
+        const tags: any[] = []
+        const hostsList = Array.isArray(props.hosts) ? props.hosts : []
+        const currentHost = hostsList.find(h => h && h.id === props.hostId)
+        const targetIp = (!currentHost?.ssh_host || currentHost.ssh_host === '127.0.0.1') ? window.location.hostname : currentHost.ssh_host
+        if (row.ports) {
+          for (const [containerPort, bindings] of Object.entries(row.ports)) {
+            if (bindings && Array.isArray(bindings)) {
+              bindings.forEach((b: any) => {
+                tags.push(h(NButton, { size: 'tiny', type: 'primary', quaternary: true, onClick: () => window.open(`http://${targetIp}:${b.HostPort}`, '_blank') }, { default: () => `${b.HostPort}->${containerPort}` }))
+              })
+            }
+          }
+        }
+        const customPort = containerSettings.value[row.name]?.custom_port
+        if (customPort) {
+          tags.push(h(NButton, { size: 'tiny', type: 'warning', secondary: true, onClick: () => window.open(`http://${targetIp}:${customPort}`, '_blank') }, { default: () => `${customPort} (自定)` }))
+        }
+        tags.push(h(NButton, { size: 'tiny', circle: true, quaternary: true, onClick: () => openSettingsModal(row.name) }, { default: () => h(NIcon, null, { default: () => h(EditIcon) }) }))
+        return h(NSpace, { size: [4, 4], align: 'center' }, { default: () => tags })
+      }
+    },
+    { title: '镜像', key: 'image', ellipsis: true, render(row) {
+        const info = updateInfo.value[row.image]
+        const isChecking = loadingActions.value[row.image]
+        
+        const elements = [
+          h(NText, { 
+            depth: 3, 
+            style: 'max-width: 150px; cursor: pointer;',
+            onClick: () => checkSingleUpdate(row.image)
+          }, { default: () => row.image })
+        ]
+
+        if (info?.has_update) {
+          elements.push(h(NTag, { size: 'tiny', type: 'error', quaternary: true, style: 'margin-left: 4px' }, { default: () => 'NEW' }))
+        } else if (!info && !isChecking) {
+          elements.push(h(NButton, { 
+            size: 'tiny', 
+            quaternary: true, 
+            circle: true,
+            style: 'margin-left: 4px; opacity: 0.5',
+            onClick: () => checkSingleUpdate(row.image)
+          }, { default: () => h(NIcon, { size: 14 }, { default: () => h(UpdateIcon) }) }))
+        } else if (isChecking) {
+          elements.push(h(NText, { depth: 3, style: 'margin-left: 4px; font-size: 10px' }, { default: () => '...' }))
+        }
+
+        return h(NSpace, { align: 'center', size: 0 }, { default: () => elements })
+      }
+    },
+    { title: '操作', key: 'actions', width: 380, render(row) {
+        const isRunning = row.status === 'running'
+        const hasUpdate = updateInfo.value[row.image]?.has_update
+        return h(NSpace, { size: 'small' }, {
+          default: () => [
+            h(NButton, { size: 'tiny', type: isRunning ? 'error' : 'primary', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, isRunning ? 'stop' : 'start') }, { 
+              icon: () => h(NIcon, null, { default: () => h(isRunning ? StopIcon : StartIcon) }),
+              default: () => isRunning ? '停止' : '启动' 
+            }),
+            h(NButton, { size: 'tiny', type: hasUpdate ? 'error' : 'warning', secondary: !hasUpdate, pulse: hasUpdate, loading: loadingActions.value[row.id], onClick: () => handleAction(row.id, 'recreate') }, { 
+              icon: () => h(NIcon, null, { default: () => h(RecreateIcon) }),
+              default: () => hasUpdate ? '发现新镜像' : '更新' 
+            }),
+            h(NButton, { size: 'tiny', type: 'error', secondary: true, loading: loadingActions.value[row.id], onClick: () => handleDelete(row) }, { 
+              icon: () => h(NIcon, null, { default: () => h(DeleteIcon) }),
+              default: () => '删除' 
+            }),
+            h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => showLogs(row.id, row.name) }, { 
+              icon: () => h(NIcon, null, { default: () => h(LogIcon) }),
+              default: () => '日志' 
+            }),
+            h(NButton, { size: 'tiny', type: 'info', secondary: true, onClick: () => openTerminal(row) }, { 
+              icon: () => h(NIcon, null, { default: () => h(TerminalIcon) }),
+              default: () => '终端' 
+            })
+          ]
+        })
+      }
+    }
+  )
+  return cols
+})
 
 const checkSingleUpdate = async (image: string) => {
   if (!props.hostId || !image) return

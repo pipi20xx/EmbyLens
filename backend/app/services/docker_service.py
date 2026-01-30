@@ -89,9 +89,9 @@ class DockerService:
             logger.error(f"Failed to connect to Docker host {self.host_config.get('name')}: {e}")
             return None
 
-    def list_containers(self, all=True, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def list_containers(self, all=True, filters: Dict[str, Any] = None, details: bool = True) -> List[Dict[str, Any]]:
         # 只有在没有过滤条件的情况下使用 5 秒缓存，防止前端频繁切换/请求
-        cache_key = f"{self.host_id}_{all}"
+        cache_key = f"{self.host_id}_{all}_{details}"
         if not filters and cache_key in self._containers_cache:
             data, ts = self._containers_cache[cache_key]
             if time.time() - ts < 5:
@@ -104,15 +104,47 @@ class DockerService:
             try:
                 # 传入 filters 参数
                 containers = self.client.containers.list(all=all, filters=filters)
-                results = [{
-                    "id": c.short_id,
-                    "full_id": c.id,
-                    "name": c.name,
-                    "image": c.image.tags[0] if c.image.tags else c.image.id,
-                    "status": c.status,
-                    "created": c.attrs.get("Created"),
-                    "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {})
-                } for c in containers]
+                for c in containers:
+                    ip = ""
+                    uptime_str = c.status
+                    
+                    if details:
+                        networks = c.attrs.get("NetworkSettings", {}).get("Networks", {})
+                        if networks:
+                            # 优先找 bridge 或者第一个
+                            if "bridge" in networks:
+                                ip = networks["bridge"].get("IPAddress", "")
+                            if not ip:
+                                ip = next(iter(networks.values())).get("IPAddress", "")
+
+                        # 计算运行时间
+                        import datetime
+                        started_at = c.attrs.get("State", {}).get("StartedAt", "")
+                        if started_at and c.status == "running":
+                            try:
+                                # 2024-05-22T08:34:11.123456789Z -> 2024-05-22T08:34:11
+                                t_part = started_at.split('.')[0].replace('Z', '')
+                                start_dt = datetime.datetime.fromisoformat(t_part)
+                                delta = datetime.datetime.utcnow() - start_dt
+                                days = delta.days
+                                hours, remainder = divmod(delta.seconds, 3600)
+                                minutes, _ = divmod(remainder, 60)
+                                if days > 0: uptime_str = f"已运行 {days} 天"
+                                elif hours > 0: uptime_str = f"已运行 {hours} 小时"
+                                else: uptime_str = f"已运行 {minutes} 分钟"
+                            except: pass
+
+                    results.append({
+                        "id": c.short_id,
+                        "full_id": c.id,
+                        "name": c.name,
+                        "image": c.image.tags[0] if c.image.tags else c.image.id,
+                        "status": c.status,
+                        "uptime": uptime_str,
+                        "created": c.attrs.get("Created"),
+                        "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {}),
+                        "ip": ip
+                    })
                 
                 # 获取结果后存入缓存并返回
                 if not filters:
@@ -122,7 +154,7 @@ class DockerService:
                 logger.warning(f"Docker-py client failed, falling back to SSH Shell: {e}")
 
         # 如果客户端不可用或报错，通过 SSH 执行 docker ps 命令解析 (纯 SSH 模式)
-        if self.host_config.get("type") == "ssh":
+        if self.host_config.get("type") == "ssh" or self.host_config.get("type") == "local":
             cmd = "docker ps -a --format '{{json .}}'" if all else "docker ps --format '{{json .}}'"
             res = self.exec_command(cmd)
             if res["success"]:
@@ -139,10 +171,28 @@ class DockerService:
                             "name": c.get("Names"),
                             "image": c.get("Image"),
                             "status": c.get("Status").lower().split(' ')[0], # "Up 2 hours" -> "up"
+                            "uptime": c.get("Status"), # 包含 "Up 2 hours"
                             "created": c.get("CreatedAt"),
-                            "ports": c.get("Ports")
+                            "ports": c.get("Ports"),
+                            "ip": "" # 稍后补充
                         })
                     
+                    # 补充 IP 信息
+                    if details:
+                        ip_cmd = "docker inspect --format '{{.Name}}:{{range .NetworkSettings.Networks}}{{.IPAddress}},{{end}}' $(docker ps -aq)"
+                        ip_res = self.exec_command(ip_cmd, log_error=False)
+                        if ip_res["success"]:
+                            ip_map = {}
+                            for line in ip_res["stdout"].strip().split('\n'):
+                                if ':' in line:
+                                    name, ips = line.split(':', 1)
+                                    name = name.lstrip('/')
+                                    ip_list = [ip for ip in ips.split(',') if ip]
+                                    ip_map[name] = ip_list[0] if ip_list else ""
+                            
+                            for r in results:
+                                r["ip"] = ip_map.get(r["name"], "")
+
                     if not filters:
                         self._containers_cache[cache_key] = (results, time.time())
                     return results
@@ -150,6 +200,34 @@ class DockerService:
                     logger.error(f"Failed to parse docker ps output: {e}")
         
         return results
+
+    def get_containers_stats(self) -> Dict[str, Any]:
+        """获取所有容器的实时资源占用"""
+        cmd = "docker stats --no-stream --format '{{json .}}'"
+        res = self.exec_command(cmd, log_error=False)
+        stats = {}
+        if res["success"]:
+            try:
+                import json
+                lines = res["stdout"].strip().split('\n')
+                for line in lines:
+                    if not line: continue
+                    try:
+                        s = json.loads(line)
+                        name = s.get("Name")
+                        if name:
+                            stats[name] = {
+                                "cpu": s.get("CPUPerc"),
+                                "mem": s.get("MemUsage"),
+                                "mem_perc": s.get("MemPerc"),
+                                "net": s.get("NetIO"),
+                                "block": s.get("BlockIO"),
+                                "pids": s.get("PIDs")
+                            }
+                    except: continue
+            except Exception as e:
+                logger.error(f"Failed to parse docker stats: {e}")
+        return stats
 
     def container_action(self, container_id: str, action: str):
         if not self.client: return False
