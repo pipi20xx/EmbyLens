@@ -382,27 +382,44 @@ const currentView = computed(() => {
 .nav-group-btn {
   font-weight: 700;
   font-size: 0.95rem;
-  padding: 0 16px;
-  height: 38px;
+  padding: 0 18px;
+  height: 36px;
   border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 统一一级和二级菜单的激活样式 */
+:deep(.n-button.nav-group-btn.n-button--primary-type) {
+  background-color: rgba(var(--primary-color-rgb), 0.15) !important;
+  color: var(--primary-color) !important;
+}
+:deep(.n-button.nav-group-btn:hover) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sub-header {
-  height: 48px;
-  background-color: var(--sub-nav-bg-color);
+  height: 50px;
+  background-color: transparent;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.sub-nav-tabs { display: flex; align-items: center; height: 100%; gap: 4px; }
+.sub-nav-tabs { display: flex; align-items: center; height: 100%; gap: 6px; padding: 0 4px; }
 .sub-nav-item {
-  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 34px;
-  cursor: pointer; border-radius: 6px; transition: all 0.2s; color: var(--text-color);
-  opacity: 0.7; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px; padding: 0 18px; height: 36px;
+  cursor: pointer; border-radius: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--text-color);
+  opacity: 0.8; white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
-.sub-nav-item:hover { background-color: rgba(255, 255, 255, 0.05); opacity: 1; }
-.sub-nav-item.active { background-color: var(--primary-color-suppl); color: var(--primary-color); opacity: 1; font-weight: 600; }
+.sub-nav-item:hover { background-color: rgba(255, 255, 255, 0.08); opacity: 1; }
+.sub-nav-item.active { 
+  background-color: rgba(var(--primary-color-rgb), 0.15); 
+  color: var(--primary-color); 
+  opacity: 1; 
+}
 
 .header-right { flex-shrink: 0; }
 .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 12px; border-radius: 20px; transition: all 0.3s; border: 1px solid transparent; }

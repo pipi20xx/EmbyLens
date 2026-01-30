@@ -98,25 +98,23 @@ const getItemLabel = (element: any) => {
 
 <style scoped>
 .group-card {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   overflow: hidden;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .group-card:hover {
   border-color: rgba(var(--primary-color-rgb), 0.3);
-  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .group-header { 
-  padding: 14px 20px; 
-  background-color: rgba(255, 255, 255, 0.05); 
+  padding: 10px 20px; 
+  background-color: rgba(255, 255, 255, 0.04); 
   display: flex; 
   justify-content: space-between; 
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .group-drag-handle { color: rgba(255,255,255,0.2); cursor: grab; }
@@ -131,26 +129,23 @@ const getItemLabel = (element: any) => {
   flex-wrap: wrap; 
   gap: 10px; 
   min-height: 70px;
-  background-image: radial-gradient(rgba(255,255,255,0.02) 1px, transparent 0);
-  background-size: 20px 20px;
 }
 
 .sub-item { 
   display: flex; 
   align-items: center; 
   gap: 8px; 
-  background-color: rgba(255, 255, 255, 0.08); 
-  padding: 8px 14px; 
-  border-radius: 8px; 
-  border: 1px solid rgba(255, 255, 255, 0.1); 
+  background-color: rgba(255, 255, 255, 0.08) !important; 
+  padding: 10px 16px !important; 
+  border-radius: 10px !important; 
+  border: 1px solid rgba(255, 255, 255, 0.15) !important; 
   cursor: grab;
   transition: all 0.2s;
 }
 .sub-item:hover { 
-  background-color: rgba(var(--primary-color-rgb), 0.15); 
+  background-color: rgba(var(--primary-color-rgb), 0.1); 
   border-color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 .sub-drag-icon { opacity: 0.3; }
 .sub-item-text { font-size: 0.9rem; font-weight: 500; }
