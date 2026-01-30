@@ -114,6 +114,8 @@ watch(currentViewKey, (newKey) => {
 // 用户下拉菜单
 const userDropdownOptions = computed(() => [
   { label: '个人中心', key: 'AccountManagerView', icon: () => h(NIcon, null, { default: () => h(UserIcon) }) },
+  { label: '菜单管理', key: 'menu_manager', icon: () => h(NIcon, null, { default: () => h(MenuManageIcon) }) },
+  { label: '系统设置', key: 'SettingsView', icon: () => h(NIcon, null, { default: () => h(SettingIcon) }) },
   { type: 'divider', key: 'd1' },
   { label: '退出登录', key: 'logout', icon: () => h(NIcon, null, { default: () => h(LogoutIcon) }) }
 ])
@@ -121,6 +123,8 @@ const userDropdownOptions = computed(() => [
 const handleUserSelect = (key: string) => {
   if (key === 'logout') {
     handleLogout()
+  } else if (key === 'menu_manager') {
+    showMenuManager.value = true
   } else {
     currentViewKey.value = key
   }
@@ -236,25 +240,12 @@ const currentView = computed(() => {
                 <div class="header-right">
                   <n-space :size="12" align="center">
                     <template v-if="isLoggedIn">
-                      <n-tooltip trigger="hover">
-                        <template #trigger>
-                          <n-button circle quaternary size="small" @click="showMenuManager = true">
-                            <template #icon><n-icon><MenuManageIcon /></n-icon></template>
-                          </n-button>
-                        </template>
-                        菜单管理
-                      </n-tooltip>
-
                       <n-dropdown trigger="click" :options="themeOptions" @select="handleThemeSelect">
                         <n-button circle quaternary size="small">
                           <template #icon><n-icon><ThemeIcon /></n-icon></template>
                         </n-button>
                       </n-dropdown>
                       
-                      <n-button circle quaternary size="small" :type="currentViewKey === 'SettingsView' ? 'primary' : 'default'" @click="currentViewKey = 'SettingsView'">
-                        <template #icon><n-icon><SettingIcon /></n-icon></template>
-                      </n-button>
-
                       <n-button circle quaternary size="small" @click="isLogConsoleOpen = true">
                         <template #icon><n-icon><ConsoleIcon /></n-icon></template>
                       </n-button>
