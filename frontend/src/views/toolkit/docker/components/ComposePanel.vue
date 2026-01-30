@@ -16,6 +16,10 @@
           </n-input>
         </n-space>
         <n-button-group>
+          <n-button type="info" ghost @click="fetchProjects(true)" :loading="loading">
+            <template #icon><n-icon><RefreshIcon /></n-icon></template>
+            刷新列表
+          </n-button>
           <n-button type="success" secondary @click="handleBulkAction('up')">全部启动/更新</n-button>
           <n-button type="error" secondary @click="handleBulkAction('down')">全部停止</n-button>
         </n-button-group>
@@ -97,11 +101,13 @@ import {
   StopCircleOutlined as StopIcon,
   CloudDownloadOutlined as PullIcon,
   SearchOutlined as SearchIcon,
-  BackupTableRound as BackupIcon
+  BackupTableRound as BackupIcon,
+  AutorenewOutlined as RefreshIcon
 } from '@vicons/material'
 import axios from 'axios'
 import type { DataTableColumns } from 'naive-ui'
 import yaml from 'js-yaml'
+import { useDockerStore } from '@/store/dockerStore'
 
 const props = defineProps({
   hostId: { type: String, default: null },
@@ -113,21 +119,24 @@ const emit = defineEmits(['refresh-containers', 'refresh-hosts', 'browse-path', 
 
 const message = useMessage()
 const dialog = useDialog()
-const projects = ref<any[]>([])
-const loading = ref(false)
+const dockerStore = useDockerStore()
+
+const projects = computed(() => (dockerStore.projects[props.hostId || ''] || []).sort((a: any, b: any) => a.name.localeCompare(b.name)))
+const loading = computed(() => dockerStore.loading[`projects_${props.hostId}`] || false)
+
 const loadingActions = ref<Record<string, boolean>>({})
 const searchQuery = ref('')
 
 const filteredProjects = computed(() => {
-  if (!searchQuery.value) return projects.value
+  const data = projects.value
+  if (!searchQuery.value) return data
   const query = searchQuery.value.toLowerCase()
-  return projects.value.filter((p: any) => 
+  return data.filter((p: any) => 
     p.name.toLowerCase().includes(query) || 
     (p.config_file || p.path || '').toLowerCase().includes(query)
   )
 })
 
-// ... (keep the rest of existing ref declarations) ...
 const showComposeModal = ref(false)
 const showCommandResult = ref(false)
 const commandResult = ref({ stdout: '', stderr: '' })
@@ -190,15 +199,9 @@ const formatStatus = (status: string) => {
   return status
 }
 
-const fetchProjects = async () => {
+const fetchProjects = async (force = false) => {
   if (!props.hostId) return
-  loading.value = true
-  try {
-    const res = await axios.get(`/api/docker/compose/${props.hostId}/projects`)
-    projects.value = (res.data || []).sort((a: any, b: any) => a.name.localeCompare(b.name))
-  } finally {
-    loading.value = false
-  }
+  await dockerStore.fetchProjects(props.hostId, force)
 }
 
 // 表格列定义
@@ -326,7 +329,7 @@ const loadLastPath = () => {
 }
 
 const finalSavePath = computed(() => {
-  const base = baseSavePath.value.replace(/\/$/, '')
+  const base = baseSavePath.value.replace(/\/+$/, '')
   const name = currentProject.value.name.trim() || 'project_name'
   return `${base}/${name}/docker-compose.yml`
 })
@@ -355,7 +358,7 @@ const handleBulkAction = (action: string) => {
       try {
         await axios.post(`/api/docker/compose/${props.hostId}/projects/bulk-action`, { action })
         message.success(`批量${actionText}指令已发送`)
-        fetchProjects()
+        fetchProjects(true)
         emit('refresh-containers')
       } catch (e) {
         message.error('操作失败')
@@ -415,7 +418,7 @@ const saveProject = async () => {
     }
 
     showComposeModal.value = false
-    fetchProjects() 
+    fetchProjects(true) 
     // 自动扫描新路径
     if (!isEditingProject.value) pinProject({ path: savePath.substring(0, savePath.lastIndexOf('/')) })
   } catch (e) {
@@ -447,7 +450,7 @@ const deleteProject = (p: any) => {
           } 
         })
         message.success(deleteFiles.value ? '项目及文件已删除' : '项目已从视图移除')
-        fetchProjects()
+        fetchProjects(true)
       } catch (e) {
         message.error('操作失败: ' + (e.response?.data?.detail || '未知错误'))
       }
@@ -461,7 +464,6 @@ const runComposeAction = async (p: any, action: string) => {
     const res = await axios.post(`/api/docker/compose/${props.hostId}/projects/${p.name}/action`, { action, path: p.config_file || p.path })
     
     if (res.data.success) {
-      // 进一步优化过滤逻辑，增加停止相关的关键字
       const noise = ['Started', 'Stopped', 'Stopping', 'Removing', 'Removed', 'Network', 'default']
       const stderr = res.data.stderr || ''
       const isNoise = noise.some(n => stderr.includes(n))
@@ -484,21 +486,21 @@ const runComposeAction = async (p: any, action: string) => {
     message.error('请求失败')
   } finally {
     loadingActions.value[p.name] = false
-    fetchProjects()
+    fetchProjects(true)
   }
 }
 
 const pinProject = async (p: any) => {
   const currentHost = props.hosts.find(h => h.id === props.hostId)
   if (!currentHost) return
-  const path = p.path.replace(/\/$/, '')
+  const path = p.path.replace(/.+$/, '')
   const pathList = (currentHost.compose_scan_paths || '').split(',').map((i: string) => i.trim()).filter((i: string) => i)
   if (!pathList.includes(path)) {
     pathList.push(path)
     currentHost.compose_scan_paths = pathList.join(',')
     await axios.put(`/api/docker/hosts/${props.hostId}`, currentHost)
     message.success('项目路径已记忆')
-    fetchProjects()
+    fetchProjects(true)
     emit('refresh-hosts')
   }
 }

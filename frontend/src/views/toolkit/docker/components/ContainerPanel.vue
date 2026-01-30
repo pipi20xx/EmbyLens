@@ -2,7 +2,7 @@
   <div class="container-panel">
     <n-space style="margin-bottom: 12px" align="center" justify="space-between">
       <n-space>
-        <n-button type="primary" secondary @click="fetchContainers" :loading="loading">
+        <n-button type="primary" secondary @click="fetchContainers(true)" :loading="loading">
           <template #icon><n-icon><RefreshIcon /></n-icon></template>
           刷新列表
         </n-button>
@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, h, reactive } from 'vue'
+import { ref, watch, h, reactive, computed } from 'vue'
 import { NDataTable, NTag, NButton, NSpace, NIcon, NModal, NText, NFormItem, NInput, useMessage, useDialog, NDropdown, NRadioGroup, NRadioButton, NSwitch } from 'naive-ui'
 import { 
   EditOutlined as EditIcon,
@@ -80,9 +80,9 @@ import {
   SearchOutlined as SearchIcon
 } from '@vicons/material'
 import axios from 'axios'
-import { computed } from 'vue'
 import type { DataTableColumns } from 'naive-ui'
 import TerminalModal from './TerminalModal.vue'
+import { useDockerStore } from '@/store/dockerStore'
 
 const props = defineProps<{
   hostId: string | null
@@ -91,16 +91,20 @@ const props = defineProps<{
 
 const message = useMessage()
 const dialog = useDialog()
-const containers = ref([])
-const loading = ref(false)
+const dockerStore = useDockerStore()
+
+const containers = computed(() => dockerStore.containers[props.hostId || ''] || [])
+const loading = computed(() => dockerStore.loading[`containers_${props.hostId}`] || false)
+
 const loadingPrune = ref(false)
 const searchQuery = ref('')
 const updateInfo = ref<Record<string, any>>({})
 
 const filteredContainers = computed(() => {
-  if (!searchQuery.value) return containers.value
+  const data = containers.value
+  if (!searchQuery.value) return data
   const query = searchQuery.value.toLowerCase()
-  return containers.value.filter((c: any) => 
+  return data.filter((c: any) => 
     c.name.toLowerCase().includes(query) || 
     c.image.toLowerCase().includes(query)
   )
@@ -125,41 +129,23 @@ const statusMap: Record<string, string> = {
   'dead': '已失效'
 }
 
-const fetchContainers = async () => {
+const fetchContainers = async (force = false) => {
   if (!props.hostId) return
-  loading.value = true
+  await dockerStore.fetchContainers(props.hostId, force)
   try {
-    const res = await axios.get(`/api/docker/${props.hostId}/containers`)
-    containers.value = res.data
     const settingsRes = await axios.get('/api/docker/container-settings')
     containerSettings.value = settingsRes.data
-  } finally {
-    loading.value = false
-  }
+  } catch (e) {}
 }
 
-const checkSingleUpdate = async (image: string) => {
-  if (!props.hostId || !image) return
-  loadingActions.value[image] = true
-  try {
-    const res = await axios.get(`/api/docker/${props.hostId}/check-image-update`, { params: { image } })
-    updateInfo.value = { ...updateInfo.value, ...res.data }
-    message.success(`镜像 ${image} 检查完成`)
-  } catch (e) {
-    message.error('检查失败')
-  } finally {
-    loadingActions.value[image] = false
-  }
-}
-
-watch(() => props.hostId, fetchContainers, { immediate: true })
+watch(() => props.hostId, () => fetchContainers(), { immediate: true })
 
 const handleAction = async (id: string, action: string) => {
   loadingActions.value[id] = true
   try {
     await axios.post(`/api/docker/${props.hostId}/containers/${id}/action`, { action })
     message.success('指令已发送')
-    setTimeout(fetchContainers, 2000)
+    setTimeout(() => fetchContainers(true), 2000)
   } catch (e) {
     message.error('操作失败')
   } finally {
@@ -189,8 +175,7 @@ const handlePruneContainers = async () => {
       try {
         const res = await axios.post(`/api/docker/${props.hostId}/prune-containers`)
         message.success(res.data.message || '容器清理任务已启动')
-        // 既然是后台清理，列表刷新可能看不到即时效果，但我们还是刷一下
-        setTimeout(fetchContainers, 3000)
+        setTimeout(() => fetchContainers(true), 3000)
       } catch (e) {
         message.error('请求失败')
       } finally {
@@ -265,7 +250,7 @@ const saveSettings = async () => {
   })
   message.success('设置已保存')
   showSettingsModal.value = false
-  fetchContainers()
+  fetchContainers(true)
 }
 
 const columns: DataTableColumns<any> = [
@@ -321,7 +306,6 @@ const columns: DataTableColumns<any> = [
       if (info?.has_update) {
         elements.push(h(NTag, { size: 'tiny', type: 'error', quaternary: true, style: 'margin-left: 4px' }, { default: () => 'NEW' }))
       } else if (!info && !isChecking) {
-        // 未检查状态，显示一个淡淡的提示
         elements.push(h(NButton, { 
           size: 'tiny', 
           quaternary: true, 
@@ -366,6 +350,20 @@ const columns: DataTableColumns<any> = [
     }
   }
 ]
+
+const checkSingleUpdate = async (image: string) => {
+  if (!props.hostId || !image) return
+  loadingActions.value[image] = true
+  try {
+    const res = await axios.get(`/api/docker/${props.hostId}/check-image-update`, { params: { image } })
+    updateInfo.value = { ...updateInfo.value, ...res.data }
+    message.success(`镜像 ${image} 检查完成`)
+  } catch (e) {
+    message.error('检查失败')
+  } finally {
+    loadingActions.value[image] = false
+  }
+}
 
 defineExpose({ refresh: fetchContainers })
 </script>

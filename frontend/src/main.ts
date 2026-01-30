@@ -1,10 +1,13 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import axios from 'axios'
 import { logout, uiAuthEnabled } from './store/navigationStore'
 import './style.css'
 import './styles/global.css'
+
+axios.defaults.timeout = 20000 // 20秒超时
 
 // 配置 Axios 拦截器
 axios.interceptors.request.use(config => {
@@ -19,7 +22,6 @@ axios.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      // 仅在开启了登录验证的情况下才跳转登录页
       if (uiAuthEnabled.value && !window.location.pathname.includes('/login')) {
         logout()
         router.push('/login')
@@ -30,5 +32,8 @@ axios.interceptors.response.use(
 )
 
 const app = createApp(App)
+const pinia = createPinia()
+
+app.use(pinia)
 app.use(router)
 app.mount('#app')

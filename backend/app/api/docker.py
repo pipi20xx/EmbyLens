@@ -175,7 +175,7 @@ def get_docker_service(host_id: str):
 @router.get("/{host_id}/containers")
 async def list_containers(host_id: str):
     service = get_docker_service(host_id)
-    return service.list_containers()
+    return await asyncio.to_thread(service.list_containers)
 
 @router.get("/{host_id}/check-image-update")
 async def check_single_image_update(host_id: str, image: str):
@@ -190,17 +190,18 @@ async def container_action(host_id: str, container_id: str, action: str = Body(.
     logger.info(f"🚀 [Docker] 收到容器操作请求: 动作={action}, 容器ID={container_id}, 主机={host_id}")
     service = get_docker_service(host_id)
     
-    # 尝试获取容器名称，用于通知
+    # 尝试获取容器名称，用于通知 (异步化)
     container_name = container_id
     try:
         if service.client:
-            # 这里的 get 操作很快
-            c = service.client.containers.get(container_id)
-            container_name = c.name
+            def get_name():
+                return service.client.containers.get(container_id).name
+            container_name = await asyncio.to_thread(get_name)
     except Exception:
         pass
 
-    success = service.container_action(container_id, action)
+    # 在线程池中执行耗时操作
+    success = await asyncio.to_thread(service.container_action, container_id, action)
     
     if not success:
         logger.error(f"❌ [Docker] 容器操作失败: {action} -> {container_id}")
@@ -236,6 +237,7 @@ async def container_action(host_id: str, container_id: str, action: str = Body(.
     ])
     
     return {"message": f"Action {action} performed successfully"}
+
 
 @router.get("/{host_id}/containers/{container_id}/logs")
 async def get_container_logs(host_id: str, container_id: str, tail: int = 100):

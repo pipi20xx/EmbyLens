@@ -2,6 +2,7 @@ import docker
 import paramiko
 import os
 import time
+import asyncio
 from typing import List, Dict, Any, Optional
 from app.utils.logger import logger
 from app.core.config_manager import get_config
@@ -33,22 +34,43 @@ paramiko.SSHClient.connect = _patched_connect
 # --- Service 实现 ---
 
 class DockerService:
+    # 类级别缓存：{ host_id: (client, timestamp) }
+    _clients_cache = {}
+    _ssh_clients_cache = {} # { host_id: (ssh_client, timestamp) }
+    _containers_cache = {} # { host_id: (data, timestamp) }
+    _projects_cache = {} # { host_id: (data, timestamp) }
+    
     def __init__(self, host_config: Dict[str, Any]):
         self.host_config = host_config
+        self.host_id = host_config.get("id", "local")
         self.client = self._get_client()
 
     def _get_client(self):
+        # 检查有效缓存 (30分钟内有效)
+        if self.host_id in self._clients_cache:
+            client, ts = self._clients_cache[self.host_id]
+            if time.time() - ts < 1800:
+                try:
+                    # 快速检查连接是否真的存活
+                    client.ping()
+                    return client
+                except:
+                    if self.host_id in self._clients_cache:
+                        del self._clients_cache[self.host_id]
+        
         try:
+            client = None
             host_type = self.host_config.get("type", "local")
             if host_type == "local":
-                return docker.from_env()
+                client = docker.from_env()
             
             elif host_type == "ssh":
                 ssh_host = self.host_config.get("ssh_host")
                 ssh_user = self.host_config.get("ssh_user", "root")
                 ssh_port = self.host_config.get("ssh_port", 22)
+                # 使用 timeout 避免卡死
                 base_url = f"ssh://{ssh_user}@{ssh_host}:{ssh_port}"
-                return docker.DockerClient(base_url=base_url, use_ssh_client=False, timeout=15)
+                client = docker.DockerClient(base_url=base_url, use_ssh_client=False, timeout=10)
             
             elif host_type == "tcp":
                 host = self.host_config.get("ssh_host")
@@ -56,7 +78,11 @@ class DockerService:
                 use_tls = self.host_config.get("use_tls", False)
                 protocol = "https" if use_tls else "http"
                 base_url = f"{protocol}://{host}:{port}"
-                return docker.DockerClient(base_url=base_url)
+                client = docker.DockerClient(base_url=base_url, timeout=10)
+            
+            if client:
+                self._clients_cache[self.host_id] = (client, time.time())
+                return client
                 
             return None
         except Exception as e:
@@ -64,12 +90,21 @@ class DockerService:
             return None
 
     def list_containers(self, all=True, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        # 只有在没有过滤条件的情况下使用 5 秒缓存，防止前端频繁切换/请求
+        cache_key = f"{self.host_id}_{all}"
+        if not filters and cache_key in self._containers_cache:
+            data, ts = self._containers_cache[cache_key]
+            if time.time() - ts < 5:
+                return data
+
+        results = []
+
         # 优先尝试通过 docker-py 客户端获取（效率高，数据全）
         if self.client:
             try:
                 # 传入 filters 参数
                 containers = self.client.containers.list(all=all, filters=filters)
-                return [{
+                results = [{
                     "id": c.short_id,
                     "full_id": c.id,
                     "name": c.name,
@@ -78,6 +113,11 @@ class DockerService:
                     "created": c.attrs.get("Created"),
                     "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {})
                 } for c in containers]
+                
+                # 获取结果后存入缓存并返回
+                if not filters:
+                    self._containers_cache[cache_key] = (results, time.time())
+                return results
             except Exception as e:
                 logger.warning(f"Docker-py client failed, falling back to SSH Shell: {e}")
 
@@ -102,10 +142,14 @@ class DockerService:
                             "created": c.get("CreatedAt"),
                             "ports": c.get("Ports")
                         })
+                    
+                    if not filters:
+                        self._containers_cache[cache_key] = (results, time.time())
                     return results
                 except Exception as e:
                     logger.error(f"Failed to parse docker ps output: {e}")
-        return []
+        
+        return results
 
     def container_action(self, container_id: str, action: str):
         if not self.client: return False
@@ -137,7 +181,7 @@ class DockerService:
                 current_binds = host_config.get('Binds') or []
                 final_binds = []
                 
-                # 1. 建立现有 Binds 的索引 (Source:Dest -> Mode)
+                # 1. 建立现有 Binds 的索引 (Source:Dest -> Mode) 
                 bind_map = {} 
                 for b in current_binds:
                     parts = b.split(':')
@@ -246,6 +290,13 @@ class DockerService:
                     except Exception as rollback_err:
                         logger.error(f"🚨 [Docker] 回滚失败! 旧容器目前名称为 {bak_name}: {rollback_err}")
                     raise run_err
+            
+            # 操作后清理列表缓存
+            cache_keys = [f"{self.host_id}_True", f"{self.host_id}_False"]
+            for k in cache_keys:
+                if k in self._containers_cache:
+                    del self._containers_cache[k]
+            
             return True
         except Exception as e:
             logger.error(f"Error performing action {action} on container {container_id}: {e}")
@@ -418,7 +469,8 @@ class DockerService:
             try:
                 from app.services.docker_service import DockerService
                 service = DockerService(host_config)
-                containers = service.list_containers(all=True, filters={"name": names})
+                # 使用 to_thread 异步获取容器列表
+                containers = await asyncio.to_thread(service.list_containers, True, {"name": names})
                 
                 for container in containers:
                     c_name = container.get("name")
@@ -429,7 +481,8 @@ class DockerService:
                             if update_info and update_info.get("has_update"):
                                 logger.info(f"✨ [Docker][{host_name}] 发现镜像更新: {c_name}")
                                 c_id = container.get("full_id") or container.get("id")
-                                if service.container_action(c_id, "recreate"):
+                                # 使用 to_thread 异步执行重构操作
+                                if await asyncio.to_thread(service.container_action, c_id, "recreate"):
                                     updated_count += 1
                                     await NotificationService.emit(
                                         event="docker.auto_update",
@@ -519,12 +572,12 @@ class DockerService:
             logger.info(f"📅 [Docker] 自动更新已重载 ({stype}: {sval}, 时区: {tz_name})")
         except Exception as e:
             logger.error(f"❌ [Docker] 重载调度器失败: {e}")
-        # ... (rest of the method logic)
 
     def test_connection(self) -> bool:
         if not self.client: return False
         try:
-            return self.client.ping()
+            self.client.ping()
+            return True
         except Exception:
             return False
 
@@ -549,7 +602,7 @@ class DockerService:
 
         if self.host_config.get("type") == "local":
             try:
-                process = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
+                process = subprocess.run(full_cmd, shell=True, capture_output=True, text=True, timeout=30)
                 stdout = process.stdout
                 stderr = filter_noise(process.stderr)
                 
@@ -560,16 +613,45 @@ class DockerService:
                 return {"success": False, "stdout": "", "stderr": str(e)}
         
         elif self.host_config.get("type") == "ssh":
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh = None
+            # 尝试从缓存获取
+            if self.host_id in self._ssh_clients_cache:
+                c, ts = self._ssh_clients_cache[self.host_id]
+                # 缩短复用时间到 5 分钟，提高安全性
+                if time.time() - ts < 300: 
+                    try:
+                        transport = c.get_transport()
+                        if transport and transport.is_active():
+                            # 发送一个轻量级心跳信号检查 Socket 是否真的可用
+                            transport.send_ignore()
+                            ssh = c
+                    except:
+                        pass
+            
+            if not ssh:
+                # 清理失效缓存
+                if self.host_id in self._ssh_clients_cache:
+                    try: self._ssh_clients_cache[self.host_id][0].close()
+                    except: pass
+                    del self._ssh_clients_cache[self.host_id]
+
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                try:
+                    ssh_host = self.host_config.get("ssh_host")
+                    ssh_user = self.host_config.get("ssh_user", "root")
+                    ssh_port = self.host_config.get("ssh_port", 22)
+                    ssh_pass = self.host_config.get("ssh_pass")
+                    
+                    ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_pass, timeout=10)
+                    self._ssh_clients_cache[self.host_id] = (ssh, time.time())
+                except Exception as e:
+                    if log_error: logger.error(f"SSH Connection Error during exec: {e}")
+                    return {"success": False, "stdout": "", "stderr": str(e)}
+
             try:
-                ssh_host = self.host_config.get("ssh_host")
-                ssh_user = self.host_config.get("ssh_user", "root")
-                ssh_port = self.host_config.get("ssh_port", 22)
-                ssh_pass = self.host_config.get("ssh_pass")
-                
-                ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_pass, timeout=10)
-                stdin, stdout, stderr = ssh.exec_command(full_cmd)
+                # 增加 exec_command 的超时保护
+                stdin, stdout, stderr = ssh.exec_command(full_cmd, timeout=30)
                 
                 out = stdout.read().decode()
                 err = filter_noise(stderr.read().decode())
@@ -584,10 +666,13 @@ class DockerService:
                     "stderr": err
                 }
             except Exception as e:
-                if log_error: logger.error(f"SSH Connection Error during exec: {e}")
+                # 如果执行失败且是因为连接断开，则清理缓存
+                if self.host_id in self._ssh_clients_cache:
+                    try: ssh.close()
+                    except: pass
+                    del self._ssh_clients_cache[self.host_id]
+                if log_error: logger.error(f"SSH Exec Error: {e}")
                 return {"success": False, "stdout": "", "stderr": str(e)}
-            finally:
-                ssh.close()
         return {"success": False, "stdout": "", "stderr": "Unsupported host type"}
 
     def read_file(self, file_path: str) -> str:
@@ -602,7 +687,8 @@ class DockerService:
                 ssh.connect(self.host_config.get("ssh_host"), 
                             port=self.host_config.get("ssh_port", 22), 
                             username=self.host_config.get("ssh_user"), 
-                            password=self.host_config.get("ssh_pass"))
+                            password=self.host_config.get("ssh_pass"),
+                            timeout=10)
                 sftp = ssh.open_sftp()
                 with sftp.open(file_path, 'r') as f:
                     content = f.read().decode()
@@ -630,7 +716,8 @@ class DockerService:
                 ssh.connect(self.host_config.get("ssh_host"), 
                             port=self.host_config.get("ssh_port", 22), 
                             username=self.host_config.get("ssh_user"), 
-                            password=self.host_config.get("ssh_pass"))
+                            password=self.host_config.get("ssh_pass"),
+                            timeout=10)
                 sftp = ssh.open_sftp()
                 remote_dir = os.path.dirname(file_path)
                 ssh.exec_command(f"mkdir -p {remote_dir}")
