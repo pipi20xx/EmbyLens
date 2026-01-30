@@ -18,9 +18,12 @@ const emit = defineEmits([
   'removeGroup', 'removeItem', 'startEdit', 'stopEdit'
 ])
 
-const getItemLabel = (key: string) => {
-  const item = allMenuItems.find(m => m.key === key)
-  return item ? (item.label as string) : key
+const getItemLabel = (element: any) => {
+  if (typeof element === 'string') {
+    const item = allMenuItems.find(m => m.key === element)
+    return item ? (item.label as string) : element
+  }
+  return element?.label || element?.key || JSON.stringify(element)
 }
 </script>
 
@@ -65,7 +68,7 @@ const getItemLabel = (key: string) => {
     <draggable
       v-model="group.items"
       group="menu-items"
-      item-key="self"
+      :item-key="(item: any) => item"
       class="group-content"
       ghost-class="sub-ghost"
       animation="150"

@@ -95,6 +95,7 @@ const handleClose = () => {
                 v-model="unallocatedItems"
                 :group="{ name: 'menu-items', pull: 'clone', put: false }"
                 :sort="false"
+                :clone="el => el.key"
                 item-key="key"
                 class="pool-list"
               >
@@ -175,12 +176,13 @@ const handleClose = () => {
               <div class="editor-content-wrapper">
                 <draggable
                   v-model="menuLayout"
-                  group="primary-groups"
+                  :group="{ name: 'primary-groups', put: ['menu-items'] }"
                   item-key="key"
                   handle=".primary-drag-handle"
                   class="primary-list"
                   ghost-class="ghost-node"
                   animation="200"
+                  @change="onPoolToPrimary"
                 >
                   <template #item="{ element, index }">
                     <div class="primary-node-outer">

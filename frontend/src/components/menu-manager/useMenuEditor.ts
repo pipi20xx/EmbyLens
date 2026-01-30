@@ -57,11 +57,17 @@ export function useMenuEditor() {
     })
   }
 
-  // 处理从功能池拖入一级菜单的行为（Draggable 会自动处理数组，但我们需要确保类型正确）
+  // 处理从功能池拖入一级菜单的行为
   const onPoolToPrimary = (evt: any) => {
     if (evt.added) {
-      const item = evt.added.element
-      // 将普通菜单项包装成 MenuGroup 结构
+      const element = evt.added.element
+      // 兼容字符串 key 和对象结构
+      const item = typeof element === 'string' 
+        ? allMenuItems.find(m => m.key === element)
+        : element
+
+      if (!item) return
+
       const idx = evt.added.newIndex
       menuLayout.value[idx] = {
         key: item.key,
