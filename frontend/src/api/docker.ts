@@ -1,32 +1,18 @@
-import axios from 'axios'
-
-export interface DockerHost {
-  id: string
-  name: string
-  host: string
-  port: number
-  compose_scan_paths?: string
-  [key: string]: any
-}
-
-export interface AutoUpdateSettings {
-  enabled: boolean
-  type: 'cron' | 'interval'
-  value: string
-}
+import request from '@/utils/request'
+import { DockerHost, AutoUpdateSettings } from '@/types/docker'
 
 export const dockerApi = {
   // Hosts
-  getHosts: () => axios.get<DockerHost[]>('/api/docker/hosts'),
-  updateHost: (id: string, data: DockerHost) => axios.put(`/api/docker/hosts/${id}`, data),
+  getHosts: () => request.get<DockerHost[]>('/api/docker/hosts'),
+  updateHost: (id: string, data: DockerHost) => request.put(`/api/docker/hosts/${id}`, data),
   
   // Settings
-  getAutoUpdateSettings: () => axios.get<AutoUpdateSettings>('/api/docker/auto-update/settings'),
-  saveAutoUpdateSettings: (data: AutoUpdateSettings) => axios.post('/api/docker/auto-update/settings', data),
+  getAutoUpdateSettings: () => request.get<AutoUpdateSettings>('/api/docker/auto-update/settings'),
+  saveAutoUpdateSettings: (data: AutoUpdateSettings) => request.post('/api/docker/auto-update/settings', data),
   
   // Containers & Compose
   getContainers: (hostId: string, details = true) => 
-    axios.get(`/api/docker/${hostId}/containers`, { params: { details } }),
-  getStats: (hostId: string) => axios.get(`/api/docker/${hostId}/containers/stats`),
-  getProjects: (hostId: string) => axios.get(`/api/docker/compose/${hostId}/projects`)
+    request.get(`/api/docker/${hostId}/containers`, { params: { details } }),
+  getStats: (hostId: string) => request.get(`/api/docker/${hostId}/containers/stats`),
+  getProjects: (hostId: string) => request.get(`/api/docker/compose/${hostId}/projects`)
 }

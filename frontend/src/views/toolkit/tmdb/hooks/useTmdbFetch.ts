@@ -62,15 +62,13 @@ export function useTmdbFetch() {
       recursive: detailForm.recursive
     }
     try {
-      const res = await tmdbApi.fetch(params)
-      if (res.data.error) {
-        message.error(res.data.error)
+      const data: any = await tmdbApi.fetch(params)
+      if (data.error) {
+        message.error(data.error)
       } else {
-        detailResult.value = res.data
+        detailResult.value = data
         message.success('抓取成功')
       }
-    } catch (e) {
-      message.error('抓取失败')
     } finally {
       detailLoading.value = false
     }

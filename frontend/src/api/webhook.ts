@@ -1,6 +1,6 @@
-import axios from 'axios'
+import request from '@/utils/request'
 
 export const webhookApi = {
-  getLogs: () => axios.get('/api/webhook/list'),
-  clearLogs: () => axios.delete('/api/webhook/clear')
+  getLogs: () => request.get('/api/webhook/list'),
+  clearLogs: () => request.delete('/api/webhook/clear')
 }

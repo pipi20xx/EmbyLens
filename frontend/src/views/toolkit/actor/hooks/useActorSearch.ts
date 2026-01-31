@@ -1,10 +1,7 @@
 import { ref } from 'vue'
-import { useMessage } from 'naive-ui'
 import { actorsApi } from '@/api/actors'
 
 export function useActorSearch() {
-  const message = useMessage()
-  
   const embyMode = ref('name')
   const embyQuery = ref('')
   const embyLoading = ref(false)
@@ -19,10 +16,8 @@ export function useActorSearch() {
     if (!embyQuery.value) return
     embyLoading.value = true
     try {
-      const res = await actorsApi.searchEmby(embyQuery.value)
-      embyResults.value = res.data.results
-    } catch (e) { 
-      message.error('Emby 检索失败') 
+      const data = await actorsApi.searchEmby(embyQuery.value)
+      embyResults.value = (data as any).results
     } finally { 
       embyLoading.value = false 
     }
@@ -32,10 +27,8 @@ export function useActorSearch() {
     if (!tmdbQuery.value) return
     tmdbLoading.value = true
     try {
-      const res = await actorsApi.searchTmdb(tmdbQuery.value)
-      tmdbResults.value = res.data.results
-    } catch (e) { 
-      message.error('TMDB 检索失败') 
+      const data = await actorsApi.searchTmdb(tmdbQuery.value)
+      tmdbResults.value = (data as any).results
     } finally { 
       tmdbLoading.value = false 
     }

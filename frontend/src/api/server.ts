@@ -1,10 +1,10 @@
-import axios from 'axios'
+import request from '@/utils/request'
 
 export const serverApi = {
-  getLibraries: () => axios.get('/api/server/libraries'),
-  getUsers: () => axios.get('/api/server/users'),
-  syncUsers: () => axios.post('/api/server/users/sync'),
-  deleteServer: (id: string) => axios.delete(`/api/server/${id}`),
-  saveGlobal: (data: any) => axios.post('/api/server/save', data),
-  getCurrent: () => axios.get('/api/server/current')
+  getLibraries: () => request.get('/api/server/libraries'),
+  getUsers: () => request.get('/api/server/users'),
+  syncUsers: () => request.post('/api/server/users/sync'),
+  deleteServer: (id: string) => request.delete(`/api/server/${id}`),
+  saveGlobal: (data: any) => request.post('/api/server/save', data),
+  getCurrent: () => request.get('/api/server/current')
 }

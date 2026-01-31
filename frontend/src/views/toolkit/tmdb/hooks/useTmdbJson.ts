@@ -1,9 +1,7 @@
 import { reactive } from 'vue'
-import { useMessage } from 'naive-ui'
 import { tmdbApi } from '@/api/tmdb'
 
 export function useTmdbJson(detailResult: any, detailForm: any) {
-  const message = useMessage()
   const jsonModal = reactive({
     show: false,
     title: '原始 JSON 数据',
@@ -18,16 +16,15 @@ export function useTmdbJson(detailResult: any, detailForm: any) {
     jsonModal.data = { message: '正在从 TMDB 实时抓取该季全量数据...' }
     try {
       const isAll = detailForm.language === 'all'
-      const res = await tmdbApi.fetchSeason({
+      const data = await tmdbApi.fetchSeason({
         tmdb_id: detailResult.value.id,
         season_number: season.season_number,
         language: isAll ? '' : detailForm.language,
         include_translations: isAll
       })
-      jsonModal.data = res.data
-      jsonModal.title = `季全量详情 - ${res.data.name}`
+      jsonModal.data = data
+      jsonModal.title = `季全量详情 - ${(data as any).name}`
     } catch (e) {
-      message.error('季详情抓取失败')
       jsonModal.data = season
     } finally {
       jsonModal.loading = false
@@ -41,17 +38,16 @@ export function useTmdbJson(detailResult: any, detailForm: any) {
     jsonModal.data = { message: '正在从 TMDB 实时获取单集全量数据...' }
     try {
       const isAll = detailForm.language === 'all'
-      const res = await tmdbApi.fetchEpisode({
+      const data = await tmdbApi.fetchEpisode({
         tmdb_id: detailResult.value.id,
         season_number: ep.season_number,
         episode_number: ep.episode_number,
         language: isAll ? '' : detailForm.language,
         include_translations: isAll
       })
-      jsonModal.data = res.data
-      jsonModal.title = `单集全量 JSON - EP ${ep.episode_number}: ${res.data.name}`
+      jsonModal.data = data
+      jsonModal.title = `单集全量 JSON - EP ${ep.episode_number}: ${(data as any).name}`
     } catch (e) {
-      message.error('单集详情抓取失败')
       jsonModal.data = ep
     } finally {
       jsonModal.loading = false

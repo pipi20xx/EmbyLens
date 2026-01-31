@@ -17,11 +17,9 @@ export function useTmdbSearch() {
     if (!searchForm.query) return
     searchLoading.value = true
     try {
-      const res = await tmdbApi.search(searchForm)
-      searchResults.value = res.data.results || []
+      const data = await tmdbApi.search(searchForm)
+      searchResults.value = (data as any).results || []
       if (searchResults.value.length === 0) message.warning('未找到相关结果')
-    } catch (e) {
-      message.error('搜索异常')
     } finally {
       searchLoading.value = false
     }

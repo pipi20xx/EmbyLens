@@ -1,4 +1,4 @@
-import axios from 'axios'
+import request from '@/utils/request'
 
 export interface BackupTask {
   id?: string
@@ -18,14 +18,14 @@ export interface BackupTask {
 }
 
 export const backupApi = {
-  getTasks: () => axios.get<BackupTask[]>('/api/backup/tasks'),
+  getTasks: () => request.get<BackupTask[]>('/api/backup/tasks'),
   saveTask: (task: BackupTask) => {
     if (task.id) {
-      return axios.put(`/api/backup/tasks/${task.id}`, task)
+      return request.put(`/api/backup/tasks/${task.id}`, task)
     } else {
-      return axios.post('/api/backup/tasks', task)
+      return request.post('/api/backup/tasks', task)
     }
   },
-  runTask: (id: string) => axios.post(`/api/backup/tasks/${id}/run`),
-  getHistory: (taskId?: string) => axios.get('/api/backup/history', { params: { task_id: taskId } })
+  runTask: (id: string) => request.post(`/api/backup/tasks/${id}/run`),
+  getHistory: (taskId?: string) => request.get('/api/backup/history', { params: { task_id: taskId } })
 }
