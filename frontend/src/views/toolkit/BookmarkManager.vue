@@ -19,6 +19,11 @@
         </div>
 
         <n-space :size="8">
+          <n-button secondary size="small" @click="showHealthModal = true" class="toolbar-btn">
+            <template #icon><n-icon><HealthIcon /></n-icon></template>
+            体检
+          </n-button>
+
           <n-button secondary size="small" @click="showAddFolder = true" class="toolbar-btn">
             <template #icon><n-icon><FolderAddIcon /></n-icon></template>
             文件夹
@@ -173,6 +178,25 @@
         </n-space>
       </template>
     </n-modal>
+
+    <BookmarkHealthModal
+      v-model:show="showHealthModal"
+      v-model:active-tab="activeTab"
+      :duplicates="duplicates"
+      :loading-duplicates="loadingDuplicates"
+      :health-results="healthResults"
+      :health-progress="healthProgress"
+      :is-scanning-health="isScanningHealth"
+      :bookmarks="bookmarks"
+      @scan-duplicates="scanDuplicates"
+      @delete-group="handleDeleteAllInGroup"
+      @merge-duplicate="handleMergeDuplicate"
+      @merge-all-duplicates="handleMergeAllDuplicates"
+      @scan-health="() => scanHealth(bookmarks)"
+      @stop-scan="stopScanHealth"
+      @delete-dead="handleDeleteDead"
+      @delete-batch-dead="handleDeleteBatchDead"
+    />
   </div>
 </template>
 
@@ -191,9 +215,11 @@ import {
   FileDownloadOutlined as ImportIcon,
   FileUploadOutlined as ExportIcon,
   DeleteSweepOutlined as ClearIcon,
-  SearchOutlined as SearchIcon
+  SearchOutlined as SearchIcon,
+  MedicalServicesOutlined as HealthIcon
 } from '@vicons/material'
 import { useBookmarkManager } from './bookmark/useBookmarkManager'
+import BookmarkHealthModal from './bookmark/components/BookmarkHealthModal.vue'
 
 const props = defineProps<{ isModal?: boolean }>()
 defineEmits(['close'])
@@ -206,7 +232,9 @@ const {
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
-  nodeProps, selectedItemIds, handleSelect, searchQuery
+  nodeProps, selectedItemIds, handleSelect, searchQuery,
+  showHealthModal, activeTab, duplicates, loadingDuplicates, scanDuplicates, handleMergeDuplicate, handleMergeAllDuplicates, handleDeleteAllInGroup,
+  healthResults, healthProgress, isScanningHealth, scanHealth, stopScanHealth, handleDeleteDead, handleDeleteBatchDead, bookmarks
 } = useBookmarkManager()
 
 const triggerFileInput = () => { fileInputRef.value?.click() }

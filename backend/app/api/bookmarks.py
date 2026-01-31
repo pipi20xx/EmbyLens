@@ -1,10 +1,21 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Response
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Response, Body
+from typing import List, Optional, Dict
 from datetime import datetime
 from app.services import bookmark_service as service
 from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkResponse
 
 router = APIRouter()
+
+@router.get("/duplicates")
+async def get_duplicates():
+    return service.find_duplicates()
+
+@router.post("/check-health")
+async def check_health(payload: Dict = Body(...)):
+    urls = payload.get("urls", [])
+    if not urls:
+        return {}
+    return await service.check_batch_health(urls)
 
 # 使用标准的 / 路径，确保匹配稳定
 @router.get("/", response_model=List[BookmarkResponse])

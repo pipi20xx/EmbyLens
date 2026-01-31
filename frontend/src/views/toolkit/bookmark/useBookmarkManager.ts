@@ -3,12 +3,14 @@ import { useBookmark } from '../sitenav/useBookmark'
 import { useBookmarkState } from './hooks/useBookmarkState'
 import { useBookmarkActions } from './hooks/useBookmarkActions'
 import { useBookmarkDnd } from './hooks/useBookmarkDnd'
+import { useBookmarkHealth } from './hooks/useBookmarkHealth'
 
 export function useBookmarkManager() {
   const bookmarkApi = useBookmark()
   const state = useBookmarkState(bookmarkApi.bookmarks)
   const actions = useBookmarkActions(state, bookmarkApi)
   const dnd = useBookmarkDnd(state, actions, bookmarkApi)
+  const health = useBookmarkHealth(bookmarkApi, actions)
 
   const autoFetchTitle = async () => {
     if (state.form.url && !state.form.title) {
@@ -35,6 +37,8 @@ export function useBookmarkManager() {
       ...actions,
 
       ...dnd,
+
+      ...health,
 
       autoFetchTitle,
 

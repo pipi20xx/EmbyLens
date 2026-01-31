@@ -18,3 +18,4 @@ bcrypt
 pytz
 Pillow
 apscheduler==3.10.4
+aiohttp

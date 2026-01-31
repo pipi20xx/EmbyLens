@@ -165,3 +165,73 @@ def import_from_html(html_content: str):
                     imported_count += 1
     if imported_count > 0: save_data(data)
     return imported_count
+
+def find_duplicates() -> List[Dict[str, Any]]:
+    """
+    查找重复书签。返回重复组的列表。
+    """
+    data = get_data()
+    bookmarks = data.get("bookmarks", [])
+    
+    url_map = {}
+    # Flatten and group
+    def traverse(items):
+        for item in items:
+            if item.get("type") == "file" and item.get("url"):
+                u = item["url"].strip()
+                if u not in url_map: url_map[u] = []
+                url_map[u].append(item)
+            # Flatten search handles parent_id logic in list_bookmarks generally, 
+            # but raw data is flat list.
+            # wait, get_data returns flat list. list_bookmarks(as_tree=True) returns tree.
+            # checks raw list structure:
+            # "bookmarks": [ {id, parent_id, ...} ]
+            # So simple iteration is enough.
+    
+    # get_data returns the raw dict. bookmarks is a list.
+    for item in bookmarks:
+        if item.get("type") == "file" and item.get("url"):
+            u = item["url"].strip()
+            if u:
+                if u not in url_map: url_map[u] = []
+                url_map[u].append(item)
+
+    duplicates = []
+    for u, items in url_map.items():
+        if len(items) > 1:
+            duplicates.append({
+                "url": u,
+                "count": len(items),
+                "items": items
+            })
+    return duplicates
+
+import aiohttp
+import asyncio
+
+async def check_batch_health(urls: List[str]) -> Dict[str, int]:
+    """
+    并发检测一批 URL 的存活状态。
+    返回 {url: status_code} (0 表示连接失败)
+    """
+    results = {}
+    
+    async def check_one(session, url):
+        try:
+            async with session.head(url, timeout=10, allow_redirects=True, ssl=False) as response:
+                return url, response.status
+        except:
+            # Try GET if HEAD fails (some servers deny HEAD)
+            try:
+                async with session.get(url, timeout=10, allow_redirects=True, ssl=False) as response:
+                    return url, response.status
+            except:
+                return url, 0
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [check_one(session, u) for u in urls]
+        res_list = await asyncio.gather(*tasks)
+        for u, status in res_list:
+            results[u] = status
+            
+    return results

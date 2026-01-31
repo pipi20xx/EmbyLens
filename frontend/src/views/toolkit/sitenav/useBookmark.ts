@@ -124,6 +124,30 @@ export function useBookmark() {
     }
   }
 
+  const checkDuplicates = async () => {
+    try {
+      const response = await fetch('/api/bookmarks/duplicates')
+      return await response.json()
+    } catch (err) {
+      console.error('Failed to check duplicates:', err)
+      return []
+    }
+  }
+
+  const checkHealth = async (urls: string[]) => {
+    try {
+      const response = await fetch('/api/bookmarks/check-health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls })
+      })
+      return await response.json()
+    } catch (err) {
+      console.error('Failed to check health:', err)
+      return {}
+    }
+  }
+
   return {
     bookmarks,
     loading,
@@ -135,6 +159,8 @@ export function useBookmark() {
     exportBookmarks,
     reorderBookmarks,
     importBookmarksHtml,
-    fetchIcon
+    fetchIcon,
+    checkDuplicates,
+    checkHealth
   }
 }
