@@ -63,6 +63,19 @@ export function useBookmark() {
     }
   }
 
+  const clearAllBookmarks = async () => {
+    try {
+      await fetch('/api/bookmarks', { method: 'DELETE' })
+      await fetchBookmarks()
+    } catch (err) {
+      console.error('Failed to clear bookmarks:', err)
+    }
+  }
+
+  const exportBookmarks = () => {
+    window.open('/api/bookmarks/export', '_blank')
+  }
+
   const reorderBookmarks = async (ordered_ids: string[], parent_id?: string) => {
     try {
       await fetch('/api/bookmarks/reorder', {
@@ -109,10 +122,13 @@ export function useBookmark() {
     loading,
     fetchBookmarks,
     createBookmark,
-    updateBookmark,
-    deleteBookmark,
-    reorderBookmarks,
-    importBookmarksHtml,
-    fetchIcon
-  }
-}
+        updateBookmark,
+        deleteBookmark,
+        clearAllBookmarks,
+        exportBookmarks,
+        reorderBookmarks,
+        importBookmarksHtml,
+        fetchIcon
+      }
+    }
+    

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Response
 from typing import List, Optional
+from datetime import datetime
 from app.services import bookmark_service as service
 from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkResponse
 
@@ -27,6 +28,23 @@ async def delete_bookmark(bm_id: str):
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return {"message": "Deleted"}
 
+@router.delete("")
+async def clear_bookmarks():
+    service.clear_bookmarks()
+    return {"message": "All bookmarks cleared"}
+
+@router.get("/export")
+async def export_bookmarks():
+    html_content = service.export_bookmarks_to_html()
+    filename = f"lens_bookmarks_{datetime.now().strftime('%Y%m%d')}.html"
+    return Response(
+        content=html_content,
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
 @router.post("/reorder")
 async def reorder_bookmarks(payload: dict):
     ordered_ids = payload.get("ordered_ids", [])
@@ -40,21 +58,16 @@ async def import_bookmarks_html(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="请上传 HTML 格式的书签文件")
     
     content = await file.read()
-    print(f"[Bookmarks] Received file: {file.filename}, size: {len(content)} bytes")
-    
-    # 尝试多种编码
     html_text = ""
     for enc in ['utf-8-sig', 'utf-8', 'gbk', 'iso-8859-1']:
         try:
             html_text = content.decode(enc)
-            print(f"[Bookmarks] Decoded using {enc}")
             break
-        except UnicodeDecodeError:
+        except:
             continue
             
     if not html_text:
-        raise HTTPException(status_code=400, detail="无法识别的文件编码")
+        raise HTTPException(status_code=400, detail="无法解析文件编码")
             
     count = service.import_from_html(html_text)
-    print(f"[Bookmarks] Successfully imported {count} items")
     return {"message": f"成功导入 {count} 个项目", "count": count}

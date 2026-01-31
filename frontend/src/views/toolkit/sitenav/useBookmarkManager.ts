@@ -1,9 +1,7 @@
-import { NIcon } from 'naive-ui'
+import { ref, computed, reactive, onMounted, h } from 'vue'
+import { NIcon, useDialog, useMessage } from 'naive-ui'
 import { FolderOutlined as FolderIcon } from '@vicons/material'
 import { useBookmark, type Bookmark } from './useBookmark'
-
-// ref, computed, reactive, h, onMounted 会由 AutoImport 自动注入
-// useDialog, useMessage 会由 AutoImport 自动注入
 
 export function useBookmarkManager() {
   const dialog = useDialog()
@@ -11,6 +9,7 @@ export function useBookmarkManager() {
   const { 
     bookmarks, fetchBookmarks, createBookmark: apiCreate, 
     updateBookmark: apiUpdate, deleteBookmark: apiDelete, 
+    clearAllBookmarks, exportBookmarks,
     reorderBookmarks: apiReorder, importBookmarksHtml, fetchIcon 
   } = useBookmark()
 
@@ -24,11 +23,7 @@ export function useBookmarkManager() {
   const fetchingIcon = ref(false)
   
   const folderName = ref('')
-  const form = reactive({
-    title: '',
-    url: '',
-    icon: ''
-  })
+  const form = reactive({ title: '', url: '', icon: '' })
 
   // --- 计算属性 ---
   const currentItems = computed(() => {
@@ -133,17 +128,26 @@ export function useBookmarkManager() {
     })
   }
 
+  const handleClearAll = () => {
+    dialog.error({
+      title: '危险操作',
+      content: '确定要清空所有书签吗？此操作无法撤销。',
+      positiveText: '全部清空',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        await clearAllBookmarks()
+        message.success('已全部清空')
+        selectRoot()
+      }
+    })
+  }
+
+  const handleExport = () => { exportBookmarks() }
+
   const saveBookmark = async () => {
-    const data = {
-      ...form,
-      type: 'file' as const,
-      parent_id: currentFolder.value?.id
-    }
-    if (editingItem.value) {
-      await apiUpdate(editingItem.value.id, data)
-    } else {
-      await apiCreate(data)
-    }
+    const data = { ...form, type: 'file' as const, parent_id: currentFolder.value?.id }
+    if (editingItem.value) await apiUpdate(editingItem.value.id, data)
+    else await apiCreate(data)
     showAddBookmark.value = false
     editingItem.value = null
     form.title = ''; form.url = ''; form.icon = ''
@@ -152,11 +156,7 @@ export function useBookmarkManager() {
 
   const saveFolder = async () => {
     if (!folderName.value) return
-    await apiCreate({
-      title: folderName.value,
-      type: 'folder',
-      parent_id: currentFolder.value?.id
-    })
+    await apiCreate({ title: folderName.value, type: 'folder', parent_id: currentFolder.value?.id })
     showAddFolder.value = false
     folderName.value = ''
     await refreshCurrentFolder()
@@ -164,9 +164,7 @@ export function useBookmarkManager() {
 
   const autoFetchTitle = async () => {
     if (form.url && !form.title) {
-      try {
-        form.title = new URL(form.url).hostname
-      } catch (e) {}
+      try { form.title = new URL(form.url).hostname } catch (e) {}
     }
   }
 
@@ -182,24 +180,26 @@ export function useBookmarkManager() {
     const target = e.target as HTMLInputElement
     const file = target.files?.[0]
     if (!file) return
-
+    
+    const loadingMsg = message.loading('正在导入...', { duration: 0 })
     try {
       const result = await importBookmarksHtml(file)
-      message.success(result.message || '导入成功')
-      await refreshCurrentFolder()
+      loadingMsg.destroy()
+      if (result.count > 0) {
+        message.success(`成功导入 ${result.count} 个项目`)
+        await refreshCurrentFolder()
+      } else {
+        message.warning('未发现新书签')
+      }
     } catch (err: any) {
-      console.error('[BookmarkImport] Error details:', err)
-      // 如果 err 有 response 或 data，尝试提取更详细的信息
-      const detail = err.response?.data?.detail || err.message || '格式错误'
-      message.error(`导入失败: ${detail}`)
+      loadingMsg.destroy()
+      message.error(`导入失败: ${err.message || '格式错误'}`)
     } finally {
       target.value = ''
     }
   }
 
-  // --- 拖拽排序 ---
   const onDragStart = (id: string) => { dragId.value = id }
-  
   const onDragEnter = (targetId: string) => {
     if (!dragId.value || dragId.value === targetId) return
     const list = currentFolder.value ? currentFolder.value.children : bookmarks.value
@@ -211,47 +211,20 @@ export function useBookmarkManager() {
       list.splice(toIndex, 0, movedItem)
     }
   }
-
   const onDragEnd = async () => {
     if (!dragId.value) return
     const list = currentFolder.value ? currentFolder.value.children : bookmarks.value
-    if (list) {
-      await apiReorder(list.map(i => i.id), currentFolder.value?.id)
-    }
+    if (list) await apiReorder(list.map(i => i.id), currentFolder.value?.id)
     dragId.value = null
   }
 
   onMounted(fetchBookmarks)
 
   return {
-    // 状态
-    currentFolder,
-    selectedKeys,
-    dragId,
-    showAddBookmark,
-    showAddFolder,
-    editingItem,
-    fetchingIcon,
-    folderName,
-    form,
-    // 计算
-    currentItems,
-    folderTree,
-    showAddBookmarkModal,
-    // 方法
-    selectRoot,
-    handleTreeSelect,
-    handleItemClick,
-    handleEdit,
-    confirmDelete,
-    saveBookmark,
-        saveFolder,
-        autoFetchTitle,
-        autoFetchIcon,
-        handleImportHtml,
-        onDragStart,
-        onDragEnter,
-        onDragEnd
-      }
-    }
-    
+    currentFolder, selectedKeys, dragId, showAddBookmark, showAddFolder, editingItem,
+    fetchingIcon, folderName, form, currentItems, folderTree, showAddBookmarkModal,
+    selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
+    handleClearAll, handleExport, saveBookmark, saveFolder, autoFetchTitle, 
+    autoFetchIcon, handleImportHtml, onDragStart, onDragEnter, onDragEnd
+  }
+}
