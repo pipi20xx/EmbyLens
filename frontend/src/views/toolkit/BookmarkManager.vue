@@ -10,6 +10,14 @@
           <span class="header-title">书签同步管理</span>
         </div>
 
+        <div class="flex-1 mx-4" style="max-width: 300px;">
+          <n-input v-model:value="searchQuery" placeholder="搜索书签..." size="small" round clearable>
+            <template #prefix>
+              <n-icon :component="SearchIcon" />
+            </template>
+          </n-input>
+        </div>
+
         <n-space :size="8">
           <n-button secondary size="small" @click="showAddFolder = true" class="toolbar-btn">
             <template #icon><n-icon><FolderAddIcon /></n-icon></template>
@@ -182,7 +190,8 @@ import {
   HomeOutlined as HomeIcon,
   FileDownloadOutlined as ImportIcon,
   FileUploadOutlined as ExportIcon,
-  DeleteSweepOutlined as ClearIcon
+  DeleteSweepOutlined as ClearIcon,
+  SearchOutlined as SearchIcon
 } from '@vicons/material'
 import { useBookmarkManager } from './bookmark/useBookmarkManager'
 
@@ -197,7 +206,7 @@ const {
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
-  nodeProps, selectedItemIds, handleSelect
+  nodeProps, selectedItemIds, handleSelect, searchQuery
 } = useBookmarkManager()
 
 const triggerFileInput = () => { fileInputRef.value?.click() }

@@ -19,10 +19,30 @@ export function useBookmarkState(bookmarks: Ref<Bookmark[]>) {
   const editingItem = ref<Bookmark | null>(null)
   const fetchingIcon = ref(false)
   const folderName = ref('')
+  const searchQuery = ref('')
   const form = reactive({ title: '', url: '', icon: '' })
+
+  const searchBookmarks = (items: Bookmark[], query: string): Bookmark[] => {
+    let result: Bookmark[] = []
+    const q = query.toLowerCase()
+    for (const item of items) {
+      if (item.title.toLowerCase().includes(q) || (item.url && item.url.toLowerCase().includes(q))) {
+        result.push(item)
+      }
+      if (item.children) {
+        result = result.concat(searchBookmarks(item.children, query))
+      }
+    }
+    return result
+  }
 
   const currentItems = computed(() => {
     const rawData = Array.isArray(bookmarks.value) ? bookmarks.value : []
+
+    if (searchQuery.value.trim()) {
+      return searchBookmarks(rawData, searchQuery.value.trim())
+    }
+
     if (!currentFolder.value || selectedKeys.value[0] === 'root') {
       return rawData
     }
@@ -60,7 +80,7 @@ export function useBookmarkState(bookmarks: Ref<Bookmark[]>) {
 
   return {
     bookmarks, currentFolder, selectedKeys, selectedItemIds, lastSelectedId, dragId, isDraggingExternal, dropTargetId,
-    showAddBookmark, showAddFolder, editingItem, fetchingIcon, folderName, form,
+    showAddBookmark, showAddFolder, editingItem, fetchingIcon, folderName, searchQuery, form,
     showAddBookmarkModal, currentItems, folderTree
   }
 }
