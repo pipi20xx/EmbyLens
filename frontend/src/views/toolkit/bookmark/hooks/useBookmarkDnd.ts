@@ -1,9 +1,13 @@
+import { ref } from 'vue'
 import { useMessage } from 'naive-ui'
 
 export function useBookmarkDnd(state: any, actions: any, bookmarkApi: any) {
   const message = useMessage()
+  const dragOverKey = ref<string | null>(null)
+  const isDropped = ref(false)
 
   const onDragStart = (e: DragEvent, id: string) => {
+    isDropped.value = false
     state.dragId.value = id
     if (e.dataTransfer) {
       e.dataTransfer.setData('text/plain', id)
@@ -23,6 +27,13 @@ export function useBookmarkDnd(state: any, actions: any, bookmarkApi: any) {
   }
 
   const onDragEnd = async () => {
+    dragOverKey.value = null
+    if (isDropped.value) {
+      state.dragId.value = null
+      isDropped.value = false
+      return
+    }
+
     if (state.dragId.value) {
       const list = state.currentItems.value
       const pId = state.selectedKeys.value[0] === 'root' ? null : state.selectedKeys.value[0]
@@ -64,5 +75,49 @@ export function useBookmarkDnd(state: any, actions: any, bookmarkApi: any) {
     message.success('已更新文件夹层级')
   }
 
-  return { onDragStart, onDragEnter, onDragEnd, handleTreeDrop }
+  const nodeProps = ({ option }: { option: any }) => {
+    return {
+      style: option.key === dragOverKey.value 
+        ? 'background-color: rgba(32, 128, 240, 0.15); color: #2080f0; transition: all 0.2s ease;' 
+        : undefined,
+      ondragover: (e: DragEvent) => {
+        if (state.dragId.value) {
+          e.preventDefault()
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+          if (dragOverKey.value !== option.key) {
+             dragOverKey.value = option.key
+          }
+        }
+      },
+      ondrop: async (e: DragEvent) => {
+        dragOverKey.value = null
+        const draggedId = state.dragId.value
+        if (!draggedId) return
+
+        e.preventDefault()
+        e.stopPropagation()
+        
+        isDropped.value = true
+
+        const targetKey = option.key
+        if (draggedId === targetKey) return
+
+        const draggedItem = actions.findItemById(state.bookmarks.value, draggedId)
+        const targetParentId = targetKey === 'root' ? null : targetKey
+
+        if (draggedItem && draggedItem.parent_id === targetParentId) return
+
+        try {
+          await bookmarkApi.reorderBookmarks([draggedId], targetParentId)
+          message.success('移动成功')
+          await actions.refreshCurrentFolder()
+        } catch (error) {
+          message.error('移动失败')
+        }
+        state.dragId.value = null
+      }
+    }
+  }
+
+  return { onDragStart, onDragEnter, onDragEnd, handleTreeDrop, nodeProps }
 }

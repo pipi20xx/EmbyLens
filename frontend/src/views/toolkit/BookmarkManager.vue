@@ -71,6 +71,7 @@
                 default-expand-all
                 :data="folderTree"
                 :selected-keys="selectedKeys"
+                :node-props="nodeProps"
                 @update:selected-keys="handleTreeSelect"
                 @drop="handleTreeDrop"
                 class="sidebar-tree"
@@ -194,7 +195,8 @@ const {
   fetchingIcon, folderName, form, currentItems, folderTree, showAddBookmarkModal,
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
-  saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd
+  saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
+  nodeProps
 } = useBookmarkManager()
 
 const triggerFileInput = () => { fileInputRef.value?.click() }
