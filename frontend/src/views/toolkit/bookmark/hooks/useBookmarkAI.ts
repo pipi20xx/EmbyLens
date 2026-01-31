@@ -3,8 +3,11 @@ import { useMessage, useDialog, NDynamicTags, NAlert, NButton, NSpace } from 'na
 import axios from 'axios'
 
 const DEFAULT_CATEGORIES = [
-  "AI 与智能工具", "技术与开发", "设计与创意", "办公与效率", "影音与娱乐", 
-  "动漫与游戏", "阅读与资讯", "生活与购物", "知识与教育", "其他归档"
+  "AI智能工具", "编程与开发", "设计与素材", "办公与协作",
+  "网络与安全", "服务器与 NAS", "在线工具箱", "软件与资源",
+  "影视与流媒体", "动漫与二次元", "游戏与电竞", "音乐与音频",
+  "资讯与阅读", "社区与论坛", "知识与百科", "生活与消费",
+  "金融与资产", "未分类/其他"
 ]
 
 const AIConfigEditor = defineComponent({

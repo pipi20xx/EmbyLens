@@ -9,106 +9,143 @@ from app.utils.logger import logger
 
 class BookmarkAIService:
     # 系统默认分类（兜底）
-    DEFAULT_CATEGORIES = [
-        "AI 与智能工具", "技术与开发", "设计与创意", "办公与效率", "影音与娱乐", 
-        "动漫与游戏", "阅读与资讯", "生活与购物", "知识与教育", "其他归档"
-    ]
-
-    @classmethod
-    async def run_auto_organize(cls, target_folder_id: Optional[str] = None) -> AsyncGenerator[str, None]:
-        """全量日志 + 专家级清洗 + 严格拦截逻辑"""
-        data = get_data()
-        bookmarks = data.get("bookmarks", [])
-        
-        # 1. 获取最新分类预设
-        categories = await ConfigService.get("ai_bookmark_categories", cls.DEFAULT_CATEGORIES)
-        if not categories or not isinstance(categories, list):
-            categories = cls.DEFAULT_CATEGORIES
-
-        # 2. 扫描数据
-        folder_map = {str(b["id"]): b["title"] for b in bookmarks if b["type"] == "folder"}
-        
-        target_ids = None
-        if target_folder_id and target_folder_id != 'root':
-            target_ids = {target_folder_id}
-            changed = True
-            while changed:
-                changed = False
-                for b in bookmarks:
-                    if b["type"] == "folder" and str(b.get("parent_id")) in target_ids:
-                        if str(b["id"]) not in target_ids:
-                            target_ids.add(str(b["id"]))
-                            changed = True
-        
-        all_files = []
-        for b in bookmarks:
-            if b.get("type") == "file":
-                pid = str(b.get("parent_id"))
-                if target_ids and pid not in target_ids and str(b["id"]) != target_folder_id:
-                    continue
+        DEFAULT_CATEGORIES = [
+            "AI 智能工具",
+            "编程与开发",
+            "设计与素材",
+            "办公与协作",
+            "网络与安全",
+            "服务器与 NAS",
+            "在线工具箱",
+            "软件与资源",
+            "影视与流媒体",
+            "动漫与二次元",
+            "游戏与电竞",
+            "音乐与音频",
+            "资讯与阅读",
+            "社区与论坛",
+            "知识与百科",
+            "生活与消费",
+            "金融与资产",
+            "未分类/其他"
+        ]
+    
+        # 增强型分类指南（AI 提示词专用）
+        CATEGORY_GUIDE = {
+            "AI 智能工具": "ChatGPT, Midjourney, AI 绘画, 各种 AI 导航站, LLM 相关工具",
+            "编程与开发": "GitHub, StackOverflow, 前端/后端/移动端开发文档, 编程框架官网, 技术博客",
+            "设计与素材": "Dribbble, Behance, 花瓣, 字体下载, 图标库(Icon), 配色工具, UI/UX 资源",
+            "办公与协作": "Notion, Google Docs, 飞书/钉钉, 邮箱服务, 在线表格, 团队协作工具, 简历制作",
+            "网络与安全": "IP查询, 端口扫描, 代理工具, 域名注册, 网络测速, 内网穿透, SSL 证书",
+            "服务器与 NAS": "Docker, Unraid, 群晖(Synology), 软路由(OpenWrt), Linux 运维命令, 容器管理(Portainer)",
+            "在线工具箱": "PDF转换, 格式转换, 二维码生成, 临时文件分享, 计算器, 正则测试等轻量级工具",
+            "软件与资源": "软件下载站, 破解资源, 镜像站(ISO), 脚本插件(Tampermonkey), 系统激活",
+            "影视与流媒体": "Netflix, YouTube, 电影下载站(BT/PT), 字幕组, 在线看剧网站, 电视直播",
+            "动漫与二次元": "B站(Bilibili), 番剧索引, 漫画阅读站, Pixiv, 模玩手办, 漫展资讯",
+            "游戏与电竞": "Steam, Epic Games, 游戏攻略, 游戏资讯(IGN/G-Cores), Switch/PS5 社区",
+            "音乐与音频": "Spotify, 网易云音乐, Apple Music, 有声书, 播客(Podcast), 音效素材下载",
+            "资讯与阅读": "科技新闻(36Kr/少数派), 个人博客, RSS 订阅, 新闻门户, 技术周刊",
+            "社区与论坛": "V2EX, Reddit, 百度贴吧, 专业的垂直领域论坛, 微信群/TG群导航",
+            "知识与百科": "维基百科, 百度百科, 教程网(Runoob), 论文库(知网), 在线学习平台(Coursera/Udemy)",
+            "生活与消费": "京东/淘宝/拼多多, 地图导航, 租房平台, 下厨房(菜谱), 旅行攻略(马蜂窝)",
+            "金融与资产": "网银登录, 股市行情, 加密货币(交易所/行情), 记账工具, 理财论坛",
+            "未分类/其他": "无法归类到以上任何类别的书签"
+        }
+    
+        @classmethod
+        async def run_auto_organize(cls, target_folder_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+            """全量日志 + 专家级分类逻辑"""
+            data = get_data()
+            bookmarks = data.get("bookmarks", [])
+            
+            # 1. 获取最新分类预设
+            categories = await ConfigService.get("ai_bookmark_categories", cls.DEFAULT_CATEGORIES)
+            if not categories or not isinstance(categories, list):
+                categories = cls.DEFAULT_CATEGORIES
+    
+            # 2. 扫描数据
+            folder_map = {str(b["id"]): b["title"] for b in bookmarks if b["type"] == "folder"}
+            
+            target_ids = None
+            if target_folder_id and target_folder_id != 'root':
+                target_ids = {target_folder_id}
+                changed = True
+                while changed:
+                    changed = False
+                    for b in bookmarks:
+                        if b["type"] == "folder" and str(b.get("parent_id")) in target_ids:
+                            if str(b["id"]) not in target_ids:
+                                target_ids.add(str(b["id"]))
+                                changed = True
+            
+            all_files = []
+            for b in bookmarks:
+                if b.get("type") == "file":
+                    pid = str(b.get("parent_id"))
+                    if target_ids and pid not in target_ids and str(b["id"]) != target_folder_id:
+                        continue
+                    
+                    parent_name = folder_map.get(pid, "根目录")
+                    all_files.append({
+                        "id": b["id"],
+                        "title": b["title"],
+                        "url": b.get("url", ""),
+                        "current_folder": parent_name
+                    })
+            
+            total = len(all_files)
+            if total == 0:
+                yield "未找到待处理的书签。"
+                return
+    
+            yield f"🚀 [启动] 总计待处理书签: {total}，目标分类数: {len(categories)}"
+            logger.info(f"🤖 [AI书签整理] 启动，总数: {total}")
+    
+            # 3. 分批处理
+            BATCH_SIZE = 20 
+            for i in range(0, total, BATCH_SIZE):
+                batch = all_files[i:i + BATCH_SIZE]
+                current_range = f"{i+1}-{min(i+BATCH_SIZE, total)}"
                 
-                parent_name = folder_map.get(pid, "根目录")
-                all_files.append({
-                    "id": b["id"],
-                    "title": b["title"],
-                    "url": b.get("url", ""),
-                    "current_folder": parent_name
-                })
-        
-        total = len(all_files)
-        if total == 0:
-            yield "未找到待处理的书签。"
-            return
-
-        yield f"🚀 [启动] 总计待处理书签: {total}，目标分类数: {len(categories)}"
-        logger.info(f"🤖 [AI书签整理] 专家模式+严格限制启动，总数: {total}")
-
-        # 3. 分批处理
-        BATCH_SIZE = 20 
-        for i in range(0, total, BATCH_SIZE):
-            batch = all_files[i:i + BATCH_SIZE]
-            current_range = f"{i+1}-{min(i+BATCH_SIZE, total)}"
-            
-            yield f"正在分析第 {current_range} 个书签..."
-            logger.info(f"🛰️ [AI请求] 正在深度处理批次: {current_range}")
-            
-            prompt = f"""
-            # Role
-            你是一位拥有极致审美和强迫症逻辑的书签整理专家。
-            
-            # STRICT LIMIT (强制约束)
-            你【只能】将书签归类到以下提供的分类名中：
-            ---
-            {', '.join(categories)}
-            ---
-            【严禁】创建任何新分类名。如果不确定，请统一分配到“其他归档”中。
-            
-            # Task
-            对下方的书签进行【语义化标题清洗】和【强制精准归类】。
-            
-            # Rules
-            1. **深度标题清洗**：
-               - 移除所有冗余后缀（如：- 首页, | 知乎, _CSDN博客, - 官网, - 哔哩哔哩）。
-               - 语义化重构：如果原标题晦涩（如纯URL），请根据 URL 语义起一个直观的中文名。
-               - 保持简洁：最终标题建议控制在 10 个中文字符以内。
-               - 品牌保护：保留核心品牌名（如：GitHub, Docker, Emby, Steam, ChatGPT）。
-            2. **强制归类**：
-               - 每一个书签 ID 必须分配一个来自上述列表的分类。
-            
-            # Data
-            {json.dumps(batch, ensure_ascii=False)}
-            
-            # Output (Strict JSON)
-            {{
-              "updates": {{
-                 "ID": {{ "folder": "分类名", "title": "新标题" }}
-              }}
-            }}
-            """
+                yield f"正在分析第 {current_range} 个书签..."
+                logger.info(f"🛰️ [AI请求] 正在处理批次: {current_range}")
+                
+                prompt = f"""
+                # Role
+                你是一位精通信息架构的图书整理专家，擅长根据网站标题和URL分析其核心属性。
+    
+                # Goal
+                请将提供的书签列表归类到【指定分类表】中最为精准的一个分类下。
+    
+                # 🧭 Category Guide (分类参考指南)
+                请严格参考以下定义的分类标准进行判断：
+                {json.dumps(cls.CATEGORY_GUIDE, ensure_ascii=False, indent=2)}
+    
+                # 📂 Allowed Categories (最终输出分类名)
+                {json.dumps(categories, ensure_ascii=False)}
+    
+                # 🧪 Input Data (Bookmarks)
+                {json.dumps(batch, ensure_ascii=False)}
+    
+                # ⚡ Rules (必须严格遵守)
+                1. **核心逻辑**：优先分析 URL 的域名特征（如 github.com -> 编程，netflix.com -> 影视），其次结合标题语义。
+                2. **强制匹配**：必须从“Allowed Categories”中选择一个最匹配的分类，严禁自创。
+                3. **兜底策略**：如果无法确定或内容极其模糊，请归类为“未分类/其他”。
+                4. **严禁修改**：保持书签的原始标题 (title) 不变。
+                5. **格式要求**：输出纯粹的 JSON，不要包含 Markdown 代码块标记。
+    
+                # 📤 Output Format
+                {{
+                  "updates": {{
+                     "<BOOKMARK_ID>": {{ "folder": "<EXACT_CATEGORY_NAME>" }},
+                     ...
+                  }}
+                }}
+                """
             
             try:
                 response_text = await AIService.chat_json([
-                    {"role": "system", "content": "你只返回 JSON。严禁创建新分类。"},
+                    {"role": "system", "content": "你只返回 JSON。严禁修改标题，严禁创建新分类。"},
                     {"role": "user", "content": prompt}
                 ])
                 
@@ -125,8 +162,8 @@ class BookmarkAIService:
                 for b_id, info in updates.items():
                     target_f = info.get("folder")
                     if target_f not in categories:
-                        logger.warning(f"🛡️ [拦截] AI 尝试创建分类 '{target_f}'，已强制重定向至 '其他归档'")
-                        info["folder"] = "其他归档"
+                        logger.warning(f"🛡️ [拦截] AI 尝试创建分类 '{target_f}'，已强制重定向至 '未分类/其他'")
+                        info["folder"] = "未分类/其他"
                 
                 suggestions["folders"] = categories
                 cls._apply_batch(suggestions)
@@ -135,7 +172,7 @@ class BookmarkAIService:
                 for b_id, info in updates.items():
                     orig = next((b for b in batch if str(b['id']) == b_id), None)
                     orig_name = orig['title'] if orig else "未知"
-                    msg = f"📍 [{info['folder']}] {orig_name} -> {info['title']}"
+                    msg = f"📍 [{info['folder']}] {orig_name}"
                     yield msg
                     logger.info(f"✨ [AI] {msg}")
                 
