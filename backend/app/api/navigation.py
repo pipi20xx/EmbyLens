@@ -258,12 +258,24 @@ async def list_categories():
 
 @router.post("/categories", response_model=CategoryResponse)
 async def create_category(category: CategoryCreate):
-    cat_id = nav_service.add_category(category.name, category.icon)
-    return {"id": cat_id, "name": category.name, "icon": category.icon, "order": 0}
+    icon = category.icon
+    if icon and icon.startswith(("http://", "https://")):
+        local_path = await download_and_cache_icon(icon)
+        if local_path:
+            icon = local_path
+            
+    cat_id = nav_service.add_category(category.name, icon)
+    return {"id": cat_id, "name": category.name, "icon": icon, "order": 0}
 
 @router.put("/categories/{cat_id}")
 async def update_category(cat_id: int, category: CategoryCreate):
-    nav_service.update_category(cat_id, category.name, category.icon)
+    icon = category.icon
+    if icon and icon.startswith(("http://", "https://")):
+        local_path = await download_and_cache_icon(icon)
+        if local_path:
+            icon = local_path
+            
+    nav_service.update_category(cat_id, category.name, icon)
     return {"message": "Updated"}
 
 @router.delete("/categories/{cat_id}")
@@ -395,6 +407,24 @@ async def import_navigation(file: UploadFile = File(...)):
             
             # 标准化数据
             final_nav_data = nav_service.normalize_nav_data(raw_nav_data)
+            
+            # --- 自动本地化导入的远程图标 ---
+            # 处理分类图标
+            for cat in final_nav_data.get("categories", []):
+                icon = cat.get("icon")
+                if icon and icon.startswith(("http://", "https://")):
+                    local_path = await download_and_cache_icon(icon)
+                    if local_path:
+                        cat["icon"] = local_path
+            
+            # 处理站点图标
+            for site in final_nav_data.get("sites", []):
+                icon = site.get("icon")
+                if icon and icon.startswith(("http://", "https://")):
+                    local_path = await download_and_cache_icon(icon)
+                    if local_path:
+                        site["icon"] = local_path
+            
             nav_service.save_nav_data(final_nav_data)
             
         nav_service.cleanup_orphaned_icons() 
