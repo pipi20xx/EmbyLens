@@ -65,13 +65,15 @@ async def reorder_bookmarks(payload: dict):
     return {"message": "Reordered"}
 
 @router.post("/ai-auto-organize")
-async def ai_auto_organize():
-    """全自动流式整理书签"""
+async def ai_auto_organize(payload: dict = Body({})):
+    """全自动流式整理书签 (支持指定文件夹)"""
     from app.services.bookmark_ai_service import BookmarkAIService
     from fastapi.responses import StreamingResponse
     
+    target_folder_id = payload.get("folder_id")
+    
     async def generate():
-        async for msg in BookmarkAIService.run_auto_organize():
+        async for msg in BookmarkAIService.run_auto_organize(target_folder_id):
             yield f"data: {msg}\n\n"
             
     return StreamingResponse(generate(), media_type="text/event-stream")

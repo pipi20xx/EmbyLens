@@ -12,7 +12,7 @@ export function useBookmarkManager() {
   const actions = useBookmarkActions(state, bookmarkApi)
   const dnd = useBookmarkDnd(state, actions, bookmarkApi)
   const health = useBookmarkHealth(bookmarkApi, actions)
-  const ai = useBookmarkAI(bookmarkApi, actions)
+  const ai = useBookmarkAI(bookmarkApi, actions, state)
 
   const autoFetchTitle = async () => {
     if (state.form.url && !state.form.title) {

@@ -31,7 +31,7 @@
         </div>
 
         <n-space :size="8" class="toolbar-actions">
-          <n-button type="primary" secondary size="small" @click="handleAIAnalyze" class="toolbar-btn ai-btn">
+          <n-button secondary type="primary" size="small" @click="handleAIAnalyze" class="toolbar-btn ai-btn">
             <template #icon><n-icon><LabIcon /></n-icon></template>
             AI 智能整理
           </n-button>
@@ -388,15 +388,6 @@ const onBackgroundClick = () => { selectedItemIds.clear() }
 
 .toolbar-btn {
   font-weight: 600;
-}
-
-.ai-btn {
-  background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.2) 0%, rgba(163, 112, 247, 0.2) 100%);
-  border: 1px solid rgba(var(--primary-color-rgb), 0.3);
-}
-
-.ai-btn:hover {
-  background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.3) 0%, rgba(163, 112, 247, 0.3) 100%);
 }
 
 .header-left-section {
