@@ -441,7 +441,7 @@ async def get_all_configs(db: AsyncSession = Depends(get_db)):
     # 2. 确保关键配置项（如 api_token）通过 ConfigService 获取（包含 config.json 的回退逻辑）
     keys_to_ensure = [
         "api_token", "ui_auth_enabled", "audit_enabled",
-        "ai_provider", "ai_api_key", "ai_base_url", "ai_model"
+        "ai_provider", "ai_api_key", "ai_base_url", "ai_model", "ai_bookmark_categories"
     ]
     for key in keys_to_ensure:
         if key not in res or not res[key]:
@@ -549,7 +549,7 @@ async def import_config(file: UploadFile = File(...)):
         
         # 同步更新数据库配置，确保 ConfigService 优先读取新导入的值
         for key, value in new_config.items():
-            if isinstance(value, (str, int, float, bool)):
+            if isinstance(value, (str, int, float, bool, list)):
                 await ConfigService.set(key, value)
         
         # 强制刷新配置缓存

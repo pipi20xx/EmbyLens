@@ -1,10 +1,10 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime
 
 class ConfigUpdate(BaseModel):
     key: str
-    value: str
+    value: Any
     description: Optional[str] = None
 
 class BatchConfigUpdate(BaseModel):

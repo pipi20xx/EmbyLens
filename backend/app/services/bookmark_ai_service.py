@@ -3,27 +3,29 @@ import time
 import asyncio
 from typing import List, Dict, Any, AsyncGenerator, Optional
 from app.services.ai_service import AIService
+from app.services.config_service import ConfigService
 from app.services.bookmark_service import get_data, save_data
 from app.utils.logger import logger
 
 class BookmarkAIService:
     @classmethod
     async def run_auto_organize(cls, target_folder_id: Optional[str] = None) -> AsyncGenerator[str, None]:
-        """
-        全自动流式整理
-        :param target_folder_id: 如果提供，则只处理该文件夹及其子文件夹下的书签
-        """
+        """严格遵守用户预设分类的全自动流式整理"""
         data = get_data()
         bookmarks = data.get("bookmarks", [])
         
-        # 1. 筛选待处理书签
+        # 1. 获取用户自定义的标准分类
+        categories = await ConfigService.get("ai_bookmark_categories", [])
+        if not categories:
+            yield "❌ 错误：未配置标准分类列表，请先设置。"
+            return
+
+        # 2. 筛选待处理书签
         folder_map = {str(b["id"]): b["title"] for b in bookmarks if b["type"] == "folder"}
         
-        # 如果指定了文件夹，先找出该文件夹下的所有子孙文件夹 ID
         target_ids = None
         if target_folder_id and target_folder_id != 'root':
             target_ids = {target_folder_id}
-            # 简单迭代查找所有子文件夹
             changed = True
             while changed:
                 changed = False
@@ -37,7 +39,6 @@ class BookmarkAIService:
         for b in bookmarks:
             if b.get("type") == "file":
                 pid = str(b.get("parent_id"))
-                # 如果指定了目录，过滤不在该目录树下的书签
                 if target_ids and pid not in target_ids and str(b["id"]) != target_folder_id:
                     continue
                 
@@ -54,39 +55,41 @@ class BookmarkAIService:
             yield "未找到符合条件的书签。"
             return
 
-        yield f"🚀 [AI开始] 总计待处理书签: {total}"
-        logger.info(f"🤖 [AI书签整理] 启动任务，总数: {total}, 目标目录: {target_folder_id or '全部'}")
+        yield f"🚀 [AI启动] 准备规范化 {total} 个书签..."
+        logger.info(f"🤖 [AI书签整理] 启动任务，总数: {total}, 分类数: {len(categories)}")
 
-        # 缩小批次大小，减少单次等待时间
+        # 3. 分批处理
         BATCH_SIZE = 20 
         for i in range(0, total, BATCH_SIZE):
             batch = all_files[i:i + BATCH_SIZE]
             current_range = f"{i+1}-{min(i+BATCH_SIZE, total)}"
             
-            yield f"正在分析第 {current_range} 个书签 (AI 思考中...)"
+            yield f"正在分析批次 {current_range}..."
             
             prompt = f"""
-            你是一个书签管理专家。请为以下书签分类并规范化标题。
-            数据: {json.dumps(batch, ensure_ascii=False)}
+            你是一个书签管理与数据清洗专家。
             
-            要求：
-            1. 文件夹名称精简。
-            2. 标题去掉冗余后缀。
-            3. 返回 JSON。
+            【绝对规则】：
+            你【必须】将书签归类到以下指定的文件夹中，【严禁】创建任何不在列表中的文件夹：
+            {", ".join(categories)}
             
-            返回格式：
+            【任务要求】：
+            1. 分类匹配：根据书签内容，从上述列表中选择一个【最相关】的分类。
+            2. 标题清洗：去除冗余后缀（如“- 百度搜索”、“| 知乎”）。
+            3. 每一个 ID 必须处理。
+            
+            待处理数据: {json.dumps(batch, ensure_ascii=False)}
+            
+            返回严格 JSON：
             {{
-              "folders": ["分类名"],
-              "updates": {{ "ID": {{ "folder": "分类名", "title": "规范标题" }} }}
+              "updates": {{ "ID": {{ "folder": "指定的分类名", "title": "清洗后的标题" }} }}
             }}
             """
             
             try:
-                # 记录请求开始
-                logger.info(f"🛰️ [AI请求] 正在分析批次 {current_range}...")
-                
+                logger.info(f"🛰️ [AI请求] 批次 {current_range}...")
                 response_text = await AIService.chat_json([
-                    {"role": "system", "content": "你只返回 JSON。"},
+                    {"role": "system", "content": "你只返回 JSON 数据。"},
                     {"role": "user", "content": prompt}
                 ])
                 
@@ -94,11 +97,11 @@ class BookmarkAIService:
                     response_text = response_text.split("```json")[1].split("```")[0].strip()
                 
                 suggestions = json.loads(response_text)
+                # 将标准分类注入 suggestions 方便复用之前的 apply 逻辑
+                suggestions["folders"] = categories
                 
-                # 应用更改
                 cls._apply_batch(suggestions)
                 
-                # 详细汇报
                 updates = suggestions.get("updates", {})
                 for b_id, info in updates.items():
                     orig = next((b for b in batch if str(b['id']) == b_id), None)
@@ -108,15 +111,15 @@ class BookmarkAIService:
                     logger.info(f"✨ [AI整理] {msg}")
                 
             except Exception as e:
-                err_msg = f"⚠️ 处理批次 {current_range} 出错: {str(e)}"
+                err_msg = f"⚠️ 批次 {current_range} 失败: {str(e)}"
                 yield err_msg
                 logger.error(f"❌ [AI整理错误] {err_msg}")
 
-        yield "🧹 正在自动清理旧的空文件夹..."
+        yield "🧹 正在收尾，清理空文件夹..."
         cls._recursive_cleanup()
         
-        yield "🎉 整理完成！书签树已刷新。"
-        logger.info("🎉 [AI书签整理] 任务圆满结束。")
+        yield "🎉 全自动整理已完成。"
+        logger.info("🎉 [AI书签整理] 任务完成。")
 
     @classmethod
     def _apply_batch(cls, suggestions: Dict):
@@ -124,10 +127,9 @@ class BookmarkAIService:
         bookmarks = data.get("bookmarks", [])
         now_ms = int(time.time() * 1000)
         
-        # 建立当前最新文件夹标题到 ID 的映射
         folder_name_to_id = {b["title"]: str(b["id"]) for b in bookmarks if b["type"] == "folder"}
         
-        # 1. 确保文件夹存在
+        # 1. 确保预设文件夹都存在（如果不存在则创建）
         for f_name in suggestions.get("folders", []):
             if f_name not in folder_name_to_id:
                 f_id = f"bm_ai_fld_{now_ms}_{f_name}"

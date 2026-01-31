@@ -39,6 +39,12 @@ class ConfigService:
             if isinstance(val, str):
                 if val.lower() == "true": final_val = True
                 elif val.lower() == "false": final_val = False
+                elif (val.startswith("[") and val.endswith("]")) or (val.startswith("{") and val.endswith("}")):
+                    try:
+                        import json
+                        final_val = json.loads(val)
+                    except:
+                        pass
             
             async with cls._lock:
                 cls._cache[key] = final_val
@@ -51,7 +57,13 @@ class ConfigService:
             result = await session.execute(select(SystemConfig).where(SystemConfig.key == key))
             config = result.scalars().first()
             
-            str_val = str(value).lower() if isinstance(value, bool) else str(value)
+            if isinstance(value, bool):
+                str_val = str(value).lower()
+            elif isinstance(value, (list, dict)):
+                import json
+                str_val = json.dumps(value, ensure_ascii=False)
+            else:
+                str_val = str(value)
             
             if config:
                 config.value = str_val
@@ -85,4 +97,10 @@ class ConfigService:
                     val = c.value
                     if val == "true": val = True
                     elif val == "false": val = False
+                    elif (val.startswith("[") and val.endswith("]")) or (val.startswith("{") and val.endswith("}")):
+                        try:
+                            import json
+                            val = json.loads(val)
+                        except:
+                            pass
                     cls._cache[c.key] = val
