@@ -61,7 +61,7 @@ export function useBookmarkActions(state: any, bookmarkApi: any) {
       positiveText: '全部清空',
       negativeText: '取消',
       onPositiveClick: async () => {
-        await bookmarkApi.clearAllBookmarks()
+        await bookmarkApi.clearBookmarks()
         message.success('已全部清空')
         state.selectedKeys.value = ['root']
         state.currentFolder.value = null
@@ -143,7 +143,7 @@ export function useBookmarkActions(state: any, bookmarkApi: any) {
     if (!file) return
     const loadingMsg = message.loading('正在导入...', { duration: 0 })
     try {
-      const result = await bookmarkApi.importBookmarksHtml(file)
+      const result = await bookmarkApi.importHtml(file)
       loadingMsg.destroy()
       message.success(`成功导入 ${result.count} 个项目`)
       await refreshCurrentFolder()

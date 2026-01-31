@@ -135,36 +135,112 @@ def export_bookmarks_to_html() -> str:
     return '\n'.join(lines)
 
 def import_from_html(html_content: str):
+    from html.parser import HTMLParser
+    from app.utils.logger import logger
+    
+    logger.info(f"📂 [导入开始] 收到 HTML 内容长度: {len(html_content)} 字符")
+
+    class BookmarkParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.bookmarks = []
+            self.parent_stack = [None]
+            self.current_folder_id = None
+            self.now_ms = int(time.time() * 1000)
+            self.count = 0
+            
+            # 状态标志
+            self.in_h3 = False
+            self.in_a = False
+            self.current_title = []
+            self.current_url = None
+            self.current_icon = None
+            
+            # 防止重复
+            self.existing_urls = set()
+
+        def set_existing_urls(self, urls):
+            self.existing_urls = urls
+
+        def handle_starttag(self, tag, attrs):
+            tag = tag.upper()
+            if tag == 'DL':
+                if self.current_folder_id:
+                    self.parent_stack.append(self.current_folder_id)
+                    self.current_folder_id = None 
+            elif tag == 'H3':
+                self.in_h3 = True
+                self.current_title = []
+            elif tag == 'A':
+                self.in_a = True
+                self.current_title = []
+                self.current_url = None
+                self.current_icon = None
+                for k, v in attrs:
+                    if k.lower() == 'href':
+                        self.current_url = v
+                    elif k.lower() == 'icon':
+                        self.current_icon = v
+
+        def handle_endtag(self, tag):
+            tag = tag.upper()
+            if tag == 'DL':
+                if len(self.parent_stack) > 1:
+                    self.parent_stack.pop()
+            elif tag == 'H3':
+                self.in_h3 = False
+                title = "".join(self.current_title).strip() or "新建文件夹"
+                folder_id = f"bm_fld_{self.now_ms}_{self.count}"
+                self.bookmarks.append({
+                    "id": folder_id,
+                    "type": "folder",
+                    "title": title,
+                    "parent_id": self.parent_stack[-1],
+                    "order": len(self.bookmarks)
+                })
+                self.current_folder_id = folder_id
+                self.count += 1
+            elif tag == 'A':
+                self.in_a = False
+                if self.current_url and self.current_url not in self.existing_urls:
+                    title = "".join(self.current_title).strip() or self.current_url
+                    self.bookmarks.append({
+                        "id": f"bm_lnk_{self.now_ms}_{self.count}",
+                        "type": "file",
+                        "title": title,
+                        "url": self.current_url,
+                        "icon": self.current_icon,
+                        "parent_id": self.parent_stack[-1],
+                        "order": len(self.bookmarks)
+                    })
+                    self.count += 1
+
+        def handle_data(self, data):
+            if self.in_h3 or self.in_a:
+                self.current_title.append(data)
+
+    # 主逻辑
     data = get_data()
     data.setdefault("bookmarks", [])
-    existing_urls = {bm.get("url") for bm in data["bookmarks"] if bm.get("type") == "file" and bm.get("url")}
-    parent_stack, imported_count = [None], 0
-    now_ms = int(time.time() * 1000)
-    token_pattern = re.compile(r'<(H3|A|DL|/DL)([^>]*)>(.*?)(?=<|$)', re.I | re.S)
-    last_folder_id = None
-    for match in token_pattern.finditer(html_content):
-        tag, attrs, inner = match.group(1).upper(), match.group(2), match.group(3)
-        if tag == 'H3':
-            title = re.sub(r'<[^>]+>', '', inner).split('</H3>')[0].strip()
-            folder_id = f"bm_fld_{now_ms}_{imported_count}"
-            data["bookmarks"].append({"id": folder_id, "type": "folder", "title": title or "文件夹", "parent_id": parent_stack[-1], "order": len(data["bookmarks"])})
-            last_folder_id = folder_id
-            imported_count += 1
-        elif tag == 'DL':
-            if last_folder_id: parent_stack.append(last_folder_id); last_folder_id = None
-        elif tag == '/DL':
-            if len(parent_stack) > 1: parent_stack.pop()
-        elif tag == 'A':
-            href_m = re.search(r'HREF=["\\]?([^"\\\'>\s]+)', attrs, re.I)
-            if href_m:
-                url = href_m.group(1)
-                if url not in existing_urls:
-                    title = re.sub(r'<[^>]+>', '', inner).split('</A>')[0].strip()
-                    icon_m = re.search(r'ICON=["\\]?([^"\\\'>\s]+)', attrs, re.I)
-                    data["bookmarks"].append({"id": f"bm_lnk_{now_ms}_{imported_count}", "type": "file", "title": title or url, "url": url, "icon": icon_m.group(1) if icon_m else None, "parent_id": parent_stack[-1], "order": len(data["bookmarks"])})
-                    imported_count += 1
-    if imported_count > 0: save_data(data)
-    return imported_count
+    
+    existing = {bm.get("url") for bm in data["bookmarks"] if bm.get("type") == "file" and bm.get("url")}
+    
+    parser = BookmarkParser()
+    parser.set_existing_urls(existing)
+    
+    try:
+        logger.info("📂 [导入] 开始解析 HTML 结构...")
+        parser.feed(html_content)
+        logger.info(f"📂 [导入] 解析完成，发现 {parser.count} 个新项目")
+    except Exception as e:
+        logger.error(f"❌ [导入错误] HTML 解析异常: {str(e)}")
+    
+    if parser.count > 0:
+        data["bookmarks"].extend(parser.bookmarks)
+        save_data(data)
+        logger.info("📂 [导入] 数据保存成功")
+        
+    return parser.count
 
 def find_duplicates() -> List[Dict[str, Any]]:
     """
