@@ -158,9 +158,17 @@ const openCreateModal = () => {
   editMode.value = false
   selectedPlatforms.value = ['linux/amd64']
   form.value = {
-    name: '', host_id: hostOptions.value.length > 0 ? hostOptions.value[0].value : null,
-    build_context: '', dockerfile_path: 'Dockerfile', local_image_name: '', repo_image_name: '',
-    platforms: 'linux/amd64', registry_id: null, proxy_id: null, no_cache: false, auto_cleanup: true
+    name: '', 
+    host_id: hostOptions.value.length > 0 ? hostOptions.value[0].value : 'local',
+    build_context: '', 
+    dockerfile_path: 'Dockerfile', 
+    local_image_name: '', 
+    repo_image_name: '',
+    platforms: 'linux/amd64', 
+    registry_id: null, 
+    proxy_id: null, 
+    no_cache: false, 
+    auto_cleanup: true
   }
   showModal.value = true
 }
@@ -185,7 +193,7 @@ const saveProject = async () => {
 }
 
 const deleteProject = (row: any) => {
-  performDelete(row, fetchProjects)
+  performDelete(row, () => fetchProjects())
 }
 
 const openHistory = (row: any) => {

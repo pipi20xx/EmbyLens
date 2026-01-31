@@ -30,11 +30,22 @@ export function useImageBuilder() {
       const [regData, proxData, hostData]: any = await Promise.all([
         imageBuilderApi.getRegistries(), imageBuilderApi.getProxies(), dockerApi.getHosts()
       ])
-      registries.value = regData
-      registryOptions.value = regData.map((r: any) => ({ label: r.name, value: r.id }))
-      proxyOptions.value = proxData.map((p: any) => ({ label: p.name, value: p.id }))
-      hostOptions.value = hostData.map((h: any) => ({ label: h.name, value: h.id }))
-    } catch (e) {}
+      registries.value = Array.isArray(regData) ? regData : []
+      registryOptions.value = registries.value.map((r: any) => ({ label: r.name, value: r.id }))
+      
+      const proxies = Array.isArray(proxData) ? proxData : []
+      proxyOptions.value = proxies.map((p: any) => ({ label: p.name, value: p.id }))
+      
+      const hosts = Array.isArray(hostData) ? hostData : []
+      hostOptions.value = hosts.map((h: any) => ({ label: h.name, value: h.id }))
+      
+      // 如果后端没返回任何主机（防御性），前端补全 Local
+      if (hostOptions.value.length === 0) {
+        hostOptions.value = [{ label: 'Local Host (本容器)', value: 'local' }]
+      }
+    } catch (e) {
+      console.error('Fetch image builder options failed:', e)
+    }
   }
 
   const directBuild = async (row: any) => {
@@ -60,13 +71,15 @@ export function useImageBuilder() {
     })
   }
 
-  const deleteProject = (row: any, onSuccess: () => void) => {
+  const deleteProject = (row: any, onSuccess?: () => void) => {
     dialog.warning({
       title: '确认删除', content: `确定要删除项目 "${row.name}" 吗？`, positiveText: '确定', negativeText: '取消',
       onPositiveClick: async () => {
         try { 
           await imageBuilderApi.deleteProject(row.id)
-          onSuccess()
+          message.success('删除成功')
+          if (onSuccess) onSuccess()
+          else fetchProjects()
         }
         catch (e) { }
       }

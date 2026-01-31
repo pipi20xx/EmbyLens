@@ -111,7 +111,17 @@ async def container_exec(websocket: WebSocket, host_id: str, container_id: str, 
 @router.get("/hosts")
 async def get_hosts():
     config = get_config()
-    return config.get("docker_hosts", [])
+    hosts = config.get("docker_hosts", [])
+    # 确保始终包含本地主机选项
+    if not any(h.get("id") == "local" for h in hosts):
+        local_host = {
+            "id": "local",
+            "name": "Local Host (本容器)",
+            "type": "local",
+            "is_local": True
+        }
+        return [local_host] + hosts
+    return hosts
 
 @router.post("/hosts")
 async def add_host(host: DockerHostConfig):
@@ -168,7 +178,10 @@ def get_docker_service(host_id: str):
     host_config = next((h for h in hosts if h.get("id") == host_id), None)
     
     if not host_config:
-        raise HTTPException(status_code=404, detail="Docker host not configured")
+        if host_id == "local":
+            host_config = {"id": "local", "type": "local", "name": "Local Host"}
+        else:
+            raise HTTPException(status_code=404, detail="Docker host not configured")
     
     return DockerService(host_config)
 
