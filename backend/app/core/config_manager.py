@@ -53,6 +53,10 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "bots": []
     },
+    "ai_provider": "openai",
+    "ai_api_key": "",
+    "ai_base_url": "https://api.openai.com/v1",
+    "ai_model": "gpt-3.5-turbo",
     "menu_settings": [],
     "build_projects": [],
     "build_registries": [],

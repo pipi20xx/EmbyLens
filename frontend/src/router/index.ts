@@ -57,6 +57,11 @@ const router = createRouter({
       component: () => import('../views/toolkit/BangumiLab.vue'),
     },
     {
+      path: '/toolkit/ai-lab',
+      name: 'AILabView',
+      component: () => import('../views/toolkit/AILab.vue'),
+    },
+    {
       path: '/toolkit/actor-lab',
       name: 'ActorLab',
       component: () => import('../views/toolkit/ActorLab.vue'),

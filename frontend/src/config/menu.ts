@@ -56,6 +56,7 @@ export const allMenuItems: MenuOption[] = [
   
   { label: 'TMDB 实验中心', key: 'TmdbLabView', icon: renderIcon(LabIcon) },
   { label: 'Bangumi 实验室', key: 'BangumiLabView', icon: renderIcon(LabIcon) },
+  { label: 'AI 实验室', key: 'AILabView', icon: renderIcon(LabIcon) },
   { label: 'TMDB 演员实验室', key: 'ActorLabView', icon: renderIcon(ActorLabIcon) },
   { label: '演员信息维护', key: 'ActorManagerView', icon: renderIcon(ActorIcon) },
   
@@ -114,6 +115,7 @@ export const groupedMenuOptions = [
     children: [
       allMenuItems.find(i => i.key === 'TmdbLabView'),
       allMenuItems.find(i => i.key === 'BangumiLabView'),
+      allMenuItems.find(i => i.key === 'AILabView'),
       allMenuItems.find(i => i.key === 'ActorLabView'),
       allMenuItems.find(i => i.key === 'ActorManagerView'),
     ]

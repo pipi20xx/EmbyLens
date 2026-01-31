@@ -105,7 +105,7 @@ export const defaultLayout: MenuGroup[] = [
     label: '实验室',
     visible: true,
     type: 'group',
-    items: ['TmdbLabView', 'BangumiLabView', 'ActorLabView', 'ActorManagerView']
+    items: ['TmdbLabView', 'BangumiLabView', 'AILabView', 'ActorLabView', 'ActorManagerView']
   },
   {
     key: 'group-others',

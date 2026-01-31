@@ -11,6 +11,7 @@ export const viewMap: Record<string, any> = {
   TmdbIdSearchView: defineAsyncComponent(() => import('../views/toolkit/TmdbIdSearch.vue')),
   TmdbLabView: defineAsyncComponent(() => import('../views/toolkit/TmdbLab.vue')),
   BangumiLabView: defineAsyncComponent(() => import('../views/toolkit/BangumiLab.vue')),
+  AILabView: defineAsyncComponent(() => import('../views/toolkit/AILab.vue')),
   ActorLabView: defineAsyncComponent(() => import('../views/toolkit/ActorLab.vue')),
   ActorManagerView: defineAsyncComponent(() => import('../views/toolkit/ActorManager.vue')),
   WebhookReceiverView: defineAsyncComponent(() => import('../views/toolkit/WebhookReceiver.vue')),
