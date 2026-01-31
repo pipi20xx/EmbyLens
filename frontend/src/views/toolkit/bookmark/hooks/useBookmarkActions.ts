@@ -77,6 +77,45 @@ export function useBookmarkActions(state: any, bookmarkApi: any) {
     }
   }
 
+  const handleSelect = (item: Bookmark, e: MouseEvent) => {
+    // If it's a folder click for navigation (double click or icon click), handled elsewhere usually.
+    // This is for selection in the list.
+    
+    if (e.shiftKey && state.lastSelectedId.value) {
+      // Range select
+      const list = state.currentItems.value
+      const lastIdx = list.findIndex((i: any) => i.id === state.lastSelectedId.value)
+      const currIdx = list.findIndex((i: any) => i.id === item.id)
+      if (lastIdx !== -1 && currIdx !== -1) {
+        const start = Math.min(lastIdx, currIdx)
+        const end = Math.max(lastIdx, currIdx)
+        // If ctrl is not pressed, clear previous unless we are adding to range?
+        // Standard behavior: shift+click extends selection from anchor.
+        // Usually clears others outside range unless ctrl is also held.
+        // For simplicity: Clear others, select range.
+        if (!e.ctrlKey && !e.metaKey) {
+            state.selectedItemIds.value.clear()
+        }
+        for (let i = start; i <= end; i++) {
+          state.selectedItemIds.value.add(list[i].id)
+        }
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle
+      if (state.selectedItemIds.value.has(item.id)) {
+        state.selectedItemIds.value.delete(item.id)
+      } else {
+        state.selectedItemIds.value.add(item.id)
+        state.lastSelectedId.value = item.id
+      }
+    } else {
+      // Single Select
+      state.selectedItemIds.value.clear()
+      state.selectedItemIds.value.add(item.id)
+      state.lastSelectedId.value = item.id
+    }
+  }
+
   const saveBookmark = async () => {
     const pId = state.selectedKeys.value[0] === 'root' ? null : state.selectedKeys.value[0]
     const data = { ...state.form, type: 'file' as const, parent_id: pId }
@@ -119,7 +158,7 @@ export function useBookmarkActions(state: any, bookmarkApi: any) {
 
       handleTreeSelect, handleItemClick, handleEdit, confirmDelete, handleClearAll, handleExport,
 
-      saveBookmark, saveFolder, handleImportHtml, findItemById, refreshCurrentFolder
+      saveBookmark, saveFolder, handleImportHtml, findItemById, refreshCurrentFolder, handleSelect
 
     }
 

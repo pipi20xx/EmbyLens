@@ -82,19 +82,20 @@
           <!-- 右侧：内容区 -->
           <n-layout-content class="main-content">
             <n-scrollbar style="max-height: 540px;">
-              <div class="list-wrapper">
+              <div class="list-wrapper" @click.self="onBackgroundClick">
                 <template v-if="currentItems.length > 0">
                   <div 
                     v-for="item in currentItems" 
                     :key="item.id"
                     class="data-row group"
-                    :class="{ 'is-dragging': dragId === item.id }"
+                    :class="{ 'is-dragging': dragId === item.id, 'selected': selectedItemIds.has(item.id) }"
                     draggable="true"
                     @dragstart="onDragStart($event, item.id)"
                     @dragover.prevent
                     @dragenter="onDragEnter(item.id)"
                     @dragend="onDragEnd"
-                    @click="handleItemClick(item)"
+                    @click="handleSelect(item, $event)"
+                    @dblclick="handleItemClick(item)"
                   >
                     <div class="row-main">
                       <div class="row-icon">
@@ -196,11 +197,12 @@ const {
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
-  nodeProps
+  nodeProps, selectedItemIds, handleSelect
 } = useBookmarkManager()
 
 const triggerFileInput = () => { fileInputRef.value?.click() }
 const onFileChange = (e: Event) => { handleImportHtml(e) }
+const onBackgroundClick = () => { selectedItemIds.clear() }
 </script>
 
 <style scoped>
@@ -217,10 +219,11 @@ const onFileChange = (e: Event) => { handleImportHtml(e) }
 .sider-section-label { padding: 0 12px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: rgba(255, 255, 255, 0.2); letter-spacing: 1px; }
 .sidebar-tree { --n-node-height: 38px; --n-node-color-hover: rgba(255, 255, 255, 0.05); --n-node-color-active: rgba(var(--primary-color-rgb, 32, 128, 240), 0.1); --n-node-text-color: rgba(255, 255, 255, 0.6); --n-node-text-color-active: var(--primary-color); --n-node-border-radius: 8px; }
 .main-content { background: rgba(255, 255, 255, 0.01); }
-.list-wrapper { padding: 8px; }
+.list-wrapper { padding: 8px; min-height: 100%; }
 .data-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; margin-bottom: 2px; }
 .data-row:hover { background: rgba(255, 255, 255, 0.04); }
 .data-row.is-dragging { opacity: 0.2; transform: scale(0.98); background: var(--primary-color); }
+.data-row.selected { background: rgba(var(--primary-color-rgb, 32, 128, 240), 0.15); border: 1px solid rgba(var(--primary-color-rgb), 0.3); }
 .row-main { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
 .row-icon { width: 36px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.2); border-radius: 8px; flex-shrink: 0; }
 .icon-img { width: 20px; height: 20px; object-fit: contain; }

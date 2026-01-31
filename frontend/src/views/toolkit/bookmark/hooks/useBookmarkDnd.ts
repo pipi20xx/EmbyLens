@@ -8,15 +8,29 @@ export function useBookmarkDnd(state: any, actions: any, bookmarkApi: any) {
 
   const onDragStart = (e: DragEvent, id: string) => {
     isDropped.value = false
+    
+    // If dragging an item not in selection, select it exclusively
+    if (!state.selectedItemIds.value.has(id)) {
+      state.selectedItemIds.value.clear()
+      state.selectedItemIds.value.add(id)
+      state.lastSelectedId.value = id
+    }
+    
     state.dragId.value = id
     if (e.dataTransfer) {
       e.dataTransfer.setData('text/plain', id)
       e.dataTransfer.effectAllowed = 'move'
+      // Set a custom drag image or text if possible to indicate count?
+      // For now, default is fine.
     }
   }
 
   const onDragEnter = (targetId: string) => {
     if (!state.dragId.value || state.dragId.value === targetId) return
+    // If multi-selecting, maybe disable list reordering visual? 
+    // Or just let it handle the primary dragged item.
+    if (state.selectedItemIds.value.size > 1) return
+
     const list = state.currentItems.value
     const fromIndex = list.findIndex((i: any) => i.id === state.dragId.value)
     const toIndex = list.findIndex((i: any) => i.id === targetId)
@@ -100,17 +114,26 @@ export function useBookmarkDnd(state: any, actions: any, bookmarkApi: any) {
         isDropped.value = true
 
         const targetKey = option.key
-        if (draggedId === targetKey) return
+        // Allow dropping onto self only if moving others? No, generally dropping onto self is no-op.
+        // But with multi-select, if I drag A (and B selected) onto A's parent, it's a no-op?
+        // Dragging list item to tree folder.
+        
+        const idsToMove = Array.from(state.selectedItemIds.value as Set<string>)
+        // Fallback if empty (shouldn't happen)
+        if (idsToMove.length === 0) idsToMove.push(draggedId)
+        
+        // Validation: Don't move if target is one of the moving items (folder)
+        if (idsToMove.includes(targetKey)) return
 
-        const draggedItem = actions.findItemById(state.bookmarks.value, draggedId)
         const targetParentId = targetKey === 'root' ? null : targetKey
 
-        if (draggedItem && draggedItem.parent_id === targetParentId) return
-
         try {
-          await bookmarkApi.reorderBookmarks([draggedId], targetParentId)
-          message.success('移动成功')
+          await bookmarkApi.reorderBookmarks(idsToMove, targetParentId)
+          message.success(`成功移动 ${idsToMove.length} 个项目`)
           await actions.refreshCurrentFolder()
+          // Clear selection after move? Maybe user wants to move them again?
+          // Usually after move they disappear from view (if view is source folder), so selection is implicitly cleared or invalid.
+          state.selectedItemIds.value.clear()
         } catch (error) {
           message.error('移动失败')
         }

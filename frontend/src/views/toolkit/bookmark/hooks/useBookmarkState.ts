@@ -9,6 +9,8 @@ import { type Bookmark } from '../../sitenav/useBookmark'
 export function useBookmarkState(bookmarks: Ref<Bookmark[]>) {
   const currentFolder = ref<Bookmark | null>(null)
   const selectedKeys = ref<string[]>(['root'])
+  const selectedItemIds = ref<Set<string>>(new Set())
+  const lastSelectedId = ref<string | null>(null)
   const dragId = ref<string | null>(null)
   const isDraggingExternal = ref(false)
   const dropTargetId = ref<string | null>(null)
@@ -57,7 +59,7 @@ export function useBookmarkState(bookmarks: Ref<Bookmark[]>) {
   })
 
   return {
-    bookmarks, currentFolder, selectedKeys, dragId, isDraggingExternal, dropTargetId,
+    bookmarks, currentFolder, selectedKeys, selectedItemIds, lastSelectedId, dragId, isDraggingExternal, dropTargetId,
     showAddBookmark, showAddFolder, editingItem, fetchingIcon, folderName, form,
     showAddBookmarkModal, currentItems, folderTree
   }
