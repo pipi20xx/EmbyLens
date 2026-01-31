@@ -242,12 +242,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref } from 'vue'
 import { 
-  useMessage, NSpace, NH2, NH3, NText, NCard, NInput, NButton, 
+  useMessage, NSpace, NH2, NText, NCard, NInput, NButton, 
   NCode, NTag, NEmpty, NGrid, NGi, NForm, NFormItem, NFormItemGi,
   NSelect, NDivider, NList, NListItem, NThing, NSwitch, NTabs, NTabPane,
-  NDescriptions, NDescriptionsItem, NCollapse, NCollapseItem, NP, NIcon, NAlert, NModal, NCheckbox, NProgress
+  NDescriptions, NDescriptionsItem, NCollapse, NCollapseItem, NP, NIcon, NAlert, NModal, NProgress
 } from 'naive-ui'
 import { 
   TerminalOutlined as CodeIcon,
@@ -258,15 +258,15 @@ import {
   StyleOutlined as GenreIcon,
   LocalOfferOutlined as TagIcon
 } from '@vicons/material'
-import axios from 'axios'
+
+// 导入提取的逻辑
+import { useTmdbSearch } from './tmdb/hooks/useTmdbSearch'
+import { useTmdbFetch } from './tmdb/hooks/useTmdbFetch'
+import { useTmdbJson } from './tmdb/hooks/useTmdbJson'
 import { copyElementContent } from '../../utils/clipboard'
 
 const message = useMessage()
 const activeTab = ref('search')
-const searchLoading = ref(false)
-const searchResults = ref<any[]>([])
-const detailLoading = ref(false)
-const detailResult = ref<any>(null)
 
 // 选项配置
 const mediaTypeOptions = [
@@ -282,76 +282,17 @@ const languageOptions = [
   { label: '日语 (ja-JP)', value: 'ja-JP' }
 ]
 
-const searchForm = reactive({
-  query: '',
-  media_type: 'movie',
-  language: 'zh-CN'
-})
+// 1. 搜索逻辑
+const { searchLoading, searchResults, searchForm, handleSearch } = useTmdbSearch()
 
-const detailForm = reactive({
-  tmdb_id: '',
-  media_type: 'movie',
-  language: 'zh-CN',
-  recursive: false
-})
+// 2. 抓取逻辑
+const { 
+  detailLoading, detailResult, detailForm, 
+  titlePool, aliasPool, keywordsList, handleFetchDetail 
+} = useTmdbFetch()
 
-// --- 计算属性 ---
-
-// 全量标题池
-const titlePool = computed(() => {
-  if (!detailResult.value || !detailResult.value.translations) return []
-  const titles = new Set<string>()
-  
-  // 基础字段
-  if (detailResult.value.title) titles.add(detailResult.value.title)
-  if (detailResult.value.name) titles.add(detailResult.value.name)
-  if (detailResult.value.original_title) titles.add(detailResult.value.original_title)
-  if (detailResult.value.original_name) titles.add(detailResult.value.original_name)
-  
-  // 翻译列表
-  const trans = detailResult.value.translations.translations || []
-  trans.forEach((t: any) => {
-    if (t.data?.title) titles.add(t.data.title)
-    if (t.data?.name) titles.add(t.data.name)
-  })
-  
-  return Array.from(titles).sort()
-})
-
-// 全量别名池
-const aliasPool = computed(() => {
-  if (!detailResult.value) return []
-  const aliases = new Set<string>()
-  const aData = detailResult.value.alternative_titles
-  const list = aData?.titles || aData?.results || []
-  list.forEach((item: any) => {
-    if (item.title) aliases.add(item.title)
-  })
-  return Array.from(aliases).sort()
-})
-
-// 关键词列表
-const keywordsList = computed(() => {
-  if (!detailResult.value) return []
-  const kData = detailResult.value.keywords
-  return kData?.keywords || kData?.results || []
-})
-
-// --- 业务逻辑 ---
-
-const handleSearch = async () => {
-  if (!searchForm.query) return
-  searchLoading.value = true
-  try {
-    const res = await axios.get('/api/tmdb-lab/search', { params: searchForm })
-    searchResults.value = res.data.results || []
-    if (searchResults.value.length === 0) message.warning('未找到相关结果')
-  } catch (e) {
-    message.error('搜索异常')
-  } finally {
-    searchLoading.value = false
-  }
-}
+// 3. JSON 弹窗逻辑
+const { jsonModal, showJson } = useTmdbJson(detailResult, detailForm)
 
 const fillDetail = (item: any) => {
   detailForm.tmdb_id = item.id.toString()
@@ -360,111 +301,6 @@ const fillDetail = (item: any) => {
   detailForm.recursive = (searchForm.media_type === 'tv')
   activeTab.value = 'direct'
   message.info('已填入 ID，请确认配置后启动抓取')
-}
-
-const handleFetchDetail = async () => {
-  if (!detailForm.tmdb_id) {
-    message.warning('请输入 TMDB ID')
-    return
-  }
-  detailLoading.value = true
-  detailResult.value = null
-  
-  const isAll = detailForm.language === 'all'
-  const params = {
-    tmdb_id: detailForm.tmdb_id,
-    media_type: detailForm.media_type,
-    language: isAll ? '' : detailForm.language,
-    include_translations: isAll,
-    recursive: detailForm.recursive
-  }
-
-  try {
-    const res = await axios.get('/api/tmdb-lab/fetch', { params })
-    if (res.data.error) {
-      message.error(res.data.error)
-    } else {
-      detailResult.value = res.data
-      message.success('抓取成功')
-    }
-  } catch (e) {
-    message.error('抓取失败')
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-// JSON 弹窗逻辑
-const jsonModal = reactive({
-  show: false,
-  title: '原始 JSON 数据',
-  loading: false,
-  data: {} as any
-})
-
-const showJson = (data: any, type: 'main' | 'season' | 'episode' = 'main', isDeep: boolean = false) => {
-  if (isDeep) {
-    if (type === 'episode') fetchFullEpisode(data)
-    else if (type === 'season') fetchFullSeason(data)
-  } else {
-    jsonModal.data = data
-    jsonModal.title = `元数据快照 - ${data.name || data.title || '详情'}`
-    jsonModal.show = true
-    jsonModal.loading = false
-  }
-}
-
-const fetchFullSeason = async (season: any) => {
-  jsonModal.loading = true
-  jsonModal.title = `深度探针: ${season.name}`
-  jsonModal.show = true
-  jsonModal.data = { message: '正在从 TMDB 实时抓取该季全量数据...' }
-  
-  try {
-    const isAll = detailForm.language === 'all'
-    const res = await axios.get('/api/tmdb-lab/fetch-season', {
-      params: {
-        tmdb_id: detailResult.value.id,
-        season_number: season.season_number,
-        language: isAll ? '' : detailForm.language,
-        include_translations: isAll
-      }
-    })
-    jsonModal.data = res.data
-    jsonModal.title = `季全量详情 - ${res.data.name}`
-  } catch (e) {
-    message.error('季详情抓取失败')
-    jsonModal.data = season
-  } finally {
-    jsonModal.loading = false
-  }
-}
-
-const fetchFullEpisode = async (ep: any) => {
-  jsonModal.loading = true
-  jsonModal.title = `深度抓取单集: EP ${ep.episode_number}`
-  jsonModal.show = true
-  jsonModal.data = { message: '正在从 TMDB 实时获取单集全量数据...' }
-  
-  try {
-    const isAll = detailForm.language === 'all'
-    const res = await axios.get('/api/tmdb-lab/fetch-episode', {
-      params: {
-        tmdb_id: detailResult.value.id,
-        season_number: ep.season_number,
-        episode_number: ep.episode_number,
-        language: isAll ? '' : detailForm.language,
-        include_translations: isAll
-      }
-    })
-    jsonModal.data = res.data
-    jsonModal.title = `单集全量 JSON - EP ${ep.episode_number}: ${res.data.name}`
-  } catch (e) {
-    message.error('单集详情抓取失败')
-    jsonModal.data = ep
-  } finally {
-    jsonModal.loading = false
-  }
 }
 
 const copyRawJson = () => {

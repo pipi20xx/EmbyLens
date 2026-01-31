@@ -139,19 +139,38 @@ import {
   NDescriptions, NDescriptionsItem, NCode, NTag, NSelect, NModal, NIcon 
 } from 'naive-ui'
 import { TerminalOutlined as CodeIcon } from '@vicons/material'
-import axios from 'axios'
+
+// 导入提取的逻辑
+import { useActorSearch } from './actor/hooks/useActorSearch'
+import { useActorSync } from './actor/hooks/useActorSync'
 
 const message = useMessage()
 const searchModes = [{ label: '按名称', value: 'name' }, { label: '按 ID', value: 'id' }]
 
-// 状态
-const embyMode = ref('name'); const embyQuery = ref(''); const embyLoading = ref(false); const embyResults = ref<any[]>([])
-const tmdbMode = ref('name'); const tmdbQuery = ref(''); const tmdbLoading = ref(false); const tmdbResults = ref<any[]>([])
-const selectedEmby = ref<any>(null); const selectedTmdb = ref<any>(null)
-const editName = ref(''); const nameLoading = ref(false); const syncLoading = ref(false)
+// 1. 搜索逻辑
+const { 
+  embyMode, embyQuery, embyLoading, embyResults,
+  tmdbMode, tmdbQuery, tmdbLoading, tmdbResults,
+  handleEmbySearch, handleTmdbSearch 
+} = useActorSearch()
+
+// 2. 状态管理
+const selectedEmby = ref<any>(null)
+const selectedTmdb = ref<any>(null)
+const editName = ref('')
 const jsonModal = reactive({ show: false, data: {} as any })
 
 watch(selectedEmby, (val) => { if (val) editName.value = val.Name })
+
+// 3. 同步逻辑
+const { 
+  nameLoading, syncLoading, 
+  handleUpdateName: updateName, 
+  handleSync: syncActor 
+} = useActorSync(() => handleEmbySearch())
+
+const handleUpdateName = () => updateName(selectedEmby.value, editName.value)
+const handleSync = () => syncActor(selectedEmby.value, selectedTmdb.value, editName.value)
 
 const showJson = (item: any) => { jsonModal.data = item; jsonModal.show = true; }
 const copyRawJson = () => {
@@ -162,52 +181,9 @@ const copyRawJson = () => {
   message.success('已复制到剪贴板')
 }
 
-const handleEmbySearch = async () => {
-  if (!embyQuery.value) return
-  embyLoading.value = true
-  try {
-    const res = await axios.get('/api/actors/search-emby', { params: { query: embyQuery.value }})
-    embyResults.value = res.data.results
-  } catch (e) { message.error('Emby 检索失败') }
-  finally { embyLoading.value = false }
-}
-
-const handleTmdbSearch = async () => {
-  if (!tmdbQuery.value) return
-  tmdbLoading.value = true
-  try {
-    const res = await axios.get('/api/actors/search-tmdb', { params: { query: tmdbQuery.value }})
-    tmdbResults.value = res.data.results
-  } catch (e) { message.error('TMDB 检索失败') }
-  finally { tmdbLoading.value = false }
-}
-
 const getEmbyAvatar = (person: any) => {
   if (!person.PrimaryImageTag) return ''
   return `/api/system/img-proxy?id=${person.Id}&tag=${person.PrimaryImageTag}` 
-}
-
-const handleUpdateName = async () => {
-  if (!selectedEmby.value || !editName.value) return
-  nameLoading.value = true
-  try {
-    await axios.post('/api/actors/update-actor-name', { emby_id: selectedEmby.value.Id, new_name: editName.value })
-    message.success('姓名已更新'); selectedEmby.value.Name = editName.value
-  } catch (e) { message.error('更新失败') }
-  finally { nameLoading.value = false }
-}
-
-const handleSync = async () => {
-  if (!selectedEmby.value || !selectedTmdb.value) return
-  syncLoading.value = true
-  try {
-    await axios.post('/api/actors/update-emby-actor', {
-      emby_id: selectedEmby.value.Id,
-      data: { Name: editName.value, ProviderIds: { ...selectedEmby.value.ProviderIds, Tmdb: selectedTmdb.value.id.toString() } }
-    })
-    message.success('同步成功'); handleEmbySearch()
-  } catch (e) { message.error('同步失败') }
-  finally { syncLoading.value = false }
 }
 </script>
 

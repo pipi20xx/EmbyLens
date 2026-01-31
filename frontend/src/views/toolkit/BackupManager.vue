@@ -48,7 +48,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { NSpace, NH2, NText, useMessage } from 'naive-ui'
-import axios from 'axios'
 
 // 导入乐高组件
 import TaskPanel from './backup/components/TaskPanel.vue'
@@ -57,100 +56,34 @@ import TaskEditModal from './backup/components/TaskEditModal.vue'
 import PathBrowserModal from './backup/components/PathBrowserModal.vue'
 import HistoryModal from './backup/components/HistoryModal.vue'
 
+// 导入提取的逻辑
+import { useBackupTasks } from './backup/hooks/useBackupTasks'
+import { useBackupBrowser } from './backup/hooks/useBackupBrowser'
+
 const message = useMessage()
 
 const taskPanelRef = ref()
 const historyPanelRef = ref()
 
-const showEditModal = ref(false)
-const showBrowser = ref(false)
 const showHistoryModal = ref(false)
 const historyTaskId = ref('')
 const historyTaskName = ref('')
-const browserInitialPath = ref('/')
-const browserTargetField = ref('')
 
-const editTask = ref({
-  id: '',
-  name: '',
-  mode: '7z',
-  storage_type: 'ssd',
-  sync_strategy: 'mirror',
-  compression_level: 1,
-  src_path: '',
-  dst_path: '',
-  password: '',
-  enabled: true,
-  schedule_type: 'cron',
-  schedule_value: '0 3 * * *',
-  ignore_patterns: [],
-  host_id: 'local'
-})
+// 1. 任务管理逻辑
+const { 
+  showEditModal, editTask, handleAddTask, handleEditTask, saveTask, handleRunTask: runTask 
+} = useBackupTasks(() => taskPanelRef.value?.fetchTasks())
 
-const handleAddTask = () => {
-  editTask.value = {
-    id: '',
-    name: '',
-    mode: '7z',
-    storage_type: 'ssd',
-    sync_strategy: 'mirror',
-    compression_level: 1,
-    src_path: '',
-    dst_path: '',
-    password: '',
-    enabled: true,
-    schedule_type: 'cron',
-    schedule_value: '0 3 * * *',
-    ignore_patterns: [],
-    host_id: 'local'
-  }
-  showEditModal.value = true
-}
+// 2. 浏览器逻辑
+const { showBrowser, browserInitialPath, openBrowser, handlePathSelect } = useBackupBrowser(editTask)
 
-const handleEditTask = (row: any) => {
-  editTask.value = { ...row }
-  showEditModal.value = true
-}
-
-const saveTask = async () => {
-  try {
-    if (editTask.value.id) {
-      await axios.put(`/api/backup/tasks/${editTask.value.id}`, editTask.value)
-    } else {
-      await axios.post('/api/backup/tasks', editTask.value)
-    }
-    message.success('保存成功')
-    showEditModal.value = false
-    taskPanelRef.value?.fetchTasks()
-  } catch (e) {
-    message.error('保存失败')
-  }
-}
-
-const handleRunTask = async (row: any) => {
-  await axios.post(`/api/backup/tasks/${row.id}/run`)
-  message.info('备份任务已启动')
-  setTimeout(() => historyPanelRef.value?.fetchHistory(), 1000)
-}
+// 3. 事件封装
+const handleRunTask = (row: any) => runTask(row, () => historyPanelRef.value?.fetchHistory())
 
 const handleViewHistory = (row: any) => {
   historyTaskId.value = row.id
   historyTaskName.value = row.name
   showHistoryModal.value = true
-}
-
-const openBrowser = (field: string) => {
-  browserTargetField.value = field
-  browserInitialPath.value = (editTask.value as any)[field === 'src' ? 'src_path' : 'dst_path'] || '/'
-  showBrowser.value = true
-}
-
-const handlePathSelect = (path: string) => {
-  if (browserTargetField.value === 'src') {
-    editTask.value.src_path = path
-  } else {
-    editTask.value.dst_path = path
-  }
 }
 </script>
 

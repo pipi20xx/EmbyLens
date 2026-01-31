@@ -81,27 +81,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h, reactive } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import {
   NSpace, NButton, NDataTable, NModal, NForm, NFormItem, NInput, NSelect,
   NCheckbox, useMessage, useDialog, NTag, NCheckboxGroup, NInputGroup
 } from 'naive-ui'
-import axios from 'axios'
+import { imageBuilderApi } from '@/api/imageBuilder'
 import BuildHistory from './BuildHistory.vue'
+
+// 导入提取的逻辑
+import { useImageBuilder } from '../hooks/useImageBuilder'
 
 const message = useMessage()
 const dialog = useDialog()
 
-const projects = ref([])
-const registries = ref<any[]>([])
-const proxies = ref([])
-const hostOptions = ref([])
-const loading = ref(false)
+const {
+  projects, registries, hostOptions, proxyOptions, registryOptions, loading, projectTags,
+  fetchProjects, fetchOptions, directBuild, handleClearAllLogs, deleteProject: performDelete
+} = useImageBuilder()
+
 const showModal = ref(false)
 const editMode = ref(false)
 const currentProjectId = ref('')
-
-const projectTags = reactive<Record<string, string>>({})
 const selectedPlatforms = ref(['linux/amd64'])
 
 const showHistory = ref(false)
@@ -113,9 +114,6 @@ const form = ref({
   local_image_name: '', repo_image_name: '', platforms: 'linux/amd64',
   registry_id: null, proxy_id: null, no_cache: false, auto_cleanup: true
 })
-
-const registryOptions = ref([])
-const proxyOptions = ref([])
 
 const columns = [
   { title: '项目名称', key: 'name', minWidth: 120 },
@@ -156,27 +154,6 @@ const columns = [
   }
 ]
 
-const fetchProjects = async () => {
-  loading.value = true
-  try {
-    const res = await axios.get('/api/image-builder/projects')
-    projects.value = res.data
-    res.data.forEach((p: any) => { if (!projectTags[p.id]) projectTags[p.id] = 'latest' })
-  } catch (e) { message.error('获取项目列表失败') } finally { loading.value = false }
-}
-
-const fetchOptions = async () => {
-  try {
-    const [regRes, proxRes, hostRes] = await Promise.all([
-      axios.get('/api/image-builder/registries'), axios.get('/api/image-builder/proxies'), axios.get('/api/docker/hosts')
-    ])
-    registries.value = regRes.data
-    registryOptions.value = regRes.data.map((r: any) => ({ label: r.name, value: r.id }))
-    proxyOptions.value = proxRes.data.map((p: any) => ({ label: p.name, value: p.id }))
-    hostOptions.value = hostRes.data.map((h: any) => ({ label: h.name, value: h.id }))
-  } catch (e) {}
-}
-
 const openCreateModal = () => {
   editMode.value = false
   selectedPlatforms.value = ['linux/amd64']
@@ -199,8 +176,8 @@ const openEditModal = (row: any) => {
 const saveProject = async () => {
   form.value.platforms = selectedPlatforms.value.join(',')
   try {
-    if (editMode.value) { await axios.put(`/api/image-builder/projects/${currentProjectId.value}`, form.value) }
-    else { await axios.post('/api/image-builder/projects', form.value) }
+    if (editMode.value) { await imageBuilderApi.updateProject(currentProjectId.value, form.value) }
+    else { await imageBuilderApi.addProject(form.value) }
     message.success('保存成功')
     showModal.value = false
     fetchProjects()
@@ -208,44 +185,13 @@ const saveProject = async () => {
 }
 
 const deleteProject = (row: any) => {
-  dialog.warning({
-    title: '确认删除', content: `确定要删除项目 "${row.name}" 吗？`, positiveText: '确定', negativeText: '取消',
-    onPositiveClick: async () => {
-      try { await axios.delete(`/api/image-builder/projects/${row.id}`); fetchProjects() }
-      catch (e) { message.error('删除失败') }
-    }
-  })
+  performDelete(row, fetchProjects)
 }
 
 const openHistory = (row: any) => {
   selectedProjectId.value = row.id
   selectedProjectName.value = row.name
   showHistory.value = true
-}
-
-const directBuild = async (row: any) => {
-  const tag = projectTags[row.id] || 'latest'
-  try {
-    await axios.post(`/api/image-builder/projects/${row.id}/build`, { tag: tag })
-    message.success(`任务 [${tag}] 已在后台启动，完成后将通过通知告知`)
-  } catch (e) { message.error('启动构建失败') }
-}
-
-const handleClearAllLogs = () => {
-  dialog.error({
-    title: '确认清空',
-    content: '该操作将彻底删除所有项目的构建历史及物理日志文件，且不可恢复。是否继续？',
-    positiveText: '确定清空',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await axios.delete('/api/image-builder/tasks')
-        message.success('历史记录已全部清空')
-      } catch (e) {
-        message.error('清空失败')
-      }
-    }
-  })
 }
 
 onMounted(() => { fetchProjects(); fetchOptions() })

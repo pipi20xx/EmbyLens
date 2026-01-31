@@ -56,9 +56,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { NSpace, NCard, NText, NButton, NSelect, NTabs, NTabPane, useMessage } from 'naive-ui'
-import axios from 'axios'
 
 // 导入乐高组件
 import TableBrowserPanel from './pgsql/components/TableBrowserPanel.vue'
@@ -67,46 +66,20 @@ import UserPanel from './pgsql/components/UserPanel.vue'
 import BackupPanel from './pgsql/components/BackupPanel.vue'
 import HostManagerModal from './pgsql/components/HostManagerModal.vue'
 
+// 导入提取的逻辑
+import { usePgsqlHosts } from './pgsql/hooks/usePgsqlHosts'
+
 const message = useMessage()
-const hosts = ref<any[]>([])
-const selectedHostId = ref<string | null>(null)
+const { hosts, selectedHostId, hostOptions, selectedHost, fetchHosts } = usePgsqlHosts()
+
 const activeTab = ref('data')
 const refreshing = ref(false)
 const showHostModal = ref(false)
-
-const STORAGE_KEY = 'lens_selected_pgsql_host'
-
-// 监听并记忆选择的主机
-watch(selectedHostId, (val) => {
-  if (val) localStorage.setItem(STORAGE_KEY, val)
-})
 
 const tablePanelRef = ref()
 const dbPanelRef = ref()
 const userPanelRef = ref()
 const backupPanelRef = ref()
-
-const hostOptions = computed(() => hosts.value.map(h => ({ label: h.name, value: h.id })))
-const selectedHost = computed(() => hosts.value.find(h => h.id === selectedHostId.value))
-
-const fetchHosts = async () => {
-  try {
-    const res = await axios.get('/api/pgsql/hosts')
-    hosts.value = res.data
-    
-    if (hosts.value.length > 0) {
-      const savedHostId = localStorage.getItem(STORAGE_KEY)
-      // 如果有记忆的 ID 且在当前列表中，则恢复它
-      if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
-        selectedHostId.value = savedHostId
-      } else if (!selectedHostId.value) {
-        selectedHostId.value = hosts.value[0].id
-      }
-    }
-  } catch (e) {
-    message.error('加载主机列表失败')
-  }
-}
 
 const handleHostChange = () => {
   // 子组件通过 watch host prop 会自动处理刷新

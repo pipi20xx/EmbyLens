@@ -1,0 +1,33 @@
+import { ref, reactive } from 'vue'
+import { useMessage } from 'naive-ui'
+import { tmdbApi } from '@/api/tmdb'
+
+export function useTmdbSearch() {
+  const message = useMessage()
+  const searchLoading = ref(false)
+  const searchResults = ref<any[]>([])
+  
+  const searchForm = reactive({
+    query: '',
+    media_type: 'movie',
+    language: 'zh-CN'
+  })
+
+  const handleSearch = async () => {
+    if (!searchForm.query) return
+    searchLoading.value = true
+    try {
+      const res = await tmdbApi.search(searchForm)
+      searchResults.value = res.data.results || []
+      if (searchResults.value.length === 0) message.warning('未找到相关结果')
+    } catch (e) {
+      message.error('搜索异常')
+    } finally {
+      searchLoading.value = false
+    }
+  }
+
+  return {
+    searchLoading, searchResults, searchForm, handleSearch
+  }
+}

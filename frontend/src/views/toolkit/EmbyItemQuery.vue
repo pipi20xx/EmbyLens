@@ -39,38 +39,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { 
   useMessage, NSpace, NH2, NText, NCard, NInput, NButton, NInputGroup, 
   NInputGroupLabel, NCode, NTag, NEmpty, NP 
 } from 'naive-ui'
-import axios from 'axios'
 import { copyElementContent } from '../../utils/clipboard'
 
-const message = useMessage()
-const itemId = ref('')
-const itemData = ref<any>(null)
-const loading = ref(false)
+// 导入提取的逻辑
+import { useEmbyItem } from './emby/hooks/useEmbyItem'
 
-const fetchInfo = async () => {
-  if (!itemId.value) {
-    message.warning('请输入项目 ID')
-    return
-  }
-  loading.value = true
-  itemData.value = null
-  try {
-    const res = await axios.get('/api/items/info', {
-      params: { item_id: itemId.value }
-    })
-    itemData.value = res.data
-    message.success('元数据抓取成功')
-  } catch (e: any) {
-    message.error(e.response?.data?.detail || '抓取失败，请确认 ID 是否正确')
-  } finally {
-    loading.value = false
-  }
-}
+const message = useMessage()
+const { itemId, itemData, loading, fetchInfo } = useEmbyItem()
 
 const copyData = () => {
   const selector = document.querySelector('.json-viewer pre') ? '.json-viewer pre' : '.json-viewer'

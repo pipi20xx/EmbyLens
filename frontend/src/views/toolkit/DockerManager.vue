@@ -134,9 +134,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { NSpace, NCard, NText, NSelect, NButton, NTag, NTabs, NTabPane, useMessage, useDialog, NH2, NModal, NFormItem, NRadioGroup, NRadioButton, NInput, NSwitch, NAlert, NTimePicker, NGrid, NFormItemGi, NInputNumber } from 'naive-ui'
-import axios from 'axios'
+import { ref, onMounted } from 'vue'
+import { 
+  NSpace, NCard, NText, NSelect, NButton, NTag, NTabs, NTabPane, 
+  useMessage, useDialog, NH2, NModal, NFormItem, NRadioGroup, 
+  NRadioButton, NSwitch, NAlert, NTimePicker, NGrid, NFormItemGi, NInputNumber 
+} from 'naive-ui'
 
 // 导入乐高组件
 import ContainerPanel from './docker/components/ContainerPanel.vue'
@@ -146,155 +149,45 @@ import SystemInfoPanel from './docker/components/SystemInfoPanel.vue'
 import HostManagerModal from './docker/components/HostManagerModal.vue'
 import FileBrowserModal from './docker/components/FileBrowserModal.vue'
 
+// 导入提取的逻辑 Hooks
+import { useDockerHosts } from './docker/hooks/useDockerHosts'
+import { useDockerAutoUpdate } from './docker/hooks/useDockerAutoUpdate'
+import { useDockerScanPaths } from './docker/hooks/useDockerScanPaths'
+import { useDockerBrowser } from './docker/hooks/useDockerBrowser'
+
 const message = useMessage()
 const dialog = useDialog()
 
-const hosts = ref<any[]>([])
-const selectedHostId = ref<string | null>(null)
+// 1. 主机管理逻辑
+const { hosts, selectedHostId, hostOptions, currentHost, fetchHosts } = useDockerHosts()
+
+// 2. 自动更新设置逻辑
+const { 
+  showAutoUpdateModal, savingAutoUpdate, autoUpdateSettings, intervalParts, 
+  openAutoUpdateModal, saveAutoUpdateSettings 
+} = useDockerAutoUpdate()
+
+// 3. 页面状态与引用
 const activeTab = ref('containers')
 const refreshing = ref(false)
-
-const STORAGE_KEY = 'lens_selected_docker_host'
-
-// 记忆选择的主机
-watch(selectedHostId, (val) => {
-  if (val) localStorage.setItem(STORAGE_KEY, val)
-})
-
-const showHostModal = ref(false)
-const showBrowserModal = ref(false)
-const browserInitialPath = ref('/')
-const isPickingForNewProject = ref(false)
-const pickedPathForNewProject = ref('')
-
-const showAutoUpdateModal = ref(false)
-const savingAutoUpdate = ref(false)
-const autoUpdateSettings = ref({
-  enabled: true,
-  type: 'cron',
-  value: '03:00'
-})
-
-// 用于间隔模式的拆解数据
-const intervalParts = ref({ d: 0, h: 0, m: 0 })
-
-const openAutoUpdateModal = async () => {
-  try {
-    const res = await axios.get('/api/docker/auto-update/settings')
-    autoUpdateSettings.value = res.data
-    
-    // 如果是间隔模式，反向拆解分钟数为天/时/分
-    if (autoUpdateSettings.value.type === 'interval') {
-      const totalMin = parseInt(autoUpdateSettings.value.value) || 0
-      intervalParts.value.d = Math.floor(totalMin / 1440)
-      intervalParts.value.h = Math.floor((totalMin % 1440) / 60)
-      intervalParts.value.m = totalMin % 60
-    }
-    
-    showAutoUpdateModal.value = true
-  } catch (e) {
-    message.error('获取设置失败')
-  }
-}
-
-const saveAutoUpdateSettings = async () => {
-  savingAutoUpdate.value = true
-  try {
-    // 如果是间隔模式，保存前先合并数据
-    if (autoUpdateSettings.value.type === 'interval') {
-      const totalMin = (intervalParts.value.d * 1440) + (intervalParts.value.h * 60) + intervalParts.value.m
-      if (totalMin <= 0) {
-        message.warning('执行间隔不能为 0')
-        savingAutoUpdate.value = false
-        return
-      }
-      autoUpdateSettings.value.value = String(totalMin)
-    }
-
-    await axios.post('/api/docker/auto-update/settings', autoUpdateSettings.value)
-    message.success('设置已保存，调度器已重载')
-    showAutoUpdateModal.value = false
-  } catch (e) {
-    message.error('保存失败')
-  } finally {
-    savingAutoUpdate.value = false
-  }
-}
-
-const browseRemotePath = async (path: string = '/') => {
-  if (!selectedHostId.value) {
-    message.warning('请先选择一个 Docker 主机'); return
-  }
-  isPickingForNewProject.value = false
-  browserInitialPath.value = path
-  showBrowserModal.value = true
-}
-
-const handleRequestPickPath = (currentPath: string) => {
-  isPickingForNewProject.value = true
-  browserInitialPath.value = currentPath || '/'
-  showBrowserModal.value = true
-}
-
-const handleFileSelect = (path: string) => {
-  if (isPickingForNewProject.value) {
-    pickedPathForNewProject.value = path
-    // 触发更新后清空，防止下次干扰
-    setTimeout(() => { pickedPathForNewProject.value = '' }, 500)
-    showBrowserModal.value = false
-  } else {
-    addScanPath(path)
-  }
-}
-
-
 const containerPanelRef = ref()
 const composePanelRef = ref()
+const showHostModal = ref(false)
 
-const hostOptions = computed(() => hosts.value.map(h => ({ label: h.name, value: h.id })))
-const currentHost = computed(() => hosts.value.find(h => h.id === selectedHostId.value))
-const currentHostPaths = computed(() => (currentHost.value?.compose_scan_paths || '').split(',').map(p => p.trim()).filter(p => p))
+// 4. 扫描路径逻辑 (依赖主机选择)
+const { currentHostPaths, addScanPath, removeScanPath } = useDockerScanPaths(
+  selectedHostId, 
+  currentHost, 
+  () => composePanelRef.value?.refresh()
+)
 
-const fetchHosts = async () => {
-  try {
-    const res = await axios.get('/api/docker/hosts')
-    hosts.value = Array.isArray(res.data) ? res.data : []
-    
-    if (hosts.value.length > 0) {
-      const savedHostId = localStorage.getItem(STORAGE_KEY)
-      // 如果有记忆的 ID 且在当前列表中，则恢复它
-      if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
-        selectedHostId.value = savedHostId
-      } else if (!selectedHostId.value) {
-        selectedHostId.value = hosts.value[0].id
-      }
-    }
-  } catch (e) {
-    hosts.value = []
-  }
-}
+// 5. 文件浏览器逻辑
+const { 
+  showBrowserModal, browserInitialPath, pickedPathForNewProject, 
+  browseRemotePath, handleRequestPickPath, handleFileSelect 
+} = useDockerBrowser(selectedHostId, addScanPath)
 
-const addScanPath = async (path: string) => {
-  if (!currentHost.value) return
-  const pathList = [...currentHostPaths.value]
-  if (!pathList.includes(path)) {
-    pathList.push(path)
-    currentHost.value.compose_scan_paths = pathList.join(',')
-    await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost.value)
-    message.success('已添加扫描路径')
-    composePanelRef.value?.refresh()
-  }
-}
-
-const removeScanPath = async (path: string) => {
-  if (!currentHost.value) return
-  const pathList = currentHostPaths.value.filter(p => p !== path)
-  currentHost.value.compose_scan_paths = pathList.join(',')
-  await axios.put(`/api/docker/hosts/${selectedHostId.value}`, currentHost.value)
-  message.info('已移除路径')
-  composePanelRef.value?.refresh()
-}
-
+// 6. 综合刷新
 const refreshContainers = () => containerPanelRef.value?.refresh()
 const refreshAll = async () => {
   refreshing.value = true

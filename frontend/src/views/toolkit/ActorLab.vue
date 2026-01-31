@@ -160,52 +160,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
 import { 
-  useMessage, NSpace, NH2, NText, NCard, NInput, NButton, 
+  NSpace, NH2, NText, NCard, NInput, NButton, 
   NCode, NTag, NEmpty, NGrid, NGi, NForm, NFormItem,
-  NSelect, NDivider, NList, NListItem, NThing, NSwitch, NTabs, NTabPane,
-  NIcon, NModal, NAvatar
+  NSelect, NDivider, NList, NListItem, NThing, 
+  NIcon, NModal, NAvatar, NTabs, NTabPane
 } from 'naive-ui'
 import { 
   TerminalOutlined as CodeIcon,
-  AssignmentIndOutlined as ReportIcon,
-  SearchOutlined as SearchIcon
+  AssignmentIndOutlined as ReportIcon
 } from '@vicons/material'
-import axios from 'axios'
 
-const message = useMessage()
-const activeTab = ref('search')
+// 导入提取的逻辑
+import { useActorLab } from './actorLab/hooks/useActorLab'
 
-// 搜索逻辑
-const searchQuery = ref('')
-const searchLoading = ref(false)
-const searchResults = ref<any[]>([])
-
-const handleSearch = async () => {
-  if (!searchQuery.value) return
-  searchLoading.value = true
-  try {
-    const res = await axios.get('/api/actors/search-tmdb', { params: { query: searchQuery.value } })
-    searchResults.value = res.data.results || []
-  } catch (e) {
-    message.error('搜索异常')
-  } finally {
-    searchLoading.value = false
-  }
-}
-
-const fillId = (person: any) => {
-  personId.value = person.id.toString()
-  activeTab.value = 'direct'
-  handleAnalyze()
-}
-
-// 分析逻辑
-const personId = ref('')
-const detailLanguage = ref('zh-CN')
-const analyzeLoading = ref(false)
-const result = ref<any>(null)
+const { 
+  activeTab, searchQuery, searchLoading, searchResults, personId, detailLanguage, 
+  analyzeLoading, result, jsonModal,
+  handleSearch, handleAnalyze, fillId, showJson 
+} = useActorLab()
 
 const languageOptions = [
   { label: '全语言抓取 (All Translations)', value: 'all' },
@@ -214,36 +187,6 @@ const languageOptions = [
   { label: '英文 (en-US)', value: 'en-US' },
   { label: '日语 (ja-JP)', value: 'ja-JP' }
 ]
-
-const handleAnalyze = async () => {
-  if (!personId.value) {
-    message.warning('请输入 Person ID')
-    return
-  }
-  analyzeLoading.value = true
-  result.value = null
-  
-  const isAll = detailLanguage.value === 'all'
-  const params = {
-    person_id: personId.value,
-    language: isAll ? '' : detailLanguage.value,
-    include_translations: isAll
-  }
-
-  try {
-    const res = await axios.get('/api/actor-lab/analyze', { params })
-    result.value = res.data
-    message.success('深度分析完成')
-  } catch (e) {
-    message.error('分析失败')
-  } finally {
-    analyzeLoading.value = false
-  }
-}
-
-// JSON 弹窗
-const jsonModal = reactive({ show: false, data: {} })
-const showJson = (data: any) => { jsonModal.data = data; jsonModal.show = true; }
 </script>
 
 <style scoped>

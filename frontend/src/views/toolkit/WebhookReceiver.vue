@@ -53,9 +53,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
+import { onMounted, h } from 'vue'
 import { 
-  useMessage, useDialog, NSpace, NH2, NText, NCard, NAlert, NDataTable, NButton, 
+  useMessage, NSpace, NH2, NText, NCard, NAlert, NDataTable, NButton, 
   NIcon, NTag, NModal, NCode 
 } from 'naive-ui'
 import { 
@@ -63,51 +63,14 @@ import {
   TerminalOutlined as CodeIcon,
   DeleteSweepRound as ClearIcon 
 } from '@vicons/material'
-import axios from 'axios'
 import { copyElementContent } from '../../utils/clipboard'
 
+// 导入提取的逻辑
+import { useWebhook } from './webhook/hooks/useWebhook'
+
 const message = useMessage()
-const dialog = useDialog()
-const loading = ref(false)
-const logs = ref([])
-const showModal = ref(false)
-const selectedPayload = ref({})
+const { loading, logs, showModal, selectedPayload, fetchLogs, handleClear, showJson } = useWebhook()
 const currentHost = window.location.hostname
-
-const fetchLogs = async () => {
-  loading.value = true
-  try {
-    const res = await axios.get('/api/webhook/list')
-    logs.value = res.data
-  } catch (e) {
-    message.error('加载日志失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleClear = () => {
-  dialog.warning({
-    title: '确认清空日志',
-    content: '确定要物理删除所有的 Webhook 历史记录吗？此操作无法撤销。',
-    positiveText: '确定清空',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await axios.delete('/api/webhook/clear')
-        message.success('日志已全部物理清理')
-        fetchLogs()
-      } catch (e) {
-        message.error('清理失败')
-      }
-    }
-  })
-}
-
-const showJson = (payload: any) => {
-  selectedPayload.value = payload
-  showModal.value = true
-}
 
 const copyPayload = () => {
   const selector = document.querySelector('.json-code-wrapper pre') ? '.json-code-wrapper pre' : '.json-code-wrapper'

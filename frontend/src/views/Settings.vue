@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { 
   useMessage, NScrollbar, NSpace, NH2, NText, NCard, NTag, NIcon, 
   NForm, NGrid, NFormItemGi, NInput, NSwitch, NCode, 
@@ -176,74 +176,19 @@ import {
   CloudUploadOutlined as ImportIcon,
   SaveAsOutlined as BackupIcon
 } from '@vicons/material'
-import axios from 'axios'
-import { servers, activeServerId, fetchServers, activateServer } from '../store/serverStore'
+import { servers, activeServerId } from '../store/serverStore'
 import { copyElementContent } from '../utils/clipboard'
 import EmbyServerModal from '../components/EmbyServerModal.vue'
 
+// 导入提取的逻辑
+import { useSettings } from '../hooks/useSettings'
+
 const message = useMessage()
-const savingGlobal = ref(false)
-const showServerModal = ref(false)
-const editingServer = ref(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
-
-const globalConfig = reactive({
-  tmdb_api_key: '',
-  bangumi_api_token: '',
-  proxy: {
-    enabled: false,
-    url: '',
-    exclude_emby: true
-  }
-})
-
-const handleExportConfig = () => {
-  window.open('/api/system/config/export', '_blank')
-}
-
-const triggerImportConfig = () => {
-  fileInputRef.value?.click()
-}
-
-const handleImportConfig = async (event: Event) => {
-  const input = event.target as HTMLInputElement
-  if (!input.files || input.files.length === 0) return
-  
-  const file = input.files[0]
-  const formData = new FormData()
-  formData.append('file', file)
-  
-  try {
-    await axios.post('/api/system/config/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    message.success('配置导入成功，页面将刷新以应用更改')
-    setTimeout(() => location.reload(), 1500)
-  } catch (e: any) {
-    message.error('导入失败: ' + (e.response?.data?.detail || '未知错误'))
-  } finally {
-    input.value = '' // reset
-  }
-}
-
-const fetchCurrent = async () => {
-  await fetchServers()
-  try {
-    const res = await axios.get('/api/server/current')
-    const data = res.data
-    if (data) {
-      globalConfig.tmdb_api_key = data.tmdb_api_key || ''
-      globalConfig.bangumi_api_token = data.bangumi_api_token || ''
-      if (data.proxy) {
-        globalConfig.proxy.enabled = !!data.proxy.enabled
-        globalConfig.proxy.url = data.proxy.url || ''
-        globalConfig.proxy.exclude_emby = data.proxy.exclude_emby !== false
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load global config:', e)
-  }
-}
+const { 
+  globalConfig, savingGlobal, showServerModal, editingServer, fileInputRef,
+  handleExportConfig, triggerImportConfig, handleImportConfig, fetchCurrent, 
+  handleActivate, handleDelete, handleSaveGlobal
+} = useSettings()
 
 onMounted(fetchCurrent)
 
@@ -257,43 +202,8 @@ const openEditModal = (s: any) => {
   showServerModal.value = true
 }
 
-const handleActivate = async (serverId: string) => {
-  const success = await activateServer(serverId)
-  if (success) {
-    message.success('已切换当前激活服务器')
-    await fetchCurrent()
-  } else {
-    message.error('切换失败')
-  }
-}
-
-const handleDelete = async (serverId: string) => {
-  try {
-    await axios.delete(`/api/server/${serverId}`)
-    message.success('服务器已删除')
-    await fetchCurrent()
-  } catch (e) {
-    message.error('删除失败')
-  }
-}
-
-const handleSaveGlobal = async () => {
-  savingGlobal.value = true
-  try {
-    await axios.post('/api/server/save', globalConfig)
-    message.success('全局配置已保存')
-    await fetchCurrent()
-  } catch (e: any) {
-    message.error('保存失败')
-  } finally {
-    savingGlobal.value = false
-  }
-}
-
 const copyConfig = () => {
-  // 尝试优先获取 n-code 内部的 pre 标签
   const selector = document.querySelector('.debug-code-wrapper pre') ? '.debug-code-wrapper pre' : '.debug-code-wrapper'
-  
   if (copyElementContent(selector)) {
     message.info('配置快照已复制')
   } else {
