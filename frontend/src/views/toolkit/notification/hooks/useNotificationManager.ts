@@ -24,21 +24,13 @@ export function useNotificationManager() {
   })
 
   const fetchSettings = async () => {
-    try {
-      const res = await notificationApi.getSettings()
-      settings.value = res.data
-    } catch (err) {
-      message.error('加载设置失败')
-    }
+    const data: any = await notificationApi.getSettings()
+    settings.value = data
   }
 
   const saveSettings = async () => {
-    try {
-      await notificationApi.saveSettings(settings.value)
-      message.success('设置已更新')
-    } catch (err) {
-      message.error('保存设置失败')
-    }
+    await notificationApi.saveSettings(settings.value)
+    message.success('设置已更新')
   }
 
   const handleAddBot = () => {
@@ -73,26 +65,20 @@ export function useNotificationManager() {
       if (editingBot.value.id) {
         await notificationApi.updateBot(editingBot.value.id, editingBot.value)
       } else {
-        await notificationApi.addBot(editingBot.value.id, editingBot.value)
+        await notificationApi.addBot(editingBot.value)
       }
       message.success('保存成功')
       showEditModal.value = false
       fetchSettings()
-    } catch (err) {
-      message.error('保存失败')
     } finally {
       saving.value = false
     }
   }
 
   const handleDeleteBot = async (id: string) => {
-    try {
-      await notificationApi.deleteBot(id)
-      message.success('已删除')
-      fetchSettings()
-    } catch (err) {
-      message.error('删除失败')
-    }
+    await notificationApi.deleteBot(id)
+    message.success('已删除')
+    fetchSettings()
   }
 
   const handleTestBot = (id: string) => {
@@ -107,9 +93,7 @@ export function useNotificationManager() {
         message: testMessage.value
       })
       message.success('消息已发送，请在 Telegram 中查看')
-    } catch (err: any) {
-      message.error('发送失败: ' + (err.response?.data?.detail || err.message))
-    }
+    } catch (err: any) { }
   }
 
   return {

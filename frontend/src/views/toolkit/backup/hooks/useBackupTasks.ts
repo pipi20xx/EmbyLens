@@ -48,14 +48,10 @@ export function useBackupTasks(onRefresh?: () => void) {
   }
 
   const saveTask = async () => {
-    try {
-      await backupApi.saveTask(editTask.value)
-      message.success('保存成功')
-      showEditModal.value = false
-      if (onRefresh) onRefresh()
-    } catch (e) {
-      message.error('保存失败')
-    }
+    await backupApi.saveTask(editTask.value)
+    message.success('保存成功')
+    showEditModal.value = false
+    if (onRefresh) onRefresh()
   }
 
   const handleRunTask = async (row: BackupTask, onHistoryRefresh?: () => void) => {

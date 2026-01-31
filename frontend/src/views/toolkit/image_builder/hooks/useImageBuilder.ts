@@ -19,21 +19,21 @@ export function useImageBuilder() {
   const fetchProjects = async () => {
     loading.value = true
     try {
-      const res = await imageBuilderApi.getProjects()
-      projects.value = res.data
-      res.data.forEach((p: any) => { if (!projectTags[p.id]) projectTags[p.id] = 'latest' })
-    } catch (e) { message.error('获取项目列表失败') } finally { loading.value = false }
+      const data: any = await imageBuilderApi.getProjects()
+      projects.value = data
+      data.forEach((p: any) => { if (!projectTags[p.id]) projectTags[p.id] = 'latest' })
+    } finally { loading.value = false }
   }
 
   const fetchOptions = async () => {
     try {
-      const [regRes, proxRes, hostRes] = await Promise.all([
+      const [regData, proxData, hostData]: any = await Promise.all([
         imageBuilderApi.getRegistries(), imageBuilderApi.getProxies(), dockerApi.getHosts()
       ])
-      registries.value = regRes.data
-      registryOptions.value = regRes.data.map((r: any) => ({ label: r.name, value: r.id }))
-      proxyOptions.value = proxRes.data.map((p: any) => ({ label: p.name, value: p.id }))
-      hostOptions.value = hostRes.data.map((h: any) => ({ label: h.name, value: h.id }))
+      registries.value = regData
+      registryOptions.value = regData.map((r: any) => ({ label: r.name, value: r.id }))
+      proxyOptions.value = proxData.map((p: any) => ({ label: p.name, value: p.id }))
+      hostOptions.value = hostData.map((h: any) => ({ label: h.name, value: h.id }))
     } catch (e) {}
   }
 
@@ -42,7 +42,7 @@ export function useImageBuilder() {
     try {
       await imageBuilderApi.buildProject(row.id, { tag: tag })
       message.success(`任务 [${tag}] 已在后台启动，完成后将通过通知告知`)
-    } catch (e) { message.error('启动构建失败') }
+    } catch (e) { }
   }
 
   const handleClearAllLogs = () => {
@@ -55,9 +55,7 @@ export function useImageBuilder() {
         try {
           await imageBuilderApi.clearAllTasks()
           message.success('历史记录已全部清空')
-        } catch (e) {
-          message.error('清空失败')
-        }
+        } catch (e) { }
       }
     })
   }
@@ -70,7 +68,7 @@ export function useImageBuilder() {
           await imageBuilderApi.deleteProject(row.id)
           onSuccess()
         }
-        catch (e) { message.error('删除失败') }
+        catch (e) { }
       }
     })
   }

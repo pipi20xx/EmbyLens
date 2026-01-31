@@ -25,6 +25,8 @@
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
     "vue-tsc": "^1.8.22",
-    "@types/js-yaml": "^4.0.9"
+    "@types/js-yaml": "^4.0.9",
+    "unplugin-auto-import": "^0.17.3",
+    "unplugin-vue-components": "^0.26.0"
   }
 }

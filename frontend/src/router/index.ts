@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { isLoggedIn, uiAuthEnabled } from '../store/navigationStore'
-import axios from 'axios'
+import { isLoggedIn, uiAuthEnabled } from '@/store/navigationStore'
+import { authApi } from '@/api/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -119,8 +119,8 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   // 1. 检查服务器认证状态
   try {
-    const res = await axios.get('/api/auth/status')
-    uiAuthEnabled.value = res.data.ui_auth_enabled === true || res.data.ui_auth_enabled === 'true'
+    const data: any = await authApi.getStatus()
+    uiAuthEnabled.value = data.ui_auth_enabled === true || data.ui_auth_enabled === 'true'
   } catch (err) { }
 
   // 2. 鉴权逻辑
