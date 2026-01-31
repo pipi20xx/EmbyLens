@@ -1,10 +1,10 @@
 <template>
   <div class="scanner-container">
     <div class="scanner-header">
-      <div class="flex flex-col">
+      <div class="header-info">
         <span class="scanner-title">重复书签扫描</span>
         <span class="scanner-subtitle">
-          共发现 <span class="highlight">{{ duplicates.length }}</span> 组重复项
+          检测到 <span class="highlight">{{ duplicates.length }}</span> 组重复资源
         </span>
       </div>
       <n-space>
@@ -14,10 +14,9 @@
           size="small"
           @click="$emit('mergeAllDuplicates')"
           secondary
-          round
         >
           <template #icon><n-icon><MergeIcon /></n-icon></template>
-          一键合并所有
+          自动合并
         </n-button>
         
         <n-button 
@@ -26,7 +25,6 @@
           @click="$emit('scanDuplicates')" 
           :loading="loadingDuplicates"
           secondary
-          round
         >
           <template #icon><n-icon><RefreshIcon /></n-icon></template>
           重新扫描
@@ -39,10 +37,10 @@
         <div v-for="group in duplicates" :key="group.url" class="duplicate-group">
           <div class="group-header">
             <div class="group-info">
-              <div class="group-title">{{ group.items[0]?.title || '无标题' }}</div>
+              <div class="group-title">{{ group.items[0]?.title || '无标题书签' }}</div>
               <a :href="group.url" target="_blank" class="group-url" @click.stop>{{ group.url }}</a>
             </div>
-            <n-tag type="warning" round size="small" :bordered="false" class="group-tag">
+            <n-tag type="warning" round size="small" :bordered="false">
               {{ group.count }} 处重复
             </n-tag>
           </div>
@@ -54,9 +52,9 @@
                   <n-icon color="var(--primary-color)" size="16"><FolderIcon /></n-icon>
                   <span class="path-text">{{ resolvePath(item.parent_id) }}</span>
                 </div>
-                <div class="item-id">ID: {{ item.id }}</div>
+                <div class="item-id">内部编号: {{ item.id }}</div>
               </div>
-              <n-button size="tiny" type="primary" secondary @click="$emit('mergeDuplicate', group, item.id)" round>
+              <n-button size="tiny" type="primary" secondary @click="$emit('mergeDuplicate', group, item.id)">
                 保留此项
               </n-button>
             </div>
@@ -64,7 +62,7 @@
         </div>
       </div>
       <div v-else class="empty-state">
-        <n-empty description="暂无重复书签" />
+        <n-empty description="未发现重复书签" />
       </div>
     </n-scrollbar>
   </div>
@@ -116,20 +114,26 @@ const resolvePath = (parentId: string | null): string => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .scanner-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-color);
 }
 
 .scanner-subtitle {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-color);
+  opacity: 0.4;
   margin-top: 2px;
 }
 
@@ -151,16 +155,16 @@ const resolvePath = (parentId: string | null): string => {
 }
 
 .duplicate-group {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
 .duplicate-group:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(var(--primary-color-rgb), 0.2);
 }
 
 .group-header {
@@ -170,6 +174,7 @@ const resolvePath = (parentId: string | null): string => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .group-info {
@@ -180,15 +185,14 @@ const resolvePath = (parentId: string | null): string => {
 .group-title {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-color);
+  opacity: 0.9;
 }
 
 .group-url {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-color);
+  opacity: 0.3;
   font-family: monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -201,11 +205,6 @@ const resolvePath = (parentId: string | null): string => {
 
 .group-url:hover {
   color: var(--primary-color);
-  text-decoration: underline;
-}
-
-.group-tag {
-  flex-shrink: 0;
 }
 
 .item-list {
@@ -223,10 +222,12 @@ const resolvePath = (parentId: string | null): string => {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
 
 .duplicate-item:hover {
   background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .item-main {
@@ -243,13 +244,15 @@ const resolvePath = (parentId: string | null): string => {
 
 .path-text {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-color);
+  opacity: 0.7;
   font-weight: 500;
 }
 
 .item-id {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--text-color);
+  opacity: 0.2;
   margin-left: 22px;
 }
 

@@ -1,9 +1,9 @@
 <template>
   <div class="scanner-container">
     <div class="scanner-header">
-      <div class="flex flex-col flex-1">
+      <div class="header-info">
         <span class="scanner-title">无效链接诊断</span>
-        <span class="scanner-subtitle">检测 404 及超时链接，建议分批清理</span>
+        <span class="scanner-subtitle">深度扫描书签可用性，检测 404 及超时响应</span>
       </div>
       <n-space>
         <n-button 
@@ -12,10 +12,9 @@
           size="small"
           @click="$emit('deleteBatchDead', [404])"
           secondary
-          round
         >
           <template #icon><n-icon><DeleteSweepIcon /></n-icon></template>
-          一键清理 404
+          清理 404
         </n-button>
         
         <n-button 
@@ -24,10 +23,9 @@
           size="small" 
           @click="$emit('stopScan')" 
           secondary 
-          round
         >
           <template #icon><n-icon><StopIcon /></n-icon></template>
-          停止扫描
+          停止诊断
         </n-button>
         <n-button 
           v-else 
@@ -35,10 +33,9 @@
           size="small" 
           @click="$emit('scanHealth')" 
           secondary 
-          round
         >
           <template #icon><n-icon><PlayIcon /></n-icon></template>
-          开始诊断
+          开始扫描
         </n-button>
       </n-space>
     </div>
@@ -63,12 +60,12 @@
         <div v-for="item in healthResults" :key="item.id" class="dead-link-item">
           <div class="status-badge">
             <n-tag :type="item.statusCode === 0 ? 'warning' : 'error'" size="small" :bordered="false" round>
-              {{ item.statusCode === 0 ? '超时' : item.statusCode }}
+              {{ item.statusCode === 0 ? 'TIMEOUT' : item.statusCode }}
             </n-tag>
           </div>
           
           <div class="item-info">
-            <div class="item-title">{{ item.title || '无标题' }}</div>
+            <div class="item-title">{{ item.title || '无标题书签' }}</div>
             <div class="item-meta">
               <div class="path-box">
                 <n-icon size="14"><FolderIcon /></n-icon>
@@ -91,7 +88,7 @@
           <n-spin size="large" />
           <div class="empty-text">正在深度诊断书签健康度...</div>
         </template>
-        <n-empty v-else description="暂无异常链接" />
+        <n-empty v-else description="暂无异常书签链接" />
       </div>
     </n-scrollbar>
   </div>
@@ -144,20 +141,26 @@ const resolvePath = (parentId: string | null): string => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .scanner-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-color);
 }
 
 .scanner-subtitle {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-color);
+  opacity: 0.4;
   margin-top: 2px;
 }
 
@@ -200,20 +203,20 @@ const resolvePath = (parentId: string | null): string => {
   gap: 16px;
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
   transition: all 0.2s ease;
 }
 
 .dead-link-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(var(--primary-color-rgb), 0.2);
   transform: translateX(4px);
 }
 
 .status-badge {
   flex-shrink: 0;
-  width: 50px;
+  width: 60px;
   display: flex;
   justify-content: center;
 }
@@ -229,7 +232,8 @@ const resolvePath = (parentId: string | null): string => {
 .item-title {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-color);
+  opacity: 0.9;
 }
 
 .item-meta {
@@ -244,12 +248,14 @@ const resolvePath = (parentId: string | null): string => {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-color);
+  opacity: 0.4;
 }
 
 .url-link {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-color);
+  opacity: 0.25;
   font-family: monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -261,7 +267,6 @@ const resolvePath = (parentId: string | null): string => {
 
 .url-link:hover {
   color: var(--primary-color);
-  text-decoration: underline;
 }
 
 .item-actions {
@@ -286,6 +291,7 @@ const resolvePath = (parentId: string | null): string => {
 
 .empty-text {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-color);
+  opacity: 0.6;
 }
 </style>

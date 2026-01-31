@@ -1,16 +1,28 @@
 <template>
-  <div class="bookmark-manager-full">
-    <n-card :bordered="false" size="small" class="manager-card" content-style="padding: 0;">
+  <div class="bookmark-manager-layout" :class="{ 'is-modal': isModal }">
+    <!-- 页面标题区 - 仅在非弹窗模式下显示 -->
+    <div v-if="!isModal" class="page-header">
+      <n-h2 prefix="bar" align-text><n-text type="primary">书签同步管理</n-text></n-h2>
+      <n-text depth="3">跨平台书签统一管理，支持智能体检、分类组织及高效导入导出。</n-text>
+    </div>
+
+    <n-card 
+      :bordered="false" 
+      size="small" 
+      class="manager-card" 
+      :embedded="!isModal"
+      content-style="padding: 0; display: flex; flex-direction: column; height: 100%;"
+    >
       <!-- 头部工具栏 -->
       <div class="header-toolbar">
-        <div class="flex items-center gap-2">
+        <div class="header-left-section" v-if="isModal">
           <div class="header-icon-box">
             <n-icon size="18" color="var(--primary-color)"><BookmarkIcon /></n-icon>
           </div>
           <span class="header-title">书签同步管理</span>
         </div>
 
-        <div class="flex-1 mx-4" style="max-width: 300px;">
+        <div class="search-box">
           <n-input v-model:value="searchQuery" placeholder="搜索书签..." size="small" round clearable>
             <template #prefix>
               <n-icon :component="SearchIcon" />
@@ -18,22 +30,20 @@
           </n-input>
         </div>
 
-        <n-space :size="8">
+        <n-space :size="8" class="toolbar-actions">
           <n-button secondary size="small" @click="showHealthModal = true" class="toolbar-btn">
             <template #icon><n-icon><HealthIcon /></n-icon></template>
-            体检
+            体检中心
           </n-button>
 
           <n-button secondary size="small" @click="showAddFolder = true" class="toolbar-btn">
             <template #icon><n-icon><FolderAddIcon /></n-icon></template>
-            文件夹
+            新建文件夹
           </n-button>
           
-          <div class="inline-block">
-            <n-button secondary size="small" @click="triggerFileInput" class="toolbar-btn">
-              <template #icon><n-icon><ImportIcon /></n-icon></template>
-              导入
-            </n-button>
+          <n-button secondary size="small" @click="triggerFileInput" class="toolbar-btn">
+            <template #icon><n-icon><ImportIcon /></n-icon></template>
+            导入
             <input 
               type="file" 
               ref="fileInputRef" 
@@ -41,14 +51,14 @@
               accept=".html,.htm" 
               @change="onFileChange"
             />
-          </div>
+          </n-button>
 
           <n-button secondary size="small" @click="handleExport" class="toolbar-btn">
             <template #icon><n-icon><ExportIcon /></n-icon></template>
             导出
           </n-button>
 
-          <n-button quaternary type="error" size="small" @click="handleClearAll" class="toolbar-btn">
+          <n-button secondary type="error" size="small" @click="handleClearAll" class="toolbar-btn">
             <template #icon><n-icon><ClearIcon /></n-icon></template>
             清空
           </n-button>
@@ -66,17 +76,15 @@
 
       <div class="manager-body">
         <n-layout has-sider position="static" class="layout-container">
-          <!-- 左侧：侧边栏 (恢复纯净树拖拽) -->
+          <!-- 左侧：侧边栏 -->
           <n-layout-sider
             bordered
-            collapse-mode="width"
-            :collapsed-width="0"
-            :width="200"
-            show-trigger="arrow-circle"
+            :width="siderWidth"
             class="sider-component"
           >
+            <div class="resize-handle" @mousedown.prevent="startResize"></div>
             <div class="sider-inner">
-              <div class="sider-section-label">收藏导航</div>
+              <div class="sider-section-label">收藏夹目录</div>
               <n-tree
                 block-line
                 expand-on-click
@@ -94,7 +102,7 @@
 
           <!-- 右侧：内容区 -->
           <n-layout-content class="main-content">
-            <n-scrollbar style="max-height: 540px;">
+            <n-scrollbar class="main-scrollbar">
               <div class="list-wrapper" @click.self="onBackgroundClick">
                 <template v-if="currentItems.length > 0">
                   <div 
@@ -132,7 +140,7 @@
                   </div>
                 </template>
                 <div v-else class="empty-view">
-                  <n-empty description="暂无书签" />
+                  <n-empty description="暂无书签数据" />
                 </div>
               </div>
             </n-scrollbar>
@@ -142,39 +150,39 @@
     </n-card>
 
     <!-- 弹窗部分 -->
-    <n-modal v-model:show="showAddBookmarkModal" preset="card" :title="editingItem ? '编辑' : '添加'" style="width: 440px" class="rounded-2xl">
+    <n-modal v-model:show="showAddBookmarkModal" preset="card" :title="editingItem ? '编辑书签' : '添加书签'" style="width: 440px" class="standard-modal">
       <n-form label-placement="top" size="small">
-        <n-form-item label="网址">
+        <n-form-item label="书签链接">
           <n-input-group>
             <n-input v-model:value="form.url" placeholder="https://..." @blur="autoFetchTitle" />
             <n-button type="primary" secondary @click="autoFetchIcon" :loading="fetchingIcon">抓取</n-button>
           </n-input-group>
         </n-form-item>
-        <n-form-item label="标题">
-          <n-input v-model:value="form.title" placeholder="显示名称" />
+        <n-form-item label="显示名称">
+          <n-input v-model:value="form.title" placeholder="请输入标题" />
         </n-form-item>
-        <n-form-item label="图标 URL">
-          <n-input v-model:value="form.icon" placeholder="图片 URL" />
+        <n-form-item label="图标地址">
+          <n-input v-model:value="form.icon" placeholder="选填，图标 URL" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
           <n-button @click="showAddBookmarkModal = false">取消</n-button>
-          <n-button type="primary" :disabled="!form.title" @click="saveBookmark">保存</n-button>
+          <n-button type="primary" :disabled="!form.title" @click="saveBookmark">保存书签</n-button>
         </n-space>
       </template>
     </n-modal>
 
-    <n-modal v-model:show="showAddFolder" preset="card" title="新建文件夹" style="width: 360px" class="rounded-2xl">
+    <n-modal v-model:show="showAddFolder" preset="card" title="新建文件夹" style="width: 360px" class="standard-modal">
       <n-form label-placement="top" size="small">
-        <n-form-item label="名称">
-          <n-input v-model:value="folderName" placeholder="文件夹名称" @keyup.enter="saveFolder" />
+        <n-form-item label="文件夹名称">
+          <n-input v-model:value="folderName" placeholder="请输入名称" @keyup.enter="saveFolder" />
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
           <n-button @click="showAddFolder = false">取消</n-button>
-          <n-button type="primary" :disabled="!folderName" @click="saveFolder">创建</n-button>
+          <n-button type="primary" :disabled="!folderName" @click="saveFolder">立即创建</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -237,39 +245,272 @@ const {
   healthResults, healthProgress, isScanningHealth, scanHealth, stopScanHealth, handleDeleteDead, handleDeleteBatchDead, bookmarks
 } = useBookmarkManager()
 
+const STORAGE_KEY_SIDER_WIDTH = 'lens_bookmark_sider_width'
+const storedWidth = localStorage.getItem(STORAGE_KEY_SIDER_WIDTH)
+const siderWidth = ref(storedWidth ? parseInt(storedWidth, 10) : 220)
+const isResizing = ref(false)
+
+const startResize = (e: MouseEvent) => {
+  isResizing.value = true
+  const startX = e.clientX
+  const startWidth = siderWidth.value
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing.value) return
+    const newWidth = startWidth + (e.clientX - startX)
+    if (newWidth > 160 && newWidth < 600) {
+      siderWidth.value = newWidth
+    }
+  }
+
+  const handleMouseUp = () => {
+    isResizing.value = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    localStorage.setItem(STORAGE_KEY_SIDER_WIDTH, siderWidth.value.toString())
+  }
+
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
 const triggerFileInput = () => { fileInputRef.value?.click() }
 const onFileChange = (e: Event) => { handleImportHtml(e) }
 const onBackgroundClick = () => { selectedItemIds.clear() }
 </script>
 
 <style scoped>
-.bookmark-manager-full { width: 100%; height: 100%; color: #fff; }
-.manager-card { background: transparent !important; border-radius: 16px; overflow: hidden; }
-.header-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-.header-icon-box { width: 32px; height: 32px; background: rgba(var(--primary-color-rgb, 32, 128, 240), 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.header-title { font-size: 16px; font-weight: 700; opacity: 0.9; }
-.toolbar-btn { border-radius: 8px; font-weight: 600; }
-.manager-body { height: 540px; background: rgba(0, 0, 0, 0.1); }
-.layout-container { height: 100%; background: transparent; }
-.sider-component { background: rgba(255, 255, 255, 0.02) !important; }
-.sider-inner { padding: 12px 8px; }
-.sider-section-label { padding: 0 12px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: rgba(255, 255, 255, 0.2); letter-spacing: 1px; }
-.sidebar-tree { --n-node-height: 38px; --n-node-color-hover: rgba(255, 255, 255, 0.05); --n-node-color-active: rgba(var(--primary-color-rgb, 32, 128, 240), 0.1); --n-node-text-color: rgba(255, 255, 255, 0.6); --n-node-text-color-active: var(--primary-color); --n-node-border-radius: 8px; }
-.main-content { background: rgba(255, 255, 255, 0.01); }
-.list-wrapper { padding: 8px; min-height: 100%; }
-.data-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; margin-bottom: 2px; }
-.data-row:hover { background: rgba(255, 255, 255, 0.04); }
-.data-row.is-dragging { opacity: 0.2; transform: scale(0.98); background: var(--primary-color); }
-.data-row.selected { background: rgba(var(--primary-color-rgb, 32, 128, 240), 0.15); border: 1px solid rgba(var(--primary-color-rgb), 0.3); }
-.row-main { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
-.row-icon { width: 36px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.2); border-radius: 8px; flex-shrink: 0; }
-.icon-img { width: 20px; height: 20px; object-fit: contain; }
-.row-info { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-.row-title { font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.9); }
-.row-sub { font-size: 10px; color: rgba(255, 255, 255, 0.25); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.2s; }
-.data-row:hover .row-actions { opacity: 1; }
-.empty-view { padding: 120px 0; opacity: 0.3; }
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.bookmark-manager-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.bookmark-manager-layout.is-modal {
+  height: 85vh;
+}
+
+.manager-card {
+  flex: 1;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.header-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.header-left-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-icon-box {
+  width: 32px;
+  height: 32px;
+  background: rgba(var(--primary-color-rgb), 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.search-box {
+  flex: 1;
+  max-width: 400px;
+}
+
+.toolbar-actions {
+  flex-shrink: 0;
+}
+
+.manager-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-container {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+}
+
+.sider-component {
+  background: transparent !important;
+  position: relative;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 100;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.5);
+}
+
+.sider-inner {
+  padding: 12px 8px;
+}
+
+.sider-section-label {
+  padding: 0 12px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-color);
+  opacity: 0.3;
+  letter-spacing: 1px;
+}
+
+.sidebar-tree {
+  --n-node-height: 38px;
+  --n-node-color-hover: rgba(255, 255, 255, 0.05);
+  --n-node-color-active: rgba(var(--primary-color-rgb), 0.1);
+  --n-node-text-color: var(--text-color);
+  --n-node-text-color-active: var(--primary-color);
+  --n-node-border-radius: 8px;
+}
+
+.main-content {
+  background: transparent;
+}
+
+.list-wrapper {
+  padding: 12px;
+  min-height: 100%;
+}
+
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+}
+
+.data-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.data-row.is-dragging {
+  opacity: 0.3;
+  transform: scale(0.98);
+  background: var(--primary-color);
+}
+
+.data-row.selected {
+  background: rgba(var(--primary-color-rgb), 0.1);
+  border-color: rgba(var(--primary-color-rgb), 0.2);
+}
+
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.row-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+  opacity: 0.9;
+}
+
+.row-sub {
+  font-size: 11px;
+  color: var(--text-color);
+  opacity: 0.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.data-row:hover .row-actions {
+  opacity: 1;
+}
+
+.empty-view {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+}
+
+:deep(.n-h2 .n-text--primary-type) {
+  color: var(--primary-color);
+}
+
+.standard-modal {
+  border-radius: 16px;
+}
 </style>

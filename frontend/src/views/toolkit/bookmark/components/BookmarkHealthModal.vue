@@ -4,8 +4,8 @@
     @update:show="$emit('update:show', $event)" 
     preset="card" 
     title="书签体检中心" 
-    style="width: 1100px; height: 96vh;" 
-    class="health-modal"
+    style="width: 1000px; height: 90vh;" 
+    class="standard-modal"
     :bordered="false"
     content-style="padding: 0; display: flex; flex-direction: column; overflow: hidden;"
   >
@@ -28,7 +28,7 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="health" tab="死链扫描">
+        <n-tab-pane name="health" tab="无效链接诊断">
           <DeadLinkScanner 
             :health-results="healthResults"
             :health-progress="healthProgress"
@@ -75,17 +75,12 @@ defineEmits([
 </script>
 
 <style scoped>
-.health-modal {
-  border-radius: 20px;
-  background-color: var(--app-bg-color);
-  backdrop-filter: blur(20px);
-}
-
 .health-modal-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   height: 0;
+  background-color: var(--card-bg-color);
 }
 
 .custom-tabs {
@@ -95,8 +90,9 @@ defineEmits([
 }
 
 :deep(.n-tabs-nav) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
   padding: 0 20px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 :deep(.n-tabs-tab) {
@@ -113,5 +109,9 @@ defineEmits([
 :deep(.custom-tab-pane) {
   height: 100%;
   padding: 0 !important;
+}
+
+.standard-modal {
+  border-radius: 16px;
 }
 </style>
