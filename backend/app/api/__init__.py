@@ -17,6 +17,8 @@ from .docker import router as docker_router
 from .docker_compose import router as compose_router
 from .pgsql import router as pgsql_router
 from .navigation import router as navigation_router
+from .bookmarks import router as bookmarks_router
+
 from .auth import router as auth_router
 from .backup import router as backup_router
 from .notification import router as notification_router
@@ -47,6 +49,7 @@ router.include_router(docker_router, prefix="/docker", tags=["Docker"])
 router.include_router(compose_router, prefix="/docker/compose", tags=["DockerCompose"])
 router.include_router(pgsql_router, prefix="/pgsql", tags=["PostgreSQL"])
 router.include_router(navigation_router, prefix="/navigation", tags=["Navigation"])
+router.include_router(bookmarks_router, prefix="/bookmarks", tags=["Bookmarks"])
 router.include_router(image_builder_router, prefix="/image-builder", tags=["ImageBuilder"])
 
 @router.get("/status")

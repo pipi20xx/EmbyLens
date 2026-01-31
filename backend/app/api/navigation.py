@@ -16,7 +16,8 @@ from app.utils.http_client import get_async_client
 from app.services import navigation_service as nav_service
 from app.schemas.navigation import (
     SiteNavCreate, SiteNavUpdate, SiteNavResponse,
-    CategoryCreate, CategoryResponse
+    CategoryCreate, CategoryResponse,
+    BookmarkCreate, BookmarkUpdate, BookmarkResponse
 )
 
 router = APIRouter()
@@ -333,6 +334,56 @@ async def delete_site(site_id: int):
 async def reorder_sites(ordered_ids: List[int]):
     nav_service.reorder_sites(ordered_ids)
     return {"message": "Reordered"}
+
+# ==========================================
+# 书签管理 API
+# ==========================================
+
+@router.get("/bookmarks", response_model=List[BookmarkResponse])
+async def list_bookmarks(as_tree: bool = Query(True)):
+    return nav_service.list_bookmarks(as_tree=as_tree)
+
+@router.post("/bookmarks", response_model=BookmarkResponse)
+async def create_bookmark(bookmark: BookmarkCreate):
+    return nav_service.add_bookmark(bookmark.dict())
+
+@router.put("/bookmarks/{bm_id}")
+async def update_bookmark(bm_id: str, bookmark: BookmarkUpdate):
+    success = nav_service.update_bookmark(bm_id, bookmark.dict(exclude_unset=True))
+    if not success:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return {"message": "Updated"}
+
+@router.delete("/bookmarks/{bm_id}")
+async def delete_bookmark(bm_id: str):
+    success = nav_service.delete_bookmark(bm_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return {"message": "Deleted"}
+
+@router.post("/bookmarks/reorder")
+async def reorder_bookmarks(payload: dict):
+    ordered_ids = payload.get("ordered_ids", [])
+    parent_id = payload.get("parent_id")
+    nav_service.reorder_bookmarks(ordered_ids, parent_id)
+    return {"message": "Reordered"}
+
+@router.post("/bookmarks/import-html")
+async def import_bookmarks_html(file: UploadFile = File(...)):
+    if not file.filename.endswith(('.html', '.htm')):
+        raise HTTPException(status_code=400, detail="请上传 HTML 格式的书签文件")
+    
+    content = await file.read()
+    try:
+        html_text = content.decode('utf-8')
+    except UnicodeDecodeError:
+        try:
+            html_text = content.decode('gbk')
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="无法解析文件编码")
+            
+    count = nav_service.import_bookmarks_from_html(html_text)
+    return {"message": f"成功导入 {count} 个书签", "count": count}
 
 # ==========================================
 # 备份与恢复 API

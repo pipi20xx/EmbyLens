@@ -2,30 +2,32 @@
 import { ref, onMounted, computed, nextTick, h, watch } from 'vue'
 import { 
   NSpace, NIcon, NEmpty, NGrid, NGridItem, NButton, 
-  NDropdown, NTooltip
+  NDropdown, NTooltip, NModal
 } from 'naive-ui'
-import { 
-  LinkOutlined as LinkIcon, 
+import {
+  LinkOutlined as LinkIcon,
   LaunchOutlined as LaunchIcon,
   AddCircleOutlineOutlined as AddIcon,
   SettingsOutlined as SettingsIcon,
   EditOutlined as EditIcon,
   DeleteOutlined as DeleteIcon,
   MenuOpenOutlined as MenuOpenIcon,
-  MenuOutlined as MenuIcon
+  MenuOutlined as MenuIcon,
+  BookmarkBorderOutlined as BookmarkIcon
 } from '@vicons/material'
 import { useSiteNav, SiteNav } from './useSiteNav'
 import { isHomeEntry } from '@/store/navigationStore'
+import { useRouter } from 'vue-router'
 
 // 导入积木组件
 import SiteEditorModal from './components/SiteEditorModal.vue'
 import CategoryManagerModal from './components/CategoryManagerModal.vue'
 import NavClock from './components/NavClock.vue'
 import SiteCard from './components/SiteCard.vue'
+import BookmarkManager from '../BookmarkManager.vue'
 
 const { 
-  sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,
-  addSite, updateSite, deleteSite, updateSiteOrder,
+  sites, categories, navSettings, loading, fetchSites, fetchCategories, fetchSettings,  addSite, updateSite, deleteSite, updateSiteOrder,
   addCategory, deleteCategory, updateCategory, updateCategoryOrder,
   updateNavSettings, resetNavSettings, uploadBackground, fetchIconFromUrl, 
   exportConfig, importConfig, message, hitokoto, fetchHitokoto,
@@ -74,7 +76,8 @@ watch(() => [
   navSettings.value.wallpaper_type, 
   navSettings.value.wallpaper_resolution,
   navSettings.value.wallpaper_keyword
-], ([mode], [oldMode]) => {
+], (newValues) => {
+  const mode = newValues[0]
   if (mode === 'unsplash') {
     // 只有当模式切换到 unsplash，或者在 unsplash 模式下其它关键参数改变时才刷新
     nextTick(() => refreshWallpaper(baseRandomApiUrl.value))
@@ -83,6 +86,7 @@ watch(() => [
 // --- 状态管理 ---
 const showEditor = ref(false)
 const showSettings = ref(false)
+const showBookmarkManager = ref(false)
 const fetchingIcon = ref(false)
 const editingSite = ref<Partial<SiteNav> | null>(null)
 const dragItem = ref<number | null>(null)
@@ -301,6 +305,14 @@ const openUrl = (url: string) => window.open(url, '_blank')
               </template>
               {{ isHomeEntry ? '显示侧边导航' : '隐藏侧边导航' }}
             </n-tooltip>
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button circle quaternary @click="showBookmarkManager = true">
+                  <template #icon><n-icon><BookmarkIcon /></n-icon></template>
+                </n-button>
+              </template>
+              书签管理
+            </n-tooltip>
             <n-button circle quaternary @click="showSettings = true">
               <template #icon><n-icon><SettingsIcon /></n-icon></template>
             </n-button>
@@ -394,6 +406,11 @@ const openUrl = (url: string) => window.open(url, '_blank')
 
         />
 
+    <n-modal v-model:show="showBookmarkManager" :mask-closable="true">
+      <div class="bookmark-manager-modal glass-effect" style="width: 90vw; height: 85vh; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; background: #1e1e22;">
+        <BookmarkManager isModal @close="showBookmarkManager = false" />
+      </div>
+    </n-modal>
     
   </div>
 </template>

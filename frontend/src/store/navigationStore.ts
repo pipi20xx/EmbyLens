@@ -112,7 +112,7 @@ export const defaultLayout: MenuGroup[] = [
     label: '其他工具',
     visible: true,
     type: 'group',
-    items: ['TerminalManagerView', 'DockerManagerView', 'ImageBuilderView', 'PostgresManagerView', 'BackupManagerView']
+    items: ['TerminalManagerView', 'BookmarkManagerView', 'DockerManagerView', 'ImageBuilderView', 'PostgresManagerView', 'BackupManagerView']
   },
   {
     key: 'group-config',

@@ -103,6 +103,11 @@ const router = createRouter({
       component: () => import('../views/toolkit/sitenav/SiteManager.vue'),
     },
     {
+      path: '/toolkit/bookmark-manager',
+      name: 'BookmarkManagerView',
+      component: () => import('../views/toolkit/BookmarkManager.vue'),
+    },
+    {
       path: '/toolkit/external-control',
       name: 'ExternalControl',
       component: () => import('../views/toolkit/ExternalControl.vue'),
