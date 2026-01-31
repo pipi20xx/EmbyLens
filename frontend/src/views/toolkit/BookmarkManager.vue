@@ -16,7 +16,6 @@
             文件夹
           </n-button>
           
-          <!-- 导入按钮及其隐藏输入框 -->
           <div class="inline-block">
             <n-button secondary size="small" @click="triggerFileInput" class="toolbar-btn">
               <template #icon><n-icon><ImportIcon /></n-icon></template>
@@ -54,7 +53,7 @@
 
       <div class="manager-body">
         <n-layout has-sider position="static" class="layout-container">
-          <!-- 左侧：侧边栏 -->
+          <!-- 左侧：侧边栏 (恢复纯净树拖拽) -->
           <n-layout-sider
             bordered
             collapse-mode="width"
@@ -65,21 +64,15 @@
           >
             <div class="sider-inner">
               <div class="sider-section-label">收藏导航</div>
-              <div 
-                class="nav-node-item" 
-                :class="{ 'is-active': !currentFolder }"
-                @click="selectRoot"
-              >
-                <div class="node-indicator"></div>
-                <n-icon size="18" class="node-icon"><HomeIcon /></n-icon>
-                <span class="node-label">我的书签</span>
-              </div>
               <n-tree
                 block-line
                 expand-on-click
+                draggable
+                default-expand-all
                 :data="folderTree"
                 :selected-keys="selectedKeys"
                 @update:selected-keys="handleTreeSelect"
+                @drop="handleTreeDrop"
                 class="sidebar-tree"
               />
             </div>
@@ -96,7 +89,7 @@
                     class="data-row group"
                     :class="{ 'is-dragging': dragId === item.id }"
                     draggable="true"
-                    @dragstart="onDragStart(item.id)"
+                    @dragstart="onDragStart($event, item.id)"
                     @dragover.prevent
                     @dragenter="onDragEnter(item.id)"
                     @dragend="onDragEnd"
@@ -133,13 +126,13 @@
       </div>
     </n-card>
 
-    <!-- 弹窗 -->
-    <n-modal v-model:show="showAddBookmarkModal" preset="card" :title="editingItem ? '编辑书签' : '添加书签'" style="width: 440px" class="rounded-2xl">
+    <!-- 弹窗部分 -->
+    <n-modal v-model:show="showAddBookmarkModal" preset="card" :title="editingItem ? '编辑' : '添加'" style="width: 440px" class="rounded-2xl">
       <n-form label-placement="top" size="small">
         <n-form-item label="网址">
           <n-input-group>
             <n-input v-model:value="form.url" placeholder="https://..." @blur="autoFetchTitle" />
-            <n-button type="primary" secondary @click="autoFetchIcon" :loading="fetchingIcon">自动抓取</n-button>
+            <n-button type="primary" secondary @click="autoFetchIcon" :loading="fetchingIcon">抓取</n-button>
           </n-input-group>
         </n-form-item>
         <n-form-item label="标题">
@@ -151,7 +144,7 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="closeBookmarkModal">取消</n-button>
+          <n-button @click="showAddBookmarkModal = false">取消</n-button>
           <n-button type="primary" :disabled="!form.title" @click="saveBookmark">保存</n-button>
         </n-space>
       </template>
@@ -174,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue' // 显式导入 ref 以便声明 fileInputRef
+import { ref } from 'vue'
 import { 
   BookmarkBorderOutlined as BookmarkIcon,
   CreateNewFolderOutlined as FolderAddIcon,
@@ -189,38 +182,26 @@ import {
   FileUploadOutlined as ExportIcon,
   DeleteSweepOutlined as ClearIcon
 } from '@vicons/material'
-import { useBookmarkManager } from './sitenav/useBookmarkManager'
+import { useBookmarkManager } from './bookmark/useBookmarkManager'
 
 const props = defineProps<{ isModal?: boolean }>()
 defineEmits(['close'])
 
-// 声明 Template Ref
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const {
   currentFolder, selectedKeys, dragId, showAddBookmark, showAddFolder, editingItem,
   fetchingIcon, folderName, form, currentItems, folderTree, showAddBookmarkModal,
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
-  handleClearAll, handleExport, handleImportHtml,
+  handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd
 } = useBookmarkManager()
 
-// 手动中转方法，确保连接正常
-const triggerFileInput = () => {
-  fileInputRef.value?.click()
-}
-
-const onFileChange = (e: Event) => {
-  handleImportHtml(e)
-}
-
-const closeBookmarkModal = () => {
-  showAddBookmarkModal.value = false
-}
+const triggerFileInput = () => { fileInputRef.value?.click() }
+const onFileChange = (e: Event) => { handleImportHtml(e) }
 </script>
 
 <style scoped>
-/* 保持原有样式不变 */
 .bookmark-manager-full { width: 100%; height: 100%; color: #fff; }
 .manager-card { background: transparent !important; border-radius: 16px; overflow: hidden; }
 .header-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
@@ -232,11 +213,6 @@ const closeBookmarkModal = () => {
 .sider-component { background: rgba(255, 255, 255, 0.02) !important; }
 .sider-inner { padding: 12px 8px; }
 .sider-section-label { padding: 0 12px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: rgba(255, 255, 255, 0.2); letter-spacing: 1px; }
-.nav-node-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: rgba(255, 255, 255, 0.6); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 2px; }
-.nav-node-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-.nav-node-item.is-active { background: rgba(var(--primary-color-rgb, 32, 128, 240), 0.1); color: var(--primary-color); font-weight: 600; }
-.node-indicator { position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; background: var(--primary-color); border-radius: 0 4px 4px 0; opacity: 0; transition: opacity 0.3s; }
-.nav-node-item.is-active .node-indicator { opacity: 1; }
 .sidebar-tree { --n-node-height: 38px; --n-node-color-hover: rgba(255, 255, 255, 0.05); --n-node-color-active: rgba(var(--primary-color-rgb, 32, 128, 240), 0.1); --n-node-text-color: rgba(255, 255, 255, 0.6); --n-node-text-color-active: var(--primary-color); --n-node-border-radius: 8px; }
 .main-content { background: rgba(255, 255, 255, 0.01); }
 .list-wrapper { padding: 8px; }

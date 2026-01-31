@@ -83,14 +83,21 @@ def delete_bookmark(bm_id: str):
         return True
     return False
 
-def reorder_bookmarks(ordered_ids: List[str], parent_id: Optional[str] = None):
+def reorder_bookmarks(ordered_ids: List[str], parent_id: Any = "KEEP_EXISTING"):
+    """
+    重新排序。如果 parent_id 传入具体值（包括 None），则更新这些项的父级。
+    """
     data = get_data()
-    bm_map = {str(bm["id"]): bm for bm in data.get("bookmarks", [])}
+    # 创建一个快速索引
+    bm_lookup = {str(bm["id"]): i for i, bm in enumerate(data["bookmarks"])}
+    
     for idx, bmid in enumerate(ordered_ids):
-        if bmid in bm_map:
-            bm_map[bmid]["order"] = idx
-            if parent_id is not None:
-                bm_map[bmid]["parent_id"] = parent_id
+        if bmid in bm_lookup:
+            target_idx = bm_lookup[bmid]
+            data["bookmarks"][target_idx]["order"] = idx
+            if parent_id != "KEEP_EXISTING":
+                data["bookmarks"][target_idx]["parent_id"] = parent_id
+                
     save_data(data)
     return True
 
@@ -102,20 +109,28 @@ def export_bookmarks_to_html() -> str:
     tree = list_bookmarks(as_tree=True)
     lines = [
         '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+        '<!-- This is an automatically generated file. -->',
         '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
-        '<TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><p>'
+        '<TITLE>Bookmarks</TITLE>',
+        '<H1>Bookmarks</H1>',
+        '<DL><p>'
     ]
     def traverse(items, level):
         indent = '    ' * level
         for it in items:
             if it['type'] == 'folder':
-                lines.append(f'{indent}<DT><H3>{it["title"]}</H3><DL><p>')
-                if it.get('children'): traverse(it['children'], level + 1)
+                lines.append(f'{indent}<DT><H3>{it["title"]}</H3>')
+                lines.append(f'{indent}<DL><p>')
+                if it.get('children'): 
+                    traverse(it['children'], level + 1)
                 lines.append(f'{indent}</DL><p>')
             else:
-                icon = f' ICON="{it["icon"]}"' if it.get('icon') else ''
-                lines.append(f'{indent}<DT><A HREF="{it["url"]}"{icon}>{it["title"]}</A>')
-    traverse(tree, 1)
+                icon_attr = f' ICON="{it["icon"]}"' if it.get('icon') else ''
+                lines.append(f'{indent}<DT><A HREF="{it["url"]}"{icon_attr}>{it["title"]}</A>')
+    
+    if tree:
+        traverse(tree, 1)
+        
     lines.append('</DL><p>')
     return '\n'.join(lines)
 

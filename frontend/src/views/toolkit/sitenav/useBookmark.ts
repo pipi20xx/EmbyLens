@@ -18,10 +18,12 @@ export function useBookmark() {
   const fetchBookmarks = async (asTree = true) => {
     loading.value = true
     try {
-      const response = await fetch(`/api/bookmarks?as_tree=${asTree}`)
+      const response = await fetch(`/api/bookmarks/?as_tree=${asTree}`)
+      if (!response.ok) throw new Error('Fetch failed')
       bookmarks.value = await response.json()
     } catch (err) {
       console.error('Failed to fetch bookmarks:', err)
+      bookmarks.value = []
     } finally {
       loading.value = false
     }
@@ -29,7 +31,7 @@ export function useBookmark() {
 
   const createBookmark = async (data: Partial<Bookmark>) => {
     try {
-      const response = await fetch('/api/bookmarks', {
+      const response = await fetch('/api/bookmarks/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -65,7 +67,7 @@ export function useBookmark() {
 
   const clearAllBookmarks = async () => {
     try {
-      await fetch('/api/bookmarks', { method: 'DELETE' })
+      await fetch('/api/bookmarks/', { method: 'DELETE' })
       await fetchBookmarks()
     } catch (err) {
       console.error('Failed to clear bookmarks:', err)
@@ -73,10 +75,15 @@ export function useBookmark() {
   }
 
   const exportBookmarks = () => {
-    window.open('/api/bookmarks/export', '_blank')
+    const link = document.createElement('a')
+    link.href = '/api/bookmarks/export'
+    link.setAttribute('download', '')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
-  const reorderBookmarks = async (ordered_ids: string[], parent_id?: string) => {
+  const reorderBookmarks = async (ordered_ids: string[], parent_id: string | null = "KEEP_EXISTING") => {
     try {
       await fetch('/api/bookmarks/reorder', {
         method: 'POST',
@@ -122,13 +129,12 @@ export function useBookmark() {
     loading,
     fetchBookmarks,
     createBookmark,
-        updateBookmark,
-        deleteBookmark,
-        clearAllBookmarks,
-        exportBookmarks,
-        reorderBookmarks,
-        importBookmarksHtml,
-        fetchIcon
-      }
-    }
-    
+    updateBookmark,
+    deleteBookmark,
+    clearAllBookmarks,
+    exportBookmarks,
+    reorderBookmarks,
+    importBookmarksHtml,
+    fetchIcon
+  }
+}

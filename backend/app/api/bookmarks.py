@@ -6,11 +6,12 @@ from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkRespons
 
 router = APIRouter()
 
-@router.get("", response_model=List[BookmarkResponse])
+# 使用标准的 / 路径，确保匹配稳定
+@router.get("/", response_model=List[BookmarkResponse])
 async def list_bookmarks(as_tree: bool = Query(True)):
     return service.list_bookmarks(as_tree=as_tree)
 
-@router.post("", response_model=BookmarkResponse)
+@router.post("/", response_model=BookmarkResponse)
 async def create_bookmark(bookmark: BookmarkCreate):
     return service.add_bookmark(bookmark.dict())
 
@@ -28,8 +29,8 @@ async def delete_bookmark(bm_id: str):
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return {"message": "Deleted"}
 
-@router.delete("")
-async def clear_bookmarks():
+@router.delete("/")
+async def clear_bookmarks_root():
     service.clear_bookmarks()
     return {"message": "All bookmarks cleared"}
 
