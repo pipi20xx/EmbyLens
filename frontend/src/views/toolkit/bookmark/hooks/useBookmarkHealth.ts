@@ -16,7 +16,7 @@ export function useBookmarkHealth(bookmarkApi: any, actions: any) {
   const scanDuplicates = async () => {
     loadingDuplicates.value = true
     try {
-      duplicates.value = await bookmarkApi.checkDuplicates()
+      duplicates.value = await bookmarkApi.findDuplicates()
     } finally {
       loadingDuplicates.value = false
     }

@@ -29,7 +29,7 @@ export function useBookmark() {
     }
   }
 
-  const createBookmark = async (data: Partial<Bookmark>) => {
+  const addBookmark = async (data: Partial<Bookmark>) => {
     try {
       const response = await fetch('/api/bookmarks/', {
         method: 'POST',
@@ -65,7 +65,7 @@ export function useBookmark() {
     }
   }
 
-  const clearAllBookmarks = async () => {
+  const clearBookmarks = async () => {
     try {
       await fetch('/api/bookmarks/', { method: 'DELETE' })
       await fetchBookmarks()
@@ -96,7 +96,7 @@ export function useBookmark() {
     }
   }
 
-  const importBookmarksHtml = async (file: File) => {
+  const importHtml = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
     try {
@@ -124,7 +124,7 @@ export function useBookmark() {
     }
   }
 
-  const checkDuplicates = async () => {
+  const findDuplicates = async () => {
     try {
       const response = await fetch('/api/bookmarks/duplicates')
       return await response.json()
@@ -135,32 +135,43 @@ export function useBookmark() {
   }
 
   const checkHealth = async (urls: string[]) => {
-    try {
-      const response = await fetch('/api/bookmarks/check-health', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls })
-      })
-      return await response.json()
-    } catch (err) {
-      console.error('Failed to check health:', err)
-      return {}
-    }
+    const response = await fetch('/api/bookmarks/check-health', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls })
+    })
+    return await response.json()
+  }
+
+  const aiAnalyze = async () => {
+    const response = await fetch('/api/bookmarks/ai-analyze', { method: 'POST' })
+    return await response.json()
+  }
+
+  const aiApply = async (suggestions: any) => {
+    const response = await fetch('/api/bookmarks/ai-apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(suggestions)
+    })
+    return await response.json()
   }
 
   return {
     bookmarks,
     loading,
     fetchBookmarks,
-    createBookmark,
+    addBookmark,
     updateBookmark,
     deleteBookmark,
-    clearAllBookmarks,
+    clearBookmarks,
     exportBookmarks,
     reorderBookmarks,
-    importBookmarksHtml,
-    fetchIcon,
-    checkDuplicates,
-    checkHealth
+    importHtml,
+    findDuplicates,
+    checkHealth,
+    aiAnalyze,
+    aiApply,
+    fetchIcon
   }
 }

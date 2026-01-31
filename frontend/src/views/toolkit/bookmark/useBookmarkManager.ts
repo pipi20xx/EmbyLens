@@ -4,6 +4,7 @@ import { useBookmarkState } from './hooks/useBookmarkState'
 import { useBookmarkActions } from './hooks/useBookmarkActions'
 import { useBookmarkDnd } from './hooks/useBookmarkDnd'
 import { useBookmarkHealth } from './hooks/useBookmarkHealth'
+import { useBookmarkAI } from './hooks/useBookmarkAI'
 
 export function useBookmarkManager() {
   const bookmarkApi = useBookmark()
@@ -11,6 +12,7 @@ export function useBookmarkManager() {
   const actions = useBookmarkActions(state, bookmarkApi)
   const dnd = useBookmarkDnd(state, actions, bookmarkApi)
   const health = useBookmarkHealth(bookmarkApi, actions)
+  const ai = useBookmarkAI(bookmarkApi, actions)
 
   const autoFetchTitle = async () => {
     if (state.form.url && !state.form.title) {
@@ -43,6 +45,8 @@ export function useBookmarkManager() {
       autoFetchTitle,
 
       autoFetchIcon,
+
+      handleAIAnalyze: ai.handleAIAnalyze,
 
       fetchIcon: bookmarkApi.fetchIcon
 

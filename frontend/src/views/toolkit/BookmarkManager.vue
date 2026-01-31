@@ -31,6 +31,11 @@
         </div>
 
         <n-space :size="8" class="toolbar-actions">
+          <n-button type="primary" secondary size="small" @click="handleAIAnalyze" class="toolbar-btn ai-btn">
+            <template #icon><n-icon><LabIcon /></n-icon></template>
+            AI 智能整理
+          </n-button>
+
           <n-button secondary size="small" @click="showHealthModal = true" class="toolbar-btn">
             <template #icon><n-icon><HealthIcon /></n-icon></template>
             体检中心
@@ -234,7 +239,8 @@ import {
   FileUploadOutlined as ExportIcon,
   DeleteSweepOutlined as ClearIcon,
   SearchOutlined as SearchIcon,
-  MedicalServicesOutlined as HealthIcon
+  MedicalServicesOutlined as HealthIcon,
+  ScienceOutlined as LabIcon
 } from '@vicons/material'
 import { useBookmarkManager } from './bookmark/useBookmarkManager'
 import BookmarkHealthModal from './bookmark/components/BookmarkHealthModal.vue'
@@ -251,6 +257,7 @@ const {
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
+  handleAIAnalyze,
   nodeProps: dndNodeProps, selectedItemIds, handleSelect, searchQuery,
   showHealthModal, activeTab, duplicates, loadingDuplicates, scanDuplicates, handleMergeDuplicate, handleMergeAllDuplicates, handleDeleteAllInGroup,
   healthResults, healthProgress, isScanningHealth, scanHealth, stopScanHealth, handleDeleteDead, handleDeleteBatchDead, bookmarks, findItemById
@@ -377,6 +384,19 @@ const onBackgroundClick = () => { selectedItemIds.clear() }
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   gap: 16px;
+}
+
+.toolbar-btn {
+  font-weight: 600;
+}
+
+.ai-btn {
+  background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.2) 0%, rgba(163, 112, 247, 0.2) 100%);
+  border: 1px solid rgba(var(--primary-color-rgb), 0.3);
+}
+
+.ai-btn:hover {
+  background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.3) 0%, rgba(163, 112, 247, 0.3) 100%);
 }
 
 .header-left-section {

@@ -64,6 +64,18 @@ async def reorder_bookmarks(payload: dict):
     service.reorder_bookmarks(ordered_ids, parent_id)
     return {"message": "Reordered"}
 
+@router.post("/ai-auto-organize")
+async def ai_auto_organize():
+    """全自动流式整理书签"""
+    from app.services.bookmark_ai_service import BookmarkAIService
+    from fastapi.responses import StreamingResponse
+    
+    async def generate():
+        async for msg in BookmarkAIService.run_auto_organize():
+            yield f"data: {msg}\n\n"
+            
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
 @router.post("/import-html")
 async def import_bookmarks_html(file: UploadFile = File(...)):
     if not file.filename.endswith(('.html', '.htm')):

@@ -65,3 +65,25 @@ class AIService:
         except Exception as e:
             logger.error(f"❌ [AI错误] {str(e)}")
             raise e
+
+    @classmethod
+    async def chat_json(cls, messages: list):
+        """发送聊天请求并获取完整的 JSON 响应 (内部逻辑使用)"""
+        client = await cls._get_client()
+        if not client:
+            raise ValueError("AI API Key not configured")
+
+        config = await cls.get_config()
+        
+        try:
+            response = await client.chat.completions.create(
+                model=config["model"],
+                messages=messages,
+                stream=False,
+                response_format={ "type": "json_object" } if config['provider'] == 'openai' else None
+            )
+            content = response.choices[0].message.content
+            return content
+        except Exception as e:
+            logger.error(f"❌ [AI JSON请求错误] {str(e)}")
+            raise e
