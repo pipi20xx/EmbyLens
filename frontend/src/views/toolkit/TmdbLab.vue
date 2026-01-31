@@ -263,7 +263,7 @@ import {
 import { useTmdbSearch } from './tmdb/hooks/useTmdbSearch'
 import { useTmdbFetch } from './tmdb/hooks/useTmdbFetch'
 import { useTmdbJson } from './tmdb/hooks/useTmdbJson'
-import { copyElementContent } from '../../utils/clipboard'
+import { copyElementContent } from '@/utils/clipboard'
 
 const message = useMessage()
 const activeTab = ref('search')

@@ -127,7 +127,7 @@ import {
 
 // 导入提取的逻辑
 import { useExternalControl } from './externalControl/hooks/useExternalControl'
-import { useTheme } from '../../hooks/useTheme'
+import { useTheme } from '@/hooks/useTheme'
 
 const message = useMessage()
 const { currentThemeType } = useTheme()

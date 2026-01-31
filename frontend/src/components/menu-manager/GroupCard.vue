@@ -6,7 +6,7 @@ import {
   EditOutlined as EditIcon
 } from '@vicons/material'
 import draggable from 'vuedraggable'
-import { allMenuItems } from '../../config/menu'
+import { allMenuItems } from '@/config/menu'
 
 const props = defineProps<{
   group: any

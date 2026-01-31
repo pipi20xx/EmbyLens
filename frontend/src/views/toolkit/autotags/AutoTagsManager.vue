@@ -89,7 +89,7 @@ import { ref, onMounted, reactive, computed } from 'vue'
 import { NCard, NSpace, NButton, NPageHeader, NEmpty, NH3, NText, NIcon, useMessage, NForm, NFormItem, NInput, NInputGroup, NGrid, NFormItemGi, NSwitch, NInputNumber, NCheckbox, NSelect, NAlert } from 'naive-ui'
 import { SyncOutlined as SyncIcon, AddOutlined as AddIcon } from '@vicons/material'
 import axios from 'axios'
-import { copyText } from '../../../utils/clipboard'
+import { copyText } from '@/utils/clipboard'
 
 import TaskPanel from './components/TaskPanel.vue'
 import RuleCard from './components/RuleCard.vue'

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { menuLayout, MenuGroup, defaultLayout } from '../../store/navigationStore'
-import { allMenuItems } from '../../config/menu'
+import { menuLayout, MenuGroup, defaultLayout } from '@/store/navigationStore'
+import { allMenuItems } from '@/config/menu'
 
 export function useMenuEditor() {
   const editingGroupIndex = ref<number | null>(null)

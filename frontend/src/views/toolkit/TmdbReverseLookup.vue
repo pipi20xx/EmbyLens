@@ -57,7 +57,7 @@ import {
   NInputGroupLabel, NCode, NTag, NDescriptions, NDescriptionsItem, NGi, NGrid 
 } from 'naive-ui'
 import axios from 'axios'
-import { copyText } from '../../utils/clipboard'
+import { copyText } from '@/utils/clipboard'
 
 const message = useMessage()
 const episodeId = ref('')

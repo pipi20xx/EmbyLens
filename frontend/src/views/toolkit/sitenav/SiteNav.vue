@@ -15,7 +15,7 @@ import {
   MenuOutlined as MenuIcon
 } from '@vicons/material'
 import { useSiteNav, SiteNav } from './useSiteNav'
-import { isHomeEntry } from '../../../store/navigationStore'
+import { isHomeEntry } from '@/store/navigationStore'
 
 // 导入积木组件
 import SiteEditorModal from './components/SiteEditorModal.vue'

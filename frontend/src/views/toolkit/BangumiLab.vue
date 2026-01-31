@@ -93,7 +93,7 @@ import {
   NTabs, NTabPane
 } from 'naive-ui'
 import { useBangumi } from './bangumi/useBangumi'
-import { copyElementContent } from '../../utils/clipboard'
+import { copyElementContent } from '@/utils/clipboard'
 import SubjectCard from './bangumi/components/SubjectCard.vue'
 import MetadataCard from './bangumi/components/MetadataCard.vue'
 import CharacterPanel from './bangumi/components/CharacterPanel.vue'

@@ -43,7 +43,7 @@ import {
   useMessage, NSpace, NH2, NText, NCard, NInput, NButton, NInputGroup, 
   NInputGroupLabel, NCode, NTag, NEmpty, NP 
 } from 'naive-ui'
-import { copyElementContent } from '../../utils/clipboard'
+import { copyElementContent } from '@/utils/clipboard'
 
 // 导入提取的逻辑
 import { useEmbyItem } from './emby/hooks/useEmbyItem'

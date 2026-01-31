@@ -63,7 +63,7 @@ import {
   TerminalOutlined as CodeIcon,
   DeleteSweepRound as ClearIcon 
 } from '@vicons/material'
-import { copyElementContent } from '../../utils/clipboard'
+import { copyElementContent } from '@/utils/clipboard'
 
 // 导入提取的逻辑
 import { useWebhook } from './webhook/hooks/useWebhook'
