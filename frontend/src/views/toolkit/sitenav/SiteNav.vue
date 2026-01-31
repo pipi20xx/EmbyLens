@@ -407,7 +407,7 @@ const openUrl = (url: string) => window.open(url, '_blank')
         />
 
     <n-modal v-model:show="showBookmarkManager" :mask-closable="true">
-      <div class="bookmark-manager-modal glass-effect" style="width: 90vw; height: 85vh; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; background: #1e1e22;">
+      <div class="bookmark-manager-modal glass-effect" style="width: 90vw; height: 96vh; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; background: #1e1e22;">
         <BookmarkManager isModal @close="showBookmarkManager = false" />
       </div>
     </n-modal>

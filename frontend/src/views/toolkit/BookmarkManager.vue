@@ -97,6 +97,16 @@
                 @drop="handleTreeDrop"
                 class="sidebar-tree"
               />
+              <n-dropdown
+                placement="bottom-start"
+                trigger="manual"
+                :x="contextMenuX"
+                :y="contextMenuY"
+                :options="contextMenuOptions"
+                :show="showContextMenu"
+                :on-clickoutside="() => showContextMenu = false"
+                @select="handleContextSelect"
+              />
             </div>
           </n-layout-sider>
 
@@ -209,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { h, ref, nextTick } from 'vue'
 import { 
   BookmarkBorderOutlined as BookmarkIcon,
   CreateNewFolderOutlined as FolderAddIcon,
@@ -228,6 +238,7 @@ import {
 } from '@vicons/material'
 import { useBookmarkManager } from './bookmark/useBookmarkManager'
 import BookmarkHealthModal from './bookmark/components/BookmarkHealthModal.vue'
+import { NIcon } from 'naive-ui'
 
 const props = defineProps<{ isModal?: boolean }>()
 defineEmits(['close'])
@@ -240,10 +251,65 @@ const {
   selectRoot, handleTreeSelect, handleItemClick, handleEdit, confirmDelete,
   handleClearAll, handleExport, handleImportHtml, handleTreeDrop,
   saveBookmark, saveFolder, autoFetchTitle, autoFetchIcon, onDragStart, onDragEnter, onDragEnd,
-  nodeProps, selectedItemIds, handleSelect, searchQuery,
+  nodeProps: dndNodeProps, selectedItemIds, handleSelect, searchQuery,
   showHealthModal, activeTab, duplicates, loadingDuplicates, scanDuplicates, handleMergeDuplicate, handleMergeAllDuplicates, handleDeleteAllInGroup,
-  healthResults, healthProgress, isScanningHealth, scanHealth, stopScanHealth, handleDeleteDead, handleDeleteBatchDead, bookmarks
+  healthResults, healthProgress, isScanningHealth, scanHealth, stopScanHealth, handleDeleteDead, handleDeleteBatchDead, bookmarks, findItemById
 } = useBookmarkManager()
+
+const showContextMenu = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuNode = ref<any>(null)
+
+const contextMenuOptions = [
+  {
+    label: () => h('div', { style: 'display: flex; align-items: center; justify-content: flex-start; height: 24px;' }, '删除文件夹'),
+    key: 'delete'
+  }
+]
+
+const handleNodeContextMenu = ({ node, event }: { node: any, event: MouseEvent }) => {
+  event.preventDefault()
+  event.stopPropagation()
+  showContextMenu.value = false
+  nextTick().then(() => {
+    contextMenuNode.value = node
+    contextMenuX.value = event.clientX
+    contextMenuY.value = event.clientY
+    showContextMenu.value = true
+  })
+}
+
+const nodeProps = ({ option }: { option: any }) => {
+  const baseProps = dndNodeProps({ option })
+  return {
+    ...baseProps,
+    onContextmenu: (e: MouseEvent) => {
+      handleNodeContextMenu({ node: option, event: e })
+    }
+  }
+}
+
+const handleContextSelect = (key: string | number) => {
+  showContextMenu.value = false
+  if (key === 'delete' && contextMenuNode.value) {
+    if (contextMenuNode.value.key === 'root') return
+    
+    // Try to find the real bookmark item from state
+    const realItem = findItemById(bookmarks.value, contextMenuNode.value.key)
+    
+    if (realItem) {
+      confirmDelete(realItem)
+    } else {
+      // Fallback: construct a partial object if not found (should be rare)
+      confirmDelete({ 
+        id: contextMenuNode.value.key, 
+        title: contextMenuNode.value.label, 
+        type: 'folder' 
+      } as any)
+    }
+  }
+}
 
 const STORAGE_KEY_SIDER_WIDTH = 'lens_bookmark_sider_width'
 const storedWidth = localStorage.getItem(STORAGE_KEY_SIDER_WIDTH)
@@ -292,7 +358,7 @@ const onBackgroundClick = () => { selectedItemIds.clear() }
 }
 
 .bookmark-manager-layout.is-modal {
-  height: 85vh;
+  height: 96vh;
 }
 
 .manager-card {
