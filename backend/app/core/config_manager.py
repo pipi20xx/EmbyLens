@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
     "ai_api_key": "",
     "ai_base_url": "https://api.openai.com/v1",
     "ai_model": "gpt-3.5-turbo",
+    "ai_use_proxy": False,
     "ai_bookmark_categories": [
         "AI智能工具",
         "编程与开发",

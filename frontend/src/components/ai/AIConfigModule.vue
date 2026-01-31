@@ -18,6 +18,12 @@
         <n-form-item label="Model Name">
           <n-input v-model:value="config.model" placeholder="gpt-3.5-turbo" />
         </n-form-item>
+        <n-form-item label="网络代理 (Proxy)">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <n-switch v-model:value="config.ai_use_proxy" />
+            <span style="font-size: 12px; opacity: 0.7;">使用系统内置 HTTP 代理转发请求</span>
+          </div>
+        </n-form-item>
         <n-form-item>
           <n-button type="primary" @click="saveConfig" :loading="saving" block>保存配置</n-button>
         </n-form-item>
@@ -30,14 +36,15 @@
 import { ref, onMounted } from 'vue'
 import { aiApi } from '@/api/ai'
 import { useMessage } from 'naive-ui'
-import { NCard, NForm, NFormItem, NInput, NButton, NSelect } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NSelect, NSwitch } from 'naive-ui'
 
 const message = useMessage()
 const config = ref({
   provider: 'openai',
   api_key: '',
   base_url: 'https://api.openai.com/v1',
-  model: 'gpt-3.5-turbo'
+  model: 'gpt-3.5-turbo',
+  ai_use_proxy: false
 })
 const saving = ref(false)
 

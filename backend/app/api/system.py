@@ -456,7 +456,8 @@ async def get_all_configs(db: AsyncSession = Depends(get_db)):
     # 2. 确保关键配置项（如 api_token）通过 ConfigService 获取（包含 config.json 的回退逻辑）
     keys_to_ensure = [
         "api_token", "ui_auth_enabled", "audit_enabled",
-        "ai_provider", "ai_api_key", "ai_base_url", "ai_model", "ai_bookmark_categories"
+        "ai_provider", "ai_api_key", "ai_base_url", "ai_model", "ai_bookmark_categories",
+        "ai_use_proxy"
     ]
     for key in keys_to_ensure:
         if key not in res or not res[key]:
