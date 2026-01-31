@@ -1,8 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { dockerApi } from '@/api/docker'
 import { DockerHost } from '@/types/docker'
-
-const STORAGE_KEY = 'lens_selected_docker_host'
+import { STORAGE_KEYS } from '@/constants/storage'
 
 export function useDockerHosts() {
   const hosts = ref<DockerHost[]>([])
@@ -12,12 +11,11 @@ export function useDockerHosts() {
   const currentHost = computed(() => hosts.value.find(h => h.id === selectedHostId.value))
 
   const fetchHosts = async () => {
-    // 拦截器会自动处理错误弹窗，这里只需要关注业务
     const data = await dockerApi.getHosts()
     hosts.value = Array.isArray(data) ? data : []
     
     if (hosts.value.length > 0) {
-      const savedHostId = localStorage.getItem(STORAGE_KEY)
+      const savedHostId = localStorage.getItem(STORAGE_KEYS.SELECTED_DOCKER_HOST)
       if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
         selectedHostId.value = savedHostId
       } else if (!selectedHostId.value) {
@@ -27,7 +25,7 @@ export function useDockerHosts() {
   }
 
   watch(selectedHostId, (val) => {
-    if (val) localStorage.setItem(STORAGE_KEY, val)
+    if (val) localStorage.setItem(STORAGE_KEYS.SELECTED_DOCKER_HOST, val)
   })
 
   return {

@@ -2,20 +2,21 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { serverApi } from '@/api/server'
 import { toolkitApi } from '@/api/toolkit'
+import { STORAGE_KEYS } from '@/constants/storage'
 
 export function useCleanupTools() {
   const message = useMessage()
   const loading = ref(false)
   const libOptions = ref([])
 
-  const savedCommon = localStorage.getItem('lens_cleanup_common')
+  const savedCommon = localStorage.getItem(STORAGE_KEYS.CLEANUP_COMMON)
   const common = reactive(savedCommon ? JSON.parse(savedCommon) : {
     lib_names: [],
     dry_run: true
   })
 
   watch(common, (val) => {
-    localStorage.setItem('lens_cleanup_common', JSON.stringify(val))
+    localStorage.setItem(STORAGE_KEYS.CLEANUP_COMMON, JSON.stringify(val))
   }, { deep: true })
 
   const fetchLibraries = async () => {

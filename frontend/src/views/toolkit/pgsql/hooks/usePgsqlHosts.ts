@@ -1,8 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { pgsqlApi } from '@/api/pgsql'
-
-const STORAGE_KEY = 'lens_selected_pgsql_host'
+import { STORAGE_KEYS } from '@/constants/storage'
 
 export function usePgsqlHosts() {
   const message = useMessage()
@@ -18,7 +17,7 @@ export function usePgsqlHosts() {
       hosts.value = res.data
       
       if (hosts.value.length > 0) {
-        const savedHostId = localStorage.getItem(STORAGE_KEY)
+        const savedHostId = localStorage.getItem(STORAGE_KEYS.SELECTED_PGSQL_HOST)
         if (savedHostId && hosts.value.some(h => h && h.id === savedHostId)) {
           selectedHostId.value = savedHostId
         } else if (!selectedHostId.value) {
@@ -31,7 +30,7 @@ export function usePgsqlHosts() {
   }
 
   watch(selectedHostId, (val) => {
-    if (val) localStorage.setItem(STORAGE_KEY, val)
+    if (val) localStorage.setItem(STORAGE_KEYS.SELECTED_PGSQL_HOST, val)
   })
 
   return {
