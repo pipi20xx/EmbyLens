@@ -1,20 +1,17 @@
-import { ref, h, defineComponent, onMounted } from 'vue'
-import { useMessage, useDialog, NDynamicTags, NAlert, NButton, NSpace, NDivider } from 'naive-ui'
+import { ref, h, defineComponent, reactive } from 'vue'
+import { useMessage, useDialog, NDynamicTags, NAlert, NButton, NSpace } from 'naive-ui'
 import axios from 'axios'
 
-// 1. 系统硬编码的默认分类（用于恢复默认功能）
 const DEFAULT_CATEGORIES = [
-  "媒体服务器", "动漫二次元", "游戏娱乐", "技术开发", 
-  "实用工具", "资源下载", "社交资讯", "购物生活", "知识学习"
+  "AI 与智能工具", "技术与开发", "设计与创意", "办公与效率", "影音与娱乐", 
+  "动漫与游戏", "阅读与资讯", "生活与购物", "知识与教育", "其他归档"
 ]
 
-// 2. 抽离出一个真正的 Vue 组件，确保响应式万无一失
 const AIConfigEditor = defineComponent({
-  props: ['targetFolderName', 'categories'],
-  emits: ['update:categories'],
-  setup(props, { emit }) {
+  props: ['targetFolderName', 'data'],
+  setup(props) {
     const handleRestore = () => {
-      emit('update:categories', [...DEFAULT_CATEGORIES])
+      props.data.categories = [...DEFAULT_CATEGORIES]
     }
 
     return () => h('div', { style: 'display: flex; flex-direction: column; gap: 16px;' }, [
@@ -30,8 +27,8 @@ const AIConfigEditor = defineComponent({
           h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: handleRestore }, { default: () => '恢复系统默认' })
         ]),
         h(NDynamicTags, {
-          value: props.categories,
-          'onUpdate:value': (val: string[]) => emit('update:categories', val)
+          value: props.data.categories,
+          'onUpdate:value': (val: string[]) => { props.data.categories = val }
         }),
         h('p', { style: 'color: #999; font-size: 12px; margin-top: 10px;' }, 'AI 将严格按此列表归类（严禁自建）。请手动剔除不想要的分类。')
       ])
@@ -47,29 +44,35 @@ export function useBookmarkAI(bookmarkApi: any, actions: any, state: any) {
   const handleAIAnalyze = async () => {
     if (isOrganizing.value) return
     
-    // 1. 自动从 config.json 加载
-    let currentCategories = ref<string[]>([])
+    const dialogData = reactive({
+      categories: [] as string[]
+    })
+
+    // 加载数据
     try {
       const res = await axios.get('/api/system/config')
-      const raw = res.data.ai_bookmark_categories
-      // 如果后端没数据，则使用前端默认值
-      currentCategories.value = (Array.isArray(raw) && raw.length > 0) ? raw : [...DEFAULT_CATEGORIES]
+      let raw = res.data.ai_bookmark_categories
+      
+      // 深度解析：处理后端可能返回的 JSON 字符串
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw) } catch (e) {}
+      }
+      
+      dialogData.categories = (Array.isArray(raw) && raw.length > 0) ? raw : [...DEFAULT_CATEGORIES]
     } catch (e) {
-      currentCategories.value = [...DEFAULT_CATEGORIES]
+      dialogData.categories = [...DEFAULT_CATEGORIES]
     }
 
     const selectedFolderId = state.selectedKeys.value[0]
     const targetFolderId = (selectedFolderId === 'root' || !selectedFolderId) ? null : selectedFolderId
     const targetFolderName = targetFolderId ? actions.findItemById(state.bookmarks.value, targetFolderId)?.title : '全部书签'
 
-    // 2. 弹出窗口
     const d = dialog.info({
       title: 'AI 整理配置',
       style: 'width: 520px',
       content: () => h(AIConfigEditor, {
         targetFolderName,
-        categories: currentCategories.value,
-        'onUpdate:categories': (val: string[]) => { currentCategories.value = val }
+        data: dialogData
       }),
       action: () => h(NSpace, { justify: 'end' }, {
         default: () => [
@@ -81,15 +84,15 @@ export function useBookmarkAI(bookmarkApi: any, actions: any, state: any) {
             secondary: true, 
             type: 'info',
             onClick: async () => {
-              await saveCategories(currentCategories.value)
-              message.success('分类预设已保存至 config.json')
+              await saveCategories(dialogData.categories)
+              message.success('预设已保存')
               d.destroy()
             }
           }, { default: () => '仅保存分类' }),
           h(NButton, { 
             type: 'primary',
             onClick: async () => {
-              await saveCategories(currentCategories.value)
+              await saveCategories(dialogData.categories)
               d.destroy()
               startOrganize(targetFolderId, targetFolderName)
             }
@@ -100,14 +103,9 @@ export function useBookmarkAI(bookmarkApi: any, actions: any, state: any) {
   }
 
   const saveCategories = async (cats: string[]) => {
-    try {
-      await axios.post('/api/system/config', {
-        configs: [{ key: 'ai_bookmark_categories', value: cats }]
-      })
-    } catch (e) {
-      message.error('保存失败')
-      throw e
-    }
+    return axios.post('/api/system/config', {
+      configs: [{ key: 'ai_bookmark_categories', value: cats }]
+    })
   }
 
   const startOrganize = async (targetFolderId: string | null, targetFolderName: string) => {

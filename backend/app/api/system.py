@@ -436,7 +436,22 @@ async def get_all_configs(db: AsyncSession = Depends(get_db)):
     # 1. 获取数据库中的所有配置项
     result = await db.execute(select(SystemConfig))
     configs = result.scalars().all()
-    res = {c.key: c.value for c in configs}
+    
+    res = {}
+    for c in configs:
+        val = c.value
+        # 智能解析 JSON 字符串 (列表或字典)
+        if isinstance(val, str):
+            if (val.startswith("[") and val.endswith("]")) or (val.startswith("{") and val.endswith("}")):
+                try:
+                    import json
+                    val = json.loads(val)
+                except:
+                    pass
+            elif val.lower() == "true": val = True
+            elif val.lower() == "false": val = False
+            
+        res[c.key] = val
     
     # 2. 确保关键配置项（如 api_token）通过 ConfigService 获取（包含 config.json 的回退逻辑）
     keys_to_ensure = [
