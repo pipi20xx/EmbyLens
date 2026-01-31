@@ -1,0 +1,27 @@
+{
+  "name": "Lens 浏览器助手",
+  "version": "1.8",
+  "description": "Lens 导航官方助手：一键收藏站点 + 新标签页替换",
+  "manifest_version": 3,
+  "permissions": ["storage", "tabs", "activeTab"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "options_page": "options.html",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  }
+}

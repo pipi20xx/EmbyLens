@@ -98,26 +98,36 @@ def save_nav_data(data: Dict[str, Any]):
 def list_categories():
     return get_nav_data()["categories"]
 
-def add_category(name: str, icon: Optional[str] = None):
+def add_category(name: str, icon: Optional[str] = None, order: Optional[int] = None):
     data = get_nav_data()
     new_id = int(time.time() * 1000)
-    data["categories"].append({
+    
+    if order is None:
+        max_order = -1
+        for c in data.get("categories", []):
+            max_order = max(max_order, c.get("order", 0))
+        order = max_order + 1
+
+    new_cat = {
         "id": new_id, 
         "name": name, 
         "icon": icon,
-        "order": len(data["categories"])
-    })
+        "order": order
+    }
+    data["categories"].append(new_cat)
     save_nav_data(data)
-    return new_id
+    return new_cat
 
-def update_category(cat_id: int, name: str, icon: Optional[str] = None):
+def update_category(cat_id: int, name: str, icon: Optional[str] = None, order: Optional[int] = None):
     data = get_nav_data()
-    # 1. 更新分类表中的名称和图标
+    # 1. 更新分类表中的名称、图标和排序
     for cat in data["categories"]:
         if str(cat["id"]) == str(cat_id):
             cat["name"] = name
             if icon is not None:
                 cat["icon"] = icon
+            if order is not None:
+                cat["order"] = order
             break
     
     # 2. 联动更新：更新所有属于该分类的站点的冗余名称字段
@@ -170,6 +180,21 @@ def list_sites():
 def add_site(site_data: Dict[str, Any]):
     data = get_nav_data()
     site_data["id"] = int(time.time() * 1000)
+    
+    # 自动设置排序：获取当前所有站点的最大 order 并 + 1
+    # 如果传入的 order 是 None，或者 order 是 0 且该分类下已有站点，则自动递增
+    if site_data.get("order") is None or site_data.get("order") == 0:
+        max_order = -1
+        has_sites = False
+        for s in data.get("sites", []):
+            if s.get("category_id") == site_data.get("category_id"):
+                max_order = max(max_order, s.get("order", 0))
+                has_sites = True
+        
+        # 只有在确实需要递增的情况下（已有站点且传入为0/None）才重写
+        if site_data.get("order") is None or has_sites:
+            site_data["order"] = max_order + 1
+        
     data["sites"].append(site_data)
     save_nav_data(data)
     return site_data

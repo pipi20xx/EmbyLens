@@ -264,8 +264,8 @@ async def create_category(category: CategoryCreate):
         if local_path:
             icon = local_path
             
-    cat_id = nav_service.add_category(category.name, icon)
-    return {"id": cat_id, "name": category.name, "icon": icon, "order": 0}
+    cat_obj = nav_service.add_category(category.name, icon, category.order)
+    return cat_obj
 
 @router.put("/categories/{cat_id}")
 async def update_category(cat_id: int, category: CategoryCreate):
@@ -275,7 +275,7 @@ async def update_category(cat_id: int, category: CategoryCreate):
         if local_path:
             icon = local_path
             
-    nav_service.update_category(cat_id, category.name, icon)
+    nav_service.update_category(cat_id, category.name, icon, category.order)
     return {"message": "Updated"}
 
 @router.delete("/categories/{cat_id}")
@@ -299,11 +299,11 @@ async def list_sites():
 
 @router.post("/", response_model=SiteNavResponse)
 async def create_site(site: SiteNavCreate):
-    # 自动本地化远程图标
+    # 自动本地化远程图标 (智能抓取)
     site_data = site.dict()
     icon = site_data.get("icon")
     if icon and icon.startswith(("http://", "https://")):
-        local_path = await download_and_cache_icon(icon)
+        local_path = await get_and_cache_favicon(icon)
         if local_path:
             site_data["icon"] = local_path
             
@@ -311,11 +311,11 @@ async def create_site(site: SiteNavCreate):
 
 @router.put("/{site_id}")
 async def update_site(site_id: int, site: SiteNavUpdate):
-    # 自动本地化远程图标
+    # 自动本地化远程图标 (智能抓取)
     site_data = site.dict(exclude_unset=True)
     icon = site_data.get("icon")
     if icon and icon.startswith(("http://", "https://")):
-        local_path = await download_and_cache_icon(icon)
+        local_path = await get_and_cache_favicon(icon)
         if local_path:
             site_data["icon"] = local_path
             
@@ -492,8 +492,7 @@ async def get_bing_wallpaper(
     
     return {"error": "Failed to fetch"}
 
-@router.get("/fetch-icon")
-async def fetch_icon(url: str = Query(...)):
+async def get_and_cache_favicon(url: str) -> Optional[str]:
     """抓取网页图标并自动本地化"""
     if not url.startswith(("http://", "https://")):
         url = 'https://' + url
@@ -505,8 +504,13 @@ async def fetch_icon(url: str = Query(...)):
     remote_icon_url = None
     try:
         async with get_async_client(timeout=10.0, headers=headers, use_proxy=True) as client:
-            resp = await client.get(url)
+            resp = await client.get(url, follow_redirects=True)
             if resp.status_code == 200:
+                # 如果返回的是图片，直接用
+                ctype = resp.headers.get("content-type", "").lower()
+                if "image/" in ctype:
+                    return await download_and_cache_icon(url)
+
                 html = resp.text
                 # 匹配所有 <link> 标签
                 links = re.findall(r'<link\s+[^>]*>', html, re.I)
@@ -535,11 +539,22 @@ async def fetch_icon(url: str = Query(...)):
             remote_icon_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
 
         # 下载到本地
-        local_path = await download_and_cache_icon(remote_icon_url)
-        return {"icon": local_path or remote_icon_url}
+        return await download_and_cache_icon(remote_icon_url)
             
     except Exception:
-        parsed = urlparse(url)
-        remote_icon_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
-        local_path = await download_and_cache_icon(remote_icon_url)
-        return {"icon": local_path or remote_icon_url}
+        try:
+            parsed = urlparse(url)
+            remote_icon_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+            return await download_and_cache_icon(remote_icon_url)
+        except:
+            return None
+
+@router.get("/fetch-icon")
+async def fetch_icon(url: str = Query(...)):
+    """抓取网页图标并自动本地化"""
+    local_path = await get_and_cache_favicon(url)
+    return {"icon": local_path or url}
+
+# ==========================================
+# 分类管理 API
+# ==========================================

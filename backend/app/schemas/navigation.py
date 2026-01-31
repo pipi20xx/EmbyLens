@@ -4,7 +4,7 @@ from typing import Optional, List
 class CategoryBase(BaseModel):
     name: str
     icon: Optional[str] = None
-    order: Optional[int] = 0
+    order: Optional[int] = None
 
 class CategoryCreate(CategoryBase):
     pass
@@ -22,7 +22,7 @@ class SiteNavBase(BaseModel):
     description: Optional[str] = None
     category_id: Optional[int] = None
     category: Optional[str] = "默认"
-    order: Optional[int] = 0
+    order: Optional[int] = None
 
 class SiteNavCreate(SiteNavBase):
     pass

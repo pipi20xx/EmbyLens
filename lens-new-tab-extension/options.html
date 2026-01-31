@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>设置 - Lens 助手</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; color: #333; max-width: 400px; margin: auto; }
+        .group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        .status { margin-top: 10px; font-size: 14px; color: #10b981; }
+    </style>
+</head>
+<body>
+    <h2>Lens 助手设置</h2>
+    <div class="group">
+        <label>Lens 服务器地址:</label>
+        <input type="text" id="baseUrl" placeholder="例如 http://192.168.50.202:6565">
+    </div>
+    <button id="save">保存设置</button>
+    <div id="status" class="status"></div>
+    <script src="options.js"></script>
+</body>
+</html>
