@@ -30,7 +30,7 @@ os.makedirs("/app/data/logs/audit", exist_ok=True)
 
 app = FastAPI(
     title="Lens API",
-    version="2.3.2",
+    version="2.3.3",
 )
 # 全局审计与性能监控中间件
 @app.middleware("http")
