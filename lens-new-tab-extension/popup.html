@@ -9,6 +9,10 @@
         .gear-btn { cursor: pointer; color: #64748b; transition: color 0.2s; }
         .gear-btn:hover { color: #2563eb; }
         
+        .tabs { display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+        .tab { flex: 1; text-align: center; padding: 10px; font-size: 13px; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; background: #fff; }
+
         .content { padding: 15px; }
         .view { display: none; }
         .view.active { display: flex; flex-direction: column; gap: 12px; }
@@ -38,6 +42,11 @@
         </div>
     </div>
 
+    <div id="main-tabs" class="tabs">
+        <div class="tab active" data-type="nav">网址导航</div>
+        <div class="tab" data-type="bookmark">书签同步</div>
+    </div>
+
     <div class="content">
         <!-- 收藏视图 -->
         <div id="add-view" class="view active">
@@ -49,11 +58,20 @@
                 <label>标题</label>
                 <input type="text" id="title">
             </div>
-            <div class="field">
+            
+            <!-- 导航特有字段 -->
+            <div id="nav-fields" class="field">
                 <label>保存到分类</label>
                 <select id="category"><option>加载分类中...</option></select>
             </div>
-            <button id="save-site" class="btn">保存站点</button>
+
+            <!-- 书签特有字段 -->
+            <div id="bookmark-fields" class="field" style="display: none;">
+                <label>保存到文件夹</label>
+                <select id="folder"><option value="">根目录</option></select>
+            </div>
+
+            <button id="save-site" class="btn">确认保存</button>
             <div id="add-status" class="status"></div>
         </div>
 
@@ -68,6 +86,7 @@
                 <input type="checkbox" id="append-home" style="width: auto;">
                 <label style="cursor: pointer;" for="append-home">自动进入 /home 页面</label>
             </div>
+            <button id="sync-to-browser" class="btn" style="background: #10b981;">同步书签到浏览器书签栏</button>
             <button id="save-config" class="btn">保存配置</button>
             <button id="back-to-add" class="btn btn-secondary">返回</button>
             <div id="config-status" class="status"></div>

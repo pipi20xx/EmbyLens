@@ -125,7 +125,26 @@ def export_bookmarks_to_html() -> str:
                     traverse(it['children'], level + 1)
                 lines.append(f'{indent}</DL><p>')
             else:
-                icon_attr = f' ICON="{it["icon"]}"' if it.get('icon') else ''
+                # 处理图标：如果是本地路径，转为 Base64
+                icon_val = it.get('icon', '')
+                if icon_val and icon_val.startswith('/nav_icons/'):
+                    import base64
+                    icon_path = os.path.join("data", icon_val.lstrip('/'))
+                    if os.path.exists(icon_path):
+                        try:
+                            with open(icon_path, "rb") as f:
+                                b64_data = base64.b64encode(f.read()).decode('utf-8')
+                                # 简单根据后缀判断 mime 类型
+                                ext = os.path.splitext(icon_path)[1].lower()
+                                mime = "image/png"
+                                if ext == '.svg': mime = "image/svg+xml"
+                                elif ext == '.ico': mime = "image/x-icon"
+                                elif ext in ['.jpg', '.jpeg']: mime = "image/jpeg"
+                                icon_val = f"data:{mime};base64,{b64_data}"
+                        except:
+                            pass
+                
+                icon_attr = f' ICON="{icon_val}"' if icon_val else ''
                 lines.append(f'{indent}<DT><A HREF="{it["url"]}"{icon_attr}>{it["title"]}</A>')
     
     if tree:

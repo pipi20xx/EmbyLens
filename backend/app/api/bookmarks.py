@@ -24,7 +24,16 @@ async def list_bookmarks(as_tree: bool = Query(True)):
 
 @router.post("/", response_model=BookmarkResponse)
 async def create_bookmark(bookmark: BookmarkCreate):
-    return service.add_bookmark(bookmark.dict())
+    # 自动本地化远程图标
+    bookmark_data = bookmark.dict()
+    icon = bookmark_data.get("icon")
+    if icon and icon.startswith(("http://", "https://")):
+        from .navigation import get_and_cache_favicon
+        local_path = await get_and_cache_favicon(icon)
+        if local_path:
+            bookmark_data["icon"] = local_path
+            
+    return service.add_bookmark(bookmark_data)
 
 @router.put("/{bm_id}")
 async def update_bookmark(bm_id: str, bookmark: BookmarkUpdate):
