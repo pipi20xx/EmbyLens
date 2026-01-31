@@ -32,9 +32,51 @@
         .status { font-size: 12px; text-align: center; margin-top: 8px; }
         .success { color: #10b981; }
         .error { color: #ef4444; }
+
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 260px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: modalShow 0.2s ease-out;
+        }
+        @keyframes modalShow {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-content h4 { margin: 0 0 10px 0; color: #1e293b; font-size: 15px; }
+        .modal-content p { margin: 0 0 20px 0; font-size: 13px; color: #64748b; line-height: 1.5; }
+        .modal-btns { display: flex; gap: 10px; }
+        .modal-btns button { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+        .btn-confirm { background: #ef4444; color: white; }
+        .btn-confirm:hover { background: #dc2626; }
+        .btn-cancel { background: #f1f5f9; color: #64748b; }
+        .btn-cancel:hover { background: #e2e8f0; }
     </style>
 </head>
 <body>
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h4>确认同步？</h4>
+            <p>这将清空您浏览器当前的<b>“书签栏”</b>并由 Lens 中的书签覆盖。此操作不可逆。</p>
+            <div class="modal-btns">
+                <button id="modal-cancel" class="btn-cancel">取消</button>
+                <button id="modal-confirm" class="btn-confirm">确定覆盖</button>
+            </div>
+        </div>
+    </div>
     <div class="header">
         <h3 id="view-title">添加到 Lens</h3>
         <div id="toggle-config" class="gear-btn">

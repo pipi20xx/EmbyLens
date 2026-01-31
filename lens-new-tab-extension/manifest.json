@@ -1,6 +1,6 @@
 {
   "name": "Lens 浏览器助手",
-  "version": "1.9",
+  "version": "2.0",
   "description": "Lens 导航官方助手：一键收藏站点 + 新标签页替换",
   "manifest_version": 3,
   "permissions": ["storage", "tabs", "activeTab", "bookmarks"],

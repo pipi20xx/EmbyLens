@@ -62,15 +62,45 @@ toggleBtn.onclick = () => {
 document.getElementById('back-to-add').onclick = () => showView('add');
 
 document.getElementById('save-config').onclick = () => {
-    // ... 原有逻辑
+    const baseUrl = document.getElementById('base-url').value.trim().replace(/\/$/, "");
+    const appendHome = document.getElementById('append-home').checked;
+    
+    if (!baseUrl.startsWith('http')) {
+        const status = document.getElementById('config-status');
+        status.innerHTML = '<span class="error">地址必须以 http:// 开头</span>';
+        return;
+    }
+
+    chrome.storage.local.set({ baseUrl, appendHome }, () => {
+        config.baseUrl = baseUrl;
+        const status = document.getElementById('config-status');
+        status.innerHTML = '<span class="success">配置已保存</span>';
+        setTimeout(() => {
+            status.innerHTML = '';
+            showView('add');
+            initAddView();
+        }, 1000);
+    });
 };
 
-document.getElementById('sync-to-browser').onclick = async () => {
+document.getElementById('sync-to-browser').onclick = () => {
+    const modal = document.getElementById('confirm-modal');
+    modal.style.display = 'flex';
+
+    document.getElementById('modal-cancel').onclick = () => {
+        modal.style.display = 'none';
+    };
+
+    document.getElementById('modal-confirm').onclick = async () => {
+        modal.style.display = 'none';
+        await performSync();
+    };
+};
+
+async function performSync() {
     const btn = document.getElementById('sync-to-browser');
     const status = document.getElementById('config-status');
     
-    if (!confirm('这将清空您浏览器当前的“书签栏”并由 Lens 中的书签覆盖。是否继续？')) return;
-
     btn.disabled = true;
     btn.textContent = '正在同步...';
 
@@ -80,7 +110,6 @@ document.getElementById('sync-to-browser').onclick = async () => {
         const tree = await res.json();
 
         // 2. 找到浏览器的“书签栏” (通常 ID 为 "1")
-        // 不同浏览器/环境下 ID 可能不同，安全做法是 search
         const nodes = await chrome.bookmarks.getTree();
         const root = nodes[0];
         const bookmarkBar = root.children.find(c => c.id === '1' || c.title.includes('书签栏') || c.title.includes('Bookmarks Bar'));
@@ -121,7 +150,7 @@ document.getElementById('sync-to-browser').onclick = async () => {
         btn.disabled = false;
         btn.textContent = '同步书签到浏览器书签栏';
     }
-};
+}
 
 async function initAddView() {
     if (!config.baseUrl) return;
